@@ -67,8 +67,11 @@ func _check_menu() -> void:
 	var buttons: Array = _screens._buttons[_screens._settings_window]
 	buttons[0].pressed.emit()
 	buttons[2].pressed.emit()
-	_check(is_equal_approx(AudioManager.music_volume, 0.9) and is_equal_approx(AudioManager.sfx_volume, 0.9),
+	_check(is_equal_approx(AudioManager.music_volume, 0.9) and is_equal_approx(AudioManager.sfx_volume, 0.9)
+			and is_equal_approx(_screens._music_slider.value, 90.0)
+			and is_equal_approx(_screens._sfx_slider.value, 90.0),
 			"Ajusta volumes")
+	await _capture("config")
 	_screens._mute_button.pressed.emit()
 	_check(AudioManager.muted and AudioManager.music_player.volume_db == -80.0, "Ativa mudo")
 	_screens._mute_button.pressed.emit()

@@ -16,6 +16,11 @@ func _initialize() -> void:
 		generate_legacy()
 		quit(1 if failed else 0)
 		return
+	if "--title-only" in OS.get_cmdline_user_args():
+		draw_title_screen()
+		save("title_bg")
+		quit(1 if failed else 0)
+		return
 	sheet("student_sheet", STUDENT)
 	sheet("classmate_sheet", CLASSMATE)
 	sheet("stations_sheet", STATIONS)
@@ -26,6 +31,8 @@ func _initialize() -> void:
 	for shift in 3:
 		draw_room(shift)
 		save(["room_morning", "room_afternoon", "room_night"][shift])
+	draw_title_screen()
+	save("title_bg")
 	quit(1 if failed else 0)
 
 func save(asset: String) -> void:
@@ -552,6 +559,161 @@ func draw_room(shift: int) -> void:
 				var y := 46+row*8
 				rect(x,y,15,7,"695859" if (row+col)%2 else "645254")
 				rect(x,y,14,1,"7f6761")
+
+
+func draw_title_screen() -> void:
+	art = Image.create_empty(640, 360, false, Image.FORMAT_RGBA8)
+	var sky_bands: Array[Color] = [
+		Color("140f24"), Color("1b1430"), Color("241b40"), Color("302251"),
+		Color("432b5e"), Color("5c365f"), Color("7e475b"), Color("a96057"),
+		Color("d2855f"), Color("ecb074"), Color("f4cf88"),
+	]
+	var bayer: Array[float] = [0.0, 0.5, 0.75, 0.25]
+	for y in 248:
+		var ny := float(y) / 248.0
+		for x in 640:
+			var nx := clampf((float(x) - 180.0) / 460.0, 0.0, 1.0)
+			var horizon := pow(ny, 1.35) * (0.45 + 0.55 * nx)
+			var level := clampf(horizon * float(sky_bands.size() - 1), 0.0, float(sky_bands.size() - 1))
+			var base_idx := mini(int(level), sky_bands.size() - 2)
+			var frac := level - float(base_idx)
+			var threshold: float = bayer[((x & 1) * 2) + (y & 1)]
+			var idx := base_idx + (1 if frac > threshold else 0)
+			art.set_pixel(x, y, sky_bands[idx])
+
+	# Halos suaves e estrelas no céu superior.
+	var sky_rng := RandomNumberGenerator.new()
+	sky_rng.seed = 202603
+	for i in 52:
+		var sx := sky_rng.randi_range(8, 630)
+		var sy := sky_rng.randi_range(8, 160)
+		if sx < 240 and sy < 115 and sky_rng.randf() < 0.45:
+			continue
+		var col := "faf0dd" if i % 4 == 0 else ("c9c5df" if i % 3 == 0 else "8de5ff")
+		if i % 11 == 0 and sx > 280:
+			rect(sx - 1, sy, 3, 1, "c9c5df")
+			rect(sx, sy - 1, 1, 3, "c9c5df")
+			rect(sx, sy, 1, 1, "faf0dd")
+		else:
+			rect(sx, sy, 1, 1, col)
+
+	# Lua crescente com halo discreto.
+	for y in range(-22, 23):
+		for x in range(-22, 23):
+			var dist := sqrt(float(x * x + y * y))
+			if dist <= 22.0 and dist > 13.0 and (((x + y) & 1) == 0):
+				var px := 544 + x
+				var py := 56 + y
+				if px >= 0 and px < 640 and py >= 0 and py < 248:
+					art.set_pixel(px, py, art.get_pixel(px, py).lerp(Color("66558a"), 0.28))
+	for y in range(-13, 14):
+		var half := roundi(sqrt(maxf(0.0, 169.0 - float(y * y))))
+		rect(544 - half, 56 + y, half * 2 + 1, 1, "f4e7c6")
+	for y in range(-11, 12):
+		var hole := roundi(sqrt(maxf(0.0, 110.0 - float((y + 2) * (y + 2)))))
+		for x in range(549 - hole, 550 + hole):
+			if x >= 530 and x < 560 and 56 + y >= 40 and 56 + y < 74:
+				art.set_pixel(x, 56 + y, sky_bands[1])
+
+	# Nuvens em camadas estilizadas com brilho do horizonte.
+	for puff in [
+		Vector4i(315, 118, 42, 9), Vector4i(346, 112, 34, 8), Vector4i(296, 124, 30, 6),
+		Vector4i(438, 96, 46, 8), Vector4i(468, 91, 28, 7),
+		Vector4i(510, 142, 62, 10), Vector4i(548, 136, 42, 8),
+	]:
+		rect(puff.x + 3, puff.y, puff.z - 6, puff.w, "4f396a")
+		rect(puff.x, puff.y + 2, puff.z, puff.w - 3, "674879")
+		rect(puff.x + 2, puff.y + puff.w - 2, puff.z - 4, 2, "c27c68")
+		rect(puff.x + 6, puff.y + puff.w - 1, puff.z - 12, 1, "e4a472")
+
+	# Colinas ao fundo e silhueta dos blocos do campus.
+	for x in 640:
+		var ridge_far := 196 + roundi(14.0 * sin(x * 0.011 + 0.6) + 6.0 * cos(x * 0.027))
+		rect(x, ridge_far, 1, 250 - ridge_far, "2b2042")
+		var ridge_near := 214 + roundi(10.0 * sin(x * 0.016 + 2.2) + 4.0 * sin(x * 0.04))
+		rect(x, ridge_near, 1, 250 - ridge_near, "1e1633")
+
+	# Prédios universitários, biblioteca/torre do relógio e janelas acesas.
+	var buildings := [
+		Vector4i(278, 198, 54, 48), Vector4i(336, 186, 68, 60),
+		Vector4i(408, 196, 42, 50), Vector4i(452, 156, 38, 90),
+		Vector4i(494, 188, 66, 58), Vector4i(564, 194, 52, 52),
+	]
+	for b in buildings:
+		rect(b.x, b.y, b.z, b.w, "171127")
+		rect(b.x + b.z - 2, b.y + 1, 2, b.w - 1, "33254a")
+		rect(b.x + 1, b.y, b.z - 2, 2, "3d2c52")
+	# Telhados inclinados e torre central.
+	for step in 12:
+		rect(336 + step * 2, 186 - step, 68 - step * 4, 1, "231938")
+		rect(454 + step, 156 - step, 34 - step * 2, 1, "291d40")
+	rect(470, 136, 2, 10, "4d3860")
+	# Relógio da torre.
+	rect(466, 165, 10, 10, "f4ba72")
+	rect(467, 166, 8, 8, "ffe3a0")
+	rect(471, 167, 1, 4, "3d2c52")
+	rect(471, 170, 3, 1, "3d2c52")
+	# Janelas iluminadas do campus.
+	for b in buildings:
+		for wy in range(b.y + 10, 236, 11):
+			for wx in range(b.x + 6, b.x + b.z - 8, 10):
+				if sky_rng.randf() < 0.58:
+					rect(wx, wy, 4, 5, "e7a25f" if sky_rng.randf() < 0.6 else "ffe091")
+
+	# Copas de árvores estilizadas atrás da balaustrada.
+	for tx in [268, 326, 400, 558, 622]:
+		for dy in range(-14, 14):
+			var span := roundi(sqrt(maxf(0.0, 196.0 - float(dy * dy))))
+			rect(tx - span, 232 + dy, span * 2, 1, "161428")
+			rect(tx - span + 2, 230 + dy, maxi(1, span - 3), 1, "25203c")
+
+	# Balaustrada de pedra do terraço (y = 242..268).
+	rect(0, 242, 640, 26, INK)
+	rect(0, 243, 640, 3, "8a7284")
+	rect(280, 243, 360, 2, "c99c80")
+	rect(0, 246, 640, 2, "534257")
+	rect(0, 248, 640, 16, "21192f")
+	for bx in range(10, 636, 18):
+		rect(bx, 248, 7, 16, "4a3a52")
+		rect(bx + 1, 249, 2, 14, "735d73")
+		rect(bx + 5, 249, 2, 14, "9e7b7a" if bx > 300 else "5e4c64")
+	rect(0, 264, 640, 4, "5c4a60")
+	rect(0, 265, 640, 1, "866f80")
+	for px in [28, 304, 588]:
+		rect(px, 237, 18, 31, INK)
+		rect(px + 1, 238, 16, 4, "8f7788")
+		rect(px + 2, 242, 14, 25, "5b4860")
+		rect(px + 3, 243, 4, 23, "7e677a")
+		rect(px + 13, 243, 3, 23, "b38c7e" if px > 250 else "69546c")
+
+	# Piso em ladrilhos / tábuas do terraço (y = 268..360).
+	rect(0, 268, 640, 92, "251c31")
+	var floor_tones := ["2e233b", "352844", "3b2d4a", "2b2038"]
+	for row in range(0, 92, 10):
+		var fy := 268 + row
+		var offset := (row / 10) % 2 * 16
+		for fx in range(-offset, 640, 32):
+			var tone: String = floor_tones[(abs(fx + row)) % floor_tones.size()]
+			rect(fx + 1, fy + 1, 30, 8, tone)
+			rect(fx + 2, fy + 1, 28, 1, "4c3b5c" if fx < 320 else "644c63")
+			rect(fx + 1, fy + 8, 30, 1, "1d1527")
+
+	# Poste de luz no canto direito iluminando o terraço.
+	rect(594, 174, 6, 94, INK)
+	rect(595, 175, 4, 92, "3d3a52")
+	rect(596, 175, 1, 90, "676380")
+	rect(584, 178, 16, 3, INK)
+	rect(585, 179, 14, 1, "5c5973")
+	rect(580, 181, 14, 15, INK)
+	rect(582, 183, 10, 11, "f4ba72")
+	rect(584, 184, 6, 8, "ffe8aa")
+	rect(592, 266, 10, 5, "5c5973")
+	for y in range(188, 330):
+		for x in range(440, 638):
+			var d := sqrt(float((x - 586) * (x - 586) + (y - 190) * (y - 190)))
+			if d < 145.0 and ((x + y) & 1) == 0:
+				var glow := pow(clampf(1.0 - d / 145.0, 0.0, 1.0), 1.6) * 0.24
+				art.set_pixel(x, y, art.get_pixel(x, y).lerp(Color("f4ba72"), glow))
 
 func generate_legacy() -> void:
 	arena()

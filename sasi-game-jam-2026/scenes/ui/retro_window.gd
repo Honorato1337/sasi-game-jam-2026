@@ -125,3 +125,35 @@ static func meter(parent: Node, rect: Rect2, color: Color) -> ProgressBar:
 	bar.add_theme_stylebox_override(&"fill", style(color, color, 0))
 	place(bar, parent, rect)
 	return bar
+
+
+static func slider(parent: Node, rect: Rect2, fill_color: Color) -> HSlider:
+	var bar: HSlider = HSlider.new()
+	bar.min_value = 0.0
+	bar.max_value = 100.0
+	bar.step = 5.0
+	bar.focus_mode = Control.FOCUS_NONE
+	bar.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var track: StyleBoxFlat = style(INK, BEVEL_DARK, 1)
+	track.content_margin_top = 4
+	track.content_margin_bottom = 4
+	var filled: StyleBoxFlat = style(fill_color, fill_color, 0)
+	filled.content_margin_top = 4
+	filled.content_margin_bottom = 4
+	var filled_hover: StyleBoxFlat = style(fill_color.lightened(0.14), fill_color.lightened(0.14), 0)
+	filled_hover.content_margin_top = 4
+	filled_hover.content_margin_bottom = 4
+	bar.add_theme_stylebox_override(&"slider", track)
+	bar.add_theme_stylebox_override(&"grabber_area", filled)
+	bar.add_theme_stylebox_override(&"grabber_area_highlight", filled_hover)
+	bar.add_theme_icon_override(&"grabber", _grabber_texture(CREAM))
+	bar.add_theme_icon_override(&"grabber_highlight", _grabber_texture(fill_color.lightened(0.25)))
+	place(bar, parent, rect)
+	return bar
+
+
+static func _grabber_texture(fill: Color) -> ImageTexture:
+	var img: Image = Image.create_empty(8, 14, false, Image.FORMAT_RGBA8)
+	img.fill(INK)
+	img.fill_rect(Rect2i(1, 1, 6, 12), fill)
+	return ImageTexture.create_from_image(img)

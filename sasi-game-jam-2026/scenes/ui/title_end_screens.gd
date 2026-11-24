@@ -1,10 +1,21 @@
 extends CanvasLayer
 
 const Retro = preload("res://scenes/ui/retro_window.gd")
+const TITLE_BG: Texture2D = preload("res://assets/sprites/title_bg.png")
 const STUDENT_SHEET: Texture2D = preload("res://assets/sprites/student_sheet.png")
 const CLASSMATE_SHEET: Texture2D = preload("res://assets/sprites/classmate_sheet.png")
 const WINDOW_WIDTH: int = 450
+const SETTINGS_PATH: String = "user://settings.cfg"
+const RESOLUTIONS: Array[Vector2i] = [
+	Vector2i(960, 540),
+	Vector2i(1280, 720),
+	Vector2i(1600, 900),
+	Vector2i(1920, 1080),
+]
 
+var _title_art: TextureRect
+var _backdrop: ColorRect
+var _title_fx: Node2D
 var _title_window: Panel
 var _help_window: Panel
 var _settings_window: Panel
@@ -15,84 +26,171 @@ var _active_window: Panel
 var _return_button: Button
 var _space_button: Button
 var _buttons: Dictionary[Panel, Array] = {}
+var _music_slider: HSlider
+var _sfx_slider: HSlider
 var _music_value: Label
 var _sfx_value: Label
 var _mute_button: Button
 var _shake_button: Button
 var _fullscreen_button: Button
+var _resolution_button: Button
+var _reset_button: Button
+var _quit_button: Button
+var _sfx_step_buttons: Array[Button] = []
+var _syncing_sliders: bool
 var _end_caption: Label
 var _end_heading: Label
 var _end_message: Label
 var _stats: Label
-var _previews: Dictionary[AtlasTexture, int] = {}
+var _cursor: Label
+var _student_atlas: AtlasTexture = AtlasTexture.new()
+var _classmate_atlas: AtlasTexture = AtlasTexture.new()
 var _preview_time: float
 
 
 func _ready() -> void:
-	var backdrop: ColorRect = Retro.block(self, Rect2(0, 0, 640, 360), Color("#231e2ec4"))
-	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	_title_art = TextureRect.new()
+	_title_art.texture = TITLE_BG
+	_title_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_title_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_title_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	Retro.place(_title_art, self, Rect2(0, 0, 640, 360))
+
+	_backdrop = Retro.block(self, Rect2(0, 0, 640, 360), Color("#140e1fb8"))
+	_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+
 	_build_help()
 	_build_settings()
 	_build_credits()
 	_build_title()
 	_build_pause()
 	_build_end()
+	_load_settings()
+	_refresh_settings()
 	get_viewport().size_changed.connect(_refresh_fullscreen)
 	GameManager.state_changed.connect(_on_state_changed)
 	_on_state_changed(GameManager.current_state)
 
 
 func _build_title() -> void:
-	_title_window = _window(286, "")
-	_centered(_title_window, 16, 32, "TRÊS TURNOS", 27, Retro.GOLD)
-	_centered(_title_window, 50, 18, "Manhã, Tarde e Noite", 14, Retro.MINT)
-	Retro.divider(_title_window, Rect2(24, 73, WINDOW_WIDTH - 48, 1))
-	_preview(_title_window, 21, STUDENT_SHEET, 8, 2, "Estudante")
-	_preview(_title_window, 333, CLASSMATE_SHEET, 2, 2, "Colega")
+	_title_window = Panel.new()
+	_title_window.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_title_window.add_theme_stylebox_override(&"panel", StyleBoxEmpty.new())
+	Retro.place(_title_window, self, Rect2(0, 0, 640, 360))
+	_title_window.hide()
+	_buttons[_title_window] = []
 
-	_action(_title_window, Rect2(123, 84, 204, 27), "JOGAR", GameManager.start_new_run)
-	var help: Button = _action(_title_window, Rect2(123, 117, 204, 27), "COMO JOGAR")
-	help.pressed.connect(_open_subwindow.bind(_help_window, help))
-	var settings: Button = _action(_title_window, Rect2(123, 150, 204, 27), "CONFIGURAÇÕES")
+	_title_fx = Node2D.new()
+	_title_fx.draw.connect(_draw_title_fx)
+	_title_window.add_child(_title_fx)
+
+	_character_actor(_title_window, Rect2(364, 198, 96, 96), STUDENT_SHEET, 8, _student_atlas)
+	_character_actor(_title_window, Rect2(464, 200, 96, 96), CLASSMATE_SHEET, 2, _classmate_atlas)
+
+	_outlined_label(_title_window, Rect2(40, 26, 240, 16), "SASI: GAME JAM 2026  •  UFAC",
+			10, Retro.MUTED, 3)
+	_outlined_label(_title_window, Rect2(38, 44, 290, 40), "TRÊS TURNOS", 32, Retro.GOLD, 6)
+	_outlined_label(_title_window, Rect2(40, 86, 250, 20), "Manhã, Tarde e Noite",
+			14, Retro.MINT, 4)
+	Retro.divider(_title_window, Rect2(40, 110, 212, 1))
+
+	var play: Button = _action(_title_window, Rect2(40, 124, 212, 28), "JOGAR",
+			GameManager.start_new_run)
+	play.add_theme_stylebox_override(&"normal", Retro.style(Color("#3f3357"), Retro.GOLD, 1))
+
+	var settings: Button = _action(_title_window, Rect2(40, 158, 212, 28), "CONFIGURAÇÕES")
 	settings.pressed.connect(_open_subwindow.bind(_settings_window, settings))
-	var credits: Button = _action(_title_window, Rect2(123, 183, 204, 27), "CRÉDITOS & SAÚDE")
+
+	var help: Button = _action(_title_window, Rect2(40, 192, 212, 28), "COMO JOGAR")
+	help.pressed.connect(_open_subwindow.bind(_help_window, help))
+
+	var credits: Button = _action(_title_window, Rect2(40, 226, 212, 28), "CRÉDITOS & SAÚDE")
 	credits.pressed.connect(_open_subwindow.bind(_credits_window, credits))
+
 	if not OS.has_feature("web"):
-		_action(_title_window, Rect2(123, 216, 204, 27), "SAIR", get_tree().quit)
-	_centered(_title_window, 254, 18, "W/S ou ↑/↓ para navegar   •   Enter para confirmar", 11, Retro.MUTED)
+		_quit_button = _action(_title_window, Rect2(40, 260, 212, 28), "SAIR", get_tree().quit)
+
+	_cursor = _outlined_label(_title_window, Rect2(24, 124, 14, 28), "▶", 12, Retro.MINT, 3)
+	_outlined_label(_title_window, Rect2(40, 330, 320, 18),
+			"↑/↓ ou Mouse para navegar  •  Enter / Clique para confirmar", 10, Retro.MUTED, 3)
 
 
-func _preview(parent: Panel, x: int, sheet: Texture2D, frame_count: int,
-		scale_factor: int, caption: String) -> void:
-	var atlas: AtlasTexture = AtlasTexture.new()
+func _character_actor(parent: Control, rect: Rect2, sheet: Texture2D, frame_count: int,
+		atlas: AtlasTexture) -> void:
 	atlas.atlas = sheet
 	atlas.region = Rect2(0, 0, float(sheet.get_width()) / frame_count, sheet.get_height())
 	atlas.filter_clip = true
-	_previews[atlas] = frame_count
-	var box: Panel = Panel.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_theme_stylebox_override(&"panel", Retro.style(Retro.INK, Retro.FRAME, 1))
-	Retro.place(box, parent, Rect2(x + 14, 108, 68, 68))
-	var preview: TextureRect = TextureRect.new()
-	preview.texture = atlas
-	preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var frame_size: Vector2 = atlas.region.size * scale_factor
-	var center: Vector2 = Vector2(x + 48, 142)
-	Retro.place(preview, parent, Rect2(center - frame_size / 2, frame_size))
-	Retro.label(parent, Rect2(x, 180, 96, 18), caption, 11, Retro.MUTED,
-			HORIZONTAL_ALIGNMENT_CENTER)
+	var actor: TextureRect = TextureRect.new()
+	actor.texture = atlas
+	actor.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	actor.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	actor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	Retro.place(actor, parent, rect)
+
+
+func _outlined_label(parent: Control, rect: Rect2, content: String, font_size: int,
+		color: Color, outline: int) -> Label:
+	var label_node: Label = Retro.label(parent, rect, content, font_size, color,
+			HORIZONTAL_ALIGNMENT_LEFT, false)
+	label_node.add_theme_color_override(&"font_outline_color", Color("#140e1f"))
+	label_node.add_theme_constant_override(&"outline_size", outline)
+	return label_node
+
+
+func _draw_title_fx() -> void:
+	if _title_fx == null or not visible or _active_window != _title_window:
+		return
+	for shadow_center: Vector2 in [Vector2(412, 286), Vector2(512, 288)]:
+		_title_fx.draw_rect(Rect2(shadow_center - Vector2(20, 3), Vector2(40, 6)),
+				Color(0.08, 0.05, 0.12, 0.55))
+		_title_fx.draw_rect(Rect2(shadow_center - Vector2(14, 5), Vector2(28, 10)),
+				Color(0.08, 0.05, 0.12, 0.35))
+
+	var pulse: float = 0.5 + 0.5 * sin(_preview_time * 3.0)
+	for radius: float in [42.0, 28.0, 16.0]:
+		_title_fx.draw_circle(Vector2(587, 188), radius, Color(0.98, 0.78, 0.44, 0.035 + pulse * 0.02))
+
+	var stars: Array[Vector3] = [
+		Vector3(294, 42, 0.0), Vector3(368, 28, 1.3), Vector3(422, 64, 2.4),
+		Vector3(486, 36, 0.8), Vector3(598, 72, 1.9), Vector3(340, 88, 2.9),
+	]
+	for star: Vector3 in stars:
+		var glow: float = 0.35 + 0.65 * (0.5 + 0.5 * sin(_preview_time * 3.2 + star.z))
+		var pos: Vector2 = Vector2(star.x, star.y)
+		_title_fx.draw_rect(Rect2(pos, Vector2(1, 1)), Color(0.98, 0.94, 0.86, glow))
+		if glow > 0.82:
+			_title_fx.draw_rect(Rect2(pos - Vector2(1, 0), Vector2(3, 1)), Color(0.8, 0.78, 0.9, glow * 0.45))
+			_title_fx.draw_rect(Rect2(pos - Vector2(0, 1), Vector2(1, 3)), Color(0.8, 0.78, 0.9, glow * 0.45))
+
+	for idx: int in range(6):
+		var phase: float = float(idx) * 1.15
+		var mote: Vector2 = Vector2(
+			345.0 + float(idx) * 44.0 + sin(_preview_time * 0.9 + phase) * 8.0,
+			226.0 + float((idx % 3) * 18) + cos(_preview_time * 1.2 + phase) * 5.0
+		).round()
+		var alpha: float = 0.25 + 0.45 * (0.5 + 0.5 * sin(_preview_time * 2.5 + phase))
+		_title_fx.draw_rect(Rect2(mote, Vector2(2, 2)), Color(0.96, 0.79, 0.48, alpha))
 
 
 func _process(delta: float) -> void:
-	if _active_window != _title_window:
+	if not visible or _active_window != _title_window:
 		return
-	_preview_time = fposmod(_preview_time + delta, 2.0)
-	for atlas: AtlasTexture in _previews:
-		var region: Rect2 = atlas.region
-		region.position.x = region.size.x * (int(_preview_time * 4.0) % _previews[atlas])
-		atlas.region = region
+	_preview_time = fposmod(_preview_time + delta, TAU * 10.0)
+	var student_region: Rect2 = _student_atlas.region
+	student_region.position.x = student_region.size.x * (int(_preview_time * 2.4) % 2)
+	_student_atlas.region = student_region
+	var classmate_region: Rect2 = _classmate_atlas.region
+	classmate_region.position.x = classmate_region.size.x * (int(_preview_time * 2.0) % 2)
+	_classmate_atlas.region = classmate_region
+	if _title_fx != null:
+		_title_fx.queue_redraw()
+	if _cursor != null:
+		var focused: Button = get_viewport().gui_get_focus_owner() as Button
+		var valid: bool = focused != null and focused.get_parent() == _title_window
+		_cursor.visible = valid
+		if valid:
+			var bob: float = roundf(sin(_preview_time * 7.0) * 1.5)
+			_cursor.position = Vector2(focused.position.x - 16.0 + bob, focused.position.y)
 
 
 func _build_help() -> void:
@@ -122,33 +220,43 @@ func _build_help() -> void:
 
 
 func _build_settings() -> void:
-	_settings_window = _window(252, "CONFIGURAÇÕES")
-	_music_value = _volume_row(38, "Música", _change_music_volume)
-	_sfx_value = _volume_row(72, "Efeitos (SFX)", _change_sfx_volume)
+	_settings_window = _window(292, "CONFIGURAÇÕES")
+	_music_value = _slider_row(38, "Música", Retro.MINT, _change_music_volume, _on_music_slider_changed, false)
+	_sfx_value = _slider_row(72, "Efeitos (SFX)", Retro.GOLD, _change_sfx_volume, _on_sfx_slider_changed, true)
 	_mute_button = _toggle_row(106, "Áudio Geral", _toggle_mute)
 	_shake_button = _toggle_row(140, "Tremor de Tela", _toggle_shake)
-	_fullscreen_button = _toggle_row(174, "Tela Cheia", _toggle_fullscreen)
+	_fullscreen_button = _toggle_row(174, "Modo de Tela", _toggle_fullscreen)
 	_fullscreen_button.disabled = DisplayServer.get_name() == "headless"
-	_back_button(_settings_window, 214)
-	_refresh_settings()
+	_resolution_button = _toggle_row(208, "Resolução", _cycle_resolution)
+	_reset_button = _action(_settings_window, Rect2(40, 248, 178, 28), "RESTAURAR PADRÕES", _reset_settings)
+	_action(_settings_window, Rect2(232, 248, 178, 28), "VOLTAR [ESC]", _close_subwindow)
 
 
-func _volume_row(y: int, caption: String, change: Callable) -> Label:
+func _slider_row(y: int, caption: String, fill_color: Color, step_change: Callable,
+		slide_change: Callable, is_sfx: bool) -> Label:
 	_setting_label(y, caption)
-	_action(_settings_window, Rect2(220, y, 44, 28), "[-]", change.bind(-10))
-	_action(_settings_window, Rect2(378, y, 44, 28), "[+]", change.bind(10))
-	return Retro.label(_settings_window, Rect2(264, y, 114, 28), "", 13, Retro.GOLD,
-			HORIZONTAL_ALIGNMENT_CENTER)
+	var minus_btn: Button = _action(_settings_window, Rect2(152, y, 32, 26), "[-]", step_change.bind(-10))
+	var bar: HSlider = Retro.slider(_settings_window, Rect2(190, y, 134, 26), fill_color)
+	bar.value_changed.connect(slide_change)
+	var plus_btn: Button = _action(_settings_window, Rect2(330, y, 32, 26), "[+]", step_change.bind(10))
+	if is_sfx:
+		_sfx_slider = bar
+		_sfx_step_buttons.append(minus_btn)
+		_sfx_step_buttons.append(plus_btn)
+	else:
+		_music_slider = bar
+	return Retro.label(_settings_window, Rect2(368, y, 58, 26), "", 12, Retro.GOLD,
+			HORIZONTAL_ALIGNMENT_RIGHT)
 
 
 func _toggle_row(y: int, caption: String, action: Callable) -> Button:
 	_setting_label(y, caption)
-	return _action(_settings_window, Rect2(220, y, 202, 28), "", action)
+	return _action(_settings_window, Rect2(220, y, 206, 26), "", action)
 
 
 func _setting_label(y: int, caption: String) -> void:
-	Retro.block(_settings_window, Rect2(16, y, 418, 28), Retro.INK)
-	Retro.label(_settings_window, Rect2(27, y, 182, 28), caption, 13)
+	Retro.block(_settings_window, Rect2(16, y, 418, 26), Retro.INK)
+	Retro.label(_settings_window, Rect2(24, y, 122, 26), caption, 12)
 
 
 func _build_credits() -> void:
@@ -209,9 +317,22 @@ func _action(parent: Panel, rect: Rect2, caption: String, callback: Callable = C
 	focus.draw_center = false
 	button.add_theme_stylebox_override(&"focus", focus)
 	_buttons[parent].append(button)
+	button.mouse_entered.connect(_on_button_hovered.bind(button))
+	button.pressed.connect(_on_button_cue.bind(button))
 	if callback.is_valid():
 		button.pressed.connect(callback)
 	return button
+
+
+func _on_button_hovered(button: Button) -> void:
+	if not button.disabled and button.get_parent() == _active_window:
+		button.grab_focus()
+
+
+func _on_button_cue(button: Button) -> void:
+	if button == _quit_button or button in _sfx_step_buttons:
+		return
+	AudioManager.play_ui_cue()
 
 
 func _back_button(parent: Panel, y: int) -> void:
@@ -238,8 +359,12 @@ func _show_window(window: Panel) -> void:
 		_active_window.hide()
 	_active_window = window
 	if window == null:
+		_title_art.hide()
+		_backdrop.hide()
 		hide()
 		return
+	_title_art.visible = (GameManager.current_state == GameManager.GameState.MENU)
+	_backdrop.visible = (window != _title_window)
 	window.show()
 	show()
 	_focus_active_window()
@@ -317,6 +442,15 @@ func _move_focus(step: int) -> void:
 func _change_music_volume(step: int) -> void:
 	AudioManager.set_music_volume((roundi(AudioManager.music_volume * 100.0) + step) / 100.0)
 	_refresh_settings()
+	_save_settings()
+
+
+func _on_music_slider_changed(value: float) -> void:
+	if _syncing_sliders:
+		return
+	AudioManager.set_music_volume(value / 100.0)
+	_refresh_settings()
+	_save_settings()
 
 
 func _change_sfx_volume(step: int) -> void:
@@ -325,16 +459,30 @@ func _change_sfx_volume(step: int) -> void:
 	if AudioManager.sfx_volume != previous:
 		AudioManager.play_ui_cue()
 	_refresh_settings()
+	_save_settings()
+
+
+func _on_sfx_slider_changed(value: float) -> void:
+	if _syncing_sliders:
+		return
+	var previous: float = AudioManager.sfx_volume
+	AudioManager.set_sfx_volume(value / 100.0)
+	if not is_equal_approx(AudioManager.sfx_volume, previous):
+		AudioManager.play_ui_cue()
+	_refresh_settings()
+	_save_settings()
 
 
 func _toggle_mute() -> void:
 	AudioManager.set_muted(not AudioManager.muted)
 	_refresh_settings()
+	_save_settings()
 
 
 func _toggle_shake() -> void:
 	GameManager.set_screen_shake_enabled(not GameManager.screen_shake_enabled)
 	_refresh_settings()
+	_save_settings()
 
 
 func _toggle_fullscreen() -> void:
@@ -343,7 +491,92 @@ func _toggle_fullscreen() -> void:
 	var mode: DisplayServer.WindowMode = DisplayServer.WINDOW_MODE_WINDOWED if _is_fullscreen() \
 			else DisplayServer.WINDOW_MODE_FULLSCREEN
 	DisplayServer.window_set_mode(mode)
-	_refresh_fullscreen()
+	_refresh_settings()
+	_save_settings()
+
+
+func _cycle_resolution() -> void:
+	if _resolution_button.disabled:
+		return
+	var current: Vector2i = DisplayServer.window_get_size()
+	var idx: int = RESOLUTIONS.find(current)
+	var next_idx: int = (idx + 1) % RESOLUTIONS.size() if idx != -1 else 1
+	_apply_window_size(RESOLUTIONS[next_idx])
+	_refresh_resolution()
+	_save_settings()
+
+
+func _apply_window_size(target: Vector2i) -> void:
+	if DisplayServer.get_name() == "headless" or OS.has_feature("web") or _is_fullscreen():
+		return
+	var screen: int = DisplayServer.window_get_current_screen()
+	var usable: Rect2i = DisplayServer.screen_get_usable_rect(screen)
+	DisplayServer.window_set_size(target)
+	var offset: Vector2i = Vector2i(
+		maxi(0, (usable.size.x - target.x) / 2),
+		maxi(28, (usable.size.y - target.y) / 2)
+	)
+	DisplayServer.window_set_position(usable.position + offset)
+
+
+func _reset_settings() -> void:
+	AudioManager.set_music_volume(1.0)
+	AudioManager.set_sfx_volume(1.0)
+	AudioManager.set_muted(false)
+	GameManager.set_screen_shake_enabled(true)
+	if _is_fullscreen():
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	_apply_window_size(Vector2i(1280, 720))
+	_refresh_settings()
+	_save_settings()
+
+
+func _should_persist_settings() -> bool:
+	if DisplayServer.get_name() == "headless":
+		return false
+	var node: Node = self
+	while node != null:
+		if node.name == &"ValidateT018":
+			return false
+		node = node.get_parent()
+	return true
+
+
+func _load_settings() -> void:
+	if not _should_persist_settings():
+		return
+	var cfg: ConfigFile = ConfigFile.new()
+	if cfg.load(SETTINGS_PATH) != OK:
+		return
+	AudioManager.set_music_volume(float(cfg.get_value("audio", "music_volume", 1.0)))
+	AudioManager.set_sfx_volume(float(cfg.get_value("audio", "sfx_volume", 1.0)))
+	AudioManager.set_muted(bool(cfg.get_value("audio", "muted", false)))
+	GameManager.set_screen_shake_enabled(bool(cfg.get_value("gameplay", "screen_shake", true)))
+	var full: bool = bool(cfg.get_value("display", "fullscreen", false))
+	if full and not _is_fullscreen():
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+	elif not full:
+		var w: int = int(cfg.get_value("display", "window_width", 1280))
+		var h: int = int(cfg.get_value("display", "window_height", 720))
+		if w >= 640 and h >= 360:
+			_apply_window_size(Vector2i(w, h))
+
+
+func _save_settings() -> void:
+	if not _should_persist_settings():
+		return
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.set_value("audio", "music_volume", AudioManager.music_volume)
+	cfg.set_value("audio", "sfx_volume", AudioManager.sfx_volume)
+	cfg.set_value("audio", "muted", AudioManager.muted)
+	cfg.set_value("gameplay", "screen_shake", GameManager.screen_shake_enabled)
+	var full: bool = _is_fullscreen()
+	cfg.set_value("display", "fullscreen", full)
+	if not full:
+		var win_size: Vector2i = DisplayServer.window_get_size()
+		cfg.set_value("display", "window_width", win_size.x)
+		cfg.set_value("display", "window_height", win_size.y)
+	cfg.save(SETTINGS_PATH)
 
 
 func _is_fullscreen() -> bool:
@@ -354,11 +587,35 @@ func _is_fullscreen() -> bool:
 
 func _refresh_fullscreen() -> void:
 	_fullscreen_button.text = "TELA CHEIA" if _is_fullscreen() else "JANELA"
+	_refresh_resolution()
+
+
+func _refresh_resolution() -> void:
+	if _resolution_button == null:
+		return
+	if DisplayServer.get_name() == "headless":
+		_resolution_button.text = "HEADLESS"
+		_resolution_button.disabled = true
+	elif OS.has_feature("web"):
+		_resolution_button.text = "AUTOMÁTICA"
+		_resolution_button.disabled = true
+	else:
+		var win_size: Vector2i = DisplayServer.window_get_size()
+		_resolution_button.text = "%dx%d" % [win_size.x, win_size.y]
+		_resolution_button.disabled = _is_fullscreen()
 
 
 func _refresh_settings() -> void:
-	_music_value.text = "%d%%" % roundi(AudioManager.music_volume * 100.0)
-	_sfx_value.text = "%d%%" % roundi(AudioManager.sfx_volume * 100.0)
+	_syncing_sliders = true
+	var music_pct: int = roundi(AudioManager.music_volume * 100.0)
+	var sfx_pct: int = roundi(AudioManager.sfx_volume * 100.0)
+	if _music_slider != null:
+		_music_slider.value = float(music_pct)
+	if _sfx_slider != null:
+		_sfx_slider.value = float(sfx_pct)
+	_syncing_sliders = false
+	_music_value.text = "%d%%" % music_pct
+	_sfx_value.text = "%d%%" % sfx_pct
 	_mute_button.text = "MUDO" if AudioManager.muted else "ATIVO"
 	_shake_button.text = "LIGADO" if GameManager.screen_shake_enabled else "DESLIGADO"
 	_refresh_fullscreen()
