@@ -40,29 +40,26 @@ func _ready() -> void:
 	_vignette.shader = shader
 	shade.material = _vignette
 
-	var vitals: Panel = Retro.window(self, Rect2(7, 6, 177, 91), "ESTUDANTE")
+	var vitals: Panel = Retro.panel(self, Rect2(8, 8, 192, 82), true)
 	for index: int in range(NAMES.size()):
-		var y: int = 22 + index * 12
-		_names.append(Retro.label(vitals, Rect2(8, y, 68, 12), NAMES[index], 9, COLORS[index]))
-		_meters.append(Retro.meter(vitals, Rect2(78, y + 6, 90, 6), COLORS[index]))
-	_alert = Retro.label(vitals, Rect2(8, 70, 160, 12), "", 10, Color("#ff9aab"))
+		var y: int = 6 + index * 14
+		_names.append(Retro.label(vitals, Rect2(8, y, 88, 14), NAMES[index], 9, COLORS[index]))
+		_meters.append(Retro.meter(vitals, Rect2(98, y + 4, 86, 6), COLORS[index]))
+	_alert = Retro.label(vitals, Rect2(8, 63, 176, 13), "", 9, Color("#ff9aab"))
 
-	var turn: Panel = Retro.window(self, Rect2(238, 3, 164, 22), "")
-	_room = Retro.label(turn, Rect2(9, 3, 117, 16), "", 10, Retro.CREAM)
-	var objective_bg: ColorRect = Retro.block(self, Rect2(187, 65, 266, 19), Color("#231e2ee8"))
-	_objective = Retro.label(objective_bg, Rect2(0, 1, 266, 16), "", 11, Retro.GOLD,
-			HORIZONTAL_ALIGNMENT_CENTER)
+	var info: Panel = Retro.panel(self, Rect2(404, 8, 228, 72), true)
+	_room = Retro.label(info, Rect2(9, 6, 210, 14), "", 10, Retro.CREAM)
+	Retro.divider(info, Rect2(9, 22, 210, 1))
+	_objective = Retro.label(info, Rect2(9, 25, 210, 14), "", 10, Retro.GOLD)
+	_score = Retro.label(info, Rect2(9, 39, 210, 14), "", 10, Retro.MUTED)
+	_ally = Retro.label(info, Rect2(9, 53, 210, 14), "", 10, Retro.CREAM)
 
-	var progress: Panel = Retro.window(self, Rect2(473, 6, 156, 58), "PARTIDA")
-	_score = Retro.label(progress, Rect2(8, 22, 140, 15), "", 11, Retro.GOLD)
-	_ally = Retro.label(progress, Rect2(8, 38, 140, 15), "", 11)
-
-	_breathing = Retro.window(self, Rect2(8, 300, 181, 49), "FÔLEGO")
-	Retro.label(_breathing, Rect2(8, 21, 165, 14), "Segure [R] Respirar", 10)
-	_breath = Retro.meter(_breathing, Rect2(8, 38, 165, 5), Retro.MINT)
+	_breathing = Retro.panel(self, Rect2(8, 320, 174, 32), true)
+	Retro.label(_breathing, Rect2(8, 4, 158, 14), "Segure [R] Respirar", 10)
+	_breath = Retro.meter(_breathing, Rect2(8, 21, 158, 5), Retro.MINT)
 	_breath.max_value = 1.0
-	_clarity = Retro.window(self, Rect2(305, 304, 324, 45), "FOCO")
-	Retro.label(_clarity, Rect2(8, 21, 308, 19), "GOLPE DE CLAREZA PRONTO [ESPAÇO/CLIQUE]",
+	_clarity = Retro.panel(self, Rect2(342, 320, 290, 32), true, true)
+	Retro.label(_clarity, Rect2(8, 8, 274, 16), "GOLPE DE CLAREZA PRONTO [ESPAÇO/CLIQUE]",
 			10, Retro.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 
 	GameManager.state_changed.connect(_on_state_changed)

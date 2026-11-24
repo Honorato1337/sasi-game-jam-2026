@@ -74,7 +74,7 @@ func _on_state_changed(state: GameManager.GameState) -> void:
 	visible = state == GameManager.GameState.HABIT_SELECT
 	_window.visible = visible
 	if visible:
-		_caption.text = "CADERNO DE ROTINA.EXE — Fim do Turno %d" % GameManager.wave
+		_caption.text = "CADERNO DE ROTINA — Fim do Turno %d" % GameManager.wave
 		_on_habits_updated(GameManager.sleep_rank, GameManager.nutrition_rank, GameManager.ally_count)
 
 

@@ -18,8 +18,11 @@ var _text: Label
 
 
 func _ready() -> void:
-	var panel: Panel = Retro.window(self, Rect2(48, 250, 544, 98), "TRÊS TURNOS")
-	Retro.block(panel, Rect2(10, 23, 56, 65), Retro.INK)
+	var panel: Panel = Retro.panel(self, Rect2(48, 260, 544, 88), true, false)
+	var portrait_frame: Panel = Panel.new()
+	portrait_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_frame.add_theme_stylebox_override(&"panel", Retro.style(Retro.INK, Retro.FRAME, 1))
+	Retro.place(portrait_frame, panel, Rect2(12, 11, 64, 66))
 	var portrait: TextureRect = TextureRect.new()
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -27,15 +30,15 @@ func _ready() -> void:
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_atlas.filter_clip = true
 	portrait.texture = _atlas
-	Retro.place(portrait, panel, Rect2(10, 23, 56, 65))
-	_speaker = Retro.label(panel, Rect2(76, 23, 451, 17), "", 13, Retro.GOLD)
-	_text = Retro.label(panel, Rect2(76, 41, 451, 34), "", 13)
+	Retro.place(portrait, panel, Rect2(14, 13, 60, 62))
+	_speaker = Retro.label(panel, Rect2(86, 10, 446, 17), "", 13, Retro.GOLD)
+	_text = Retro.label(panel, Rect2(86, 28, 446, 36), "", 13)
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	_text.clip_text = true
 	_text.max_lines_visible = 2
 	_text.visible_characters_behavior = TextServer.VC_CHARS_AFTER_SHAPING
-	Retro.label(panel, Rect2(76, 77, 451, 14), "[ESPAÇO / CLIQUE] Próximo    •    [ESC] Pular", 10, Retro.MUTED)
+	Retro.label(panel, Rect2(86, 68, 446, 14), "[ESPAÇO / CLIQUE] Próximo    •    [ESC] Pular", 10, Retro.MUTED)
 	GameManager.state_changed.connect(_on_state_changed)
 	hide()
 

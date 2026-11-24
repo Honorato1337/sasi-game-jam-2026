@@ -43,22 +43,23 @@ func _ready() -> void:
 
 
 func _build_title() -> void:
-	_title_window = _window(298, "TRÊS TURNOS.EXE")
-	_centered(_title_window, 26, 35, "TRÊS TURNOS", 27, Retro.CREAM)
-	_centered(_title_window, 62, 21, "Manhã, Tarde e Noite", 15, Retro.MINT)
+	_title_window = _window(286, "")
+	_centered(_title_window, 16, 32, "TRÊS TURNOS", 27, Retro.GOLD)
+	_centered(_title_window, 50, 18, "Manhã, Tarde e Noite", 14, Retro.MINT)
+	Retro.divider(_title_window, Rect2(24, 73, WINDOW_WIDTH - 48, 1))
 	_preview(_title_window, 21, STUDENT_SHEET, 8, 2, "Estudante")
 	_preview(_title_window, 333, CLASSMATE_SHEET, 2, 2, "Colega")
 
-	_action(_title_window, Rect2(123, 93, 204, 27), "JOGAR", GameManager.start_new_run)
-	var help: Button = _action(_title_window, Rect2(123, 126, 204, 27), "COMO JOGAR")
+	_action(_title_window, Rect2(123, 84, 204, 27), "JOGAR", GameManager.start_new_run)
+	var help: Button = _action(_title_window, Rect2(123, 117, 204, 27), "COMO JOGAR")
 	help.pressed.connect(_open_subwindow.bind(_help_window, help))
-	var settings: Button = _action(_title_window, Rect2(123, 159, 204, 27), "CONFIGURAÇÕES")
+	var settings: Button = _action(_title_window, Rect2(123, 150, 204, 27), "CONFIGURAÇÕES")
 	settings.pressed.connect(_open_subwindow.bind(_settings_window, settings))
-	var credits: Button = _action(_title_window, Rect2(123, 192, 204, 27), "CRÉDITOS & SAÚDE")
+	var credits: Button = _action(_title_window, Rect2(123, 183, 204, 27), "CRÉDITOS & SAÚDE")
 	credits.pressed.connect(_open_subwindow.bind(_credits_window, credits))
 	if not OS.has_feature("web"):
-		_action(_title_window, Rect2(123, 225, 204, 27), "SAIR", get_tree().quit)
-	_centered(_title_window, 263, 19, "W/S ou ↑/↓ para navegar   •   Enter para confirmar", 11, Retro.MUTED)
+		_action(_title_window, Rect2(123, 216, 204, 27), "SAIR", get_tree().quit)
+	_centered(_title_window, 254, 18, "W/S ou ↑/↓ para navegar   •   Enter para confirmar", 11, Retro.MUTED)
 
 
 func _preview(parent: Panel, x: int, sheet: Texture2D, frame_count: int,
@@ -68,16 +69,19 @@ func _preview(parent: Panel, x: int, sheet: Texture2D, frame_count: int,
 	atlas.region = Rect2(0, 0, float(sheet.get_width()) / frame_count, sheet.get_height())
 	atlas.filter_clip = true
 	_previews[atlas] = frame_count
-	Retro.block(parent, Rect2(x + 14, 115, 68, 68), Retro.INK)
+	var box: Panel = Panel.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_theme_stylebox_override(&"panel", Retro.style(Retro.INK, Retro.FRAME, 1))
+	Retro.place(box, parent, Rect2(x + 14, 108, 68, 68))
 	var preview: TextureRect = TextureRect.new()
 	preview.texture = atlas
 	preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var frame_size: Vector2 = atlas.region.size * scale_factor
-	var center: Vector2 = Vector2(x + 48, 149)
+	var center: Vector2 = Vector2(x + 48, 142)
 	Retro.place(preview, parent, Rect2(center - frame_size / 2, frame_size))
-	Retro.label(parent, Rect2(x, 188, 96, 20), caption, 11, Retro.MUTED,
+	Retro.label(parent, Rect2(x, 180, 96, 18), caption, 11, Retro.MUTED,
 			HORIZONTAL_ALIGNMENT_CENTER)
 
 
@@ -92,12 +96,12 @@ func _process(delta: float) -> void:
 
 
 func _build_help() -> void:
-	_help_window = _window(294, "COMO JOGAR.EXE")
+	_help_window = _window(298, "COMO JOGAR")
 	var controls: Array[String] = ["WASD / Setas", "Espaço / Clique", "Shift", "Segurar R", "E", "Esc / P"]
 	var actions: Array[String] = ["Mover", "Espada", "Dash", "Respirar", "Interagir", "Pausar"]
 	for index: int in range(controls.size()):
 		var x: int = 16 + (index % 2) * 213
-		var y: int = 29 + floori(index / 2.0) * 28
+		var y: int = 36 + floori(index / 2.0) * 27
 		Retro.block(_help_window, Rect2(x, y, 205, 24), Retro.INK)
 		Retro.label(_help_window, Rect2(x + 8, y, 113, 24), controls[index], 12, Retro.GOLD)
 		Retro.label(_help_window, Rect2(x + 121, y, 76, 24), actions[index], 12, Retro.CREAM,
@@ -110,22 +114,22 @@ func _build_help() -> void:
 		"Espada e dash gastam energia. Dê uma pausa para\nrecuperá-la. Na última sala, reacenda os pilares [E].",
 	]
 	for index: int in range(topics.size()):
-		var y: int = 118 + index * 43
+		var y: int = 122 + index * 43
 		Retro.block(_help_window, Rect2(16, y, 418, 38), Retro.INK)
 		Retro.label(_help_window, Rect2(24, y, 88, 38), topics[index], 11, Retro.MINT)
 		Retro.label(_help_window, Rect2(116, y, 310, 38), explanations[index], 11)
-	_back_button(_help_window, 256)
+	_back_button(_help_window, 260)
 
 
 func _build_settings() -> void:
-	_settings_window = _window(246, "CONFIGURAÇÕES.EXE")
-	_music_value = _volume_row(31, "Música", _change_music_volume)
-	_sfx_value = _volume_row(65, "Efeitos (SFX)", _change_sfx_volume)
-	_mute_button = _toggle_row(99, "Áudio Geral", _toggle_mute)
-	_shake_button = _toggle_row(133, "Tremor de Tela", _toggle_shake)
-	_fullscreen_button = _toggle_row(167, "Tela Cheia", _toggle_fullscreen)
+	_settings_window = _window(252, "CONFIGURAÇÕES")
+	_music_value = _volume_row(38, "Música", _change_music_volume)
+	_sfx_value = _volume_row(72, "Efeitos (SFX)", _change_sfx_volume)
+	_mute_button = _toggle_row(106, "Áudio Geral", _toggle_mute)
+	_shake_button = _toggle_row(140, "Tremor de Tela", _toggle_shake)
+	_fullscreen_button = _toggle_row(174, "Tela Cheia", _toggle_fullscreen)
 	_fullscreen_button.disabled = DisplayServer.get_name() == "headless"
-	_back_button(_settings_window, 208)
+	_back_button(_settings_window, 214)
 	_refresh_settings()
 
 
@@ -148,37 +152,41 @@ func _setting_label(y: int, caption: String) -> void:
 
 
 func _build_credits() -> void:
-	_credits_window = _window(223, "CRÉDITOS.EXE")
-	_centered(_credits_window, 28, 24, "SASI: GAME JAM 2026  •  UFAC", 16, Retro.MINT)
-	_centered(_credits_window, 56, 38,
+	_credits_window = _window(230, "CRÉDITOS & SAÚDE")
+	_centered(_credits_window, 36, 22, "SASI: GAME JAM 2026  •  UFAC", 15, Retro.MINT)
+	_centered(_credits_window, 62, 36,
 			"Arte pixel e áudio chiptune criados para o jogo.\nDesenvolvimento com apoio de Antigravity e OpenAI Codex.",
 			12, Retro.CREAM)
-	Retro.block(_credits_window, Rect2(16, 105, 418, 70), Retro.INK)
-	_centered(_credits_window, 109, 20, "SAÚDE EM JOGO", 12, Retro.GOLD)
-	_centered(_credits_window, 132, 36,
+	Retro.block(_credits_window, Rect2(16, 108, 418, 70), Retro.INK)
+	_centered(_credits_window, 112, 20, "SAÚDE EM JOGO", 12, Retro.GOLD)
+	_centered(_credits_window, 136, 36,
 			"Cuidar também passa por perceber os sinais do corpo,\nrespeitar seus limites e dividir a rotina com quem pode ajudar.",
 			12, Retro.CREAM)
-	_back_button(_credits_window, 185)
+	_back_button(_credits_window, 192)
 
 
 func _build_pause() -> void:
-	_pause_window = _window(200, "PAUSA.EXE")
-	_action(_pause_window, Rect2(101, 32, 248, 30), "CONTINUAR [ESC]", GameManager.toggle_pause)
-	var settings: Button = _action(_pause_window, Rect2(101, 74, 248, 30), "CONFIGURAÇÕES")
+	_pause_window = _window(208, "PAUSA")
+	_action(_pause_window, Rect2(101, 40, 248, 30), "CONTINUAR [ESC]", GameManager.toggle_pause)
+	var settings: Button = _action(_pause_window, Rect2(101, 80, 248, 30), "CONFIGURAÇÕES")
 	settings.pressed.connect(_open_subwindow.bind(_settings_window, settings))
-	_action(_pause_window, Rect2(101, 116, 248, 30), "REINICIAR PARTIDA", GameManager.start_new_run)
-	_action(_pause_window, Rect2(101, 158, 248, 30), "MENU PRINCIPAL", GameManager.reset_game)
+	_action(_pause_window, Rect2(101, 120, 248, 30), "REINICIAR PARTIDA", GameManager.start_new_run)
+	_action(_pause_window, Rect2(101, 160, 248, 30), "MENU PRINCIPAL", GameManager.reset_game)
 
 
 func _build_end() -> void:
-	_end_window = _window(218, "")
-	_end_caption = Retro.label(_end_window, Rect2(8, 3, 384, 16), "", 10)
-	_end_heading = _centered(_end_window, 31, 35, "", 24, Retro.MINT)
-	_end_message = _centered(_end_window, 71, 40, "", 13, Retro.CREAM)
-	Retro.block(_end_window, Rect2(16, 122, 418, 28), Retro.INK)
-	_stats = _centered(_end_window, 122, 28, "", 12, Retro.GOLD)
-	_action(_end_window, Rect2(16, 169, 236, 31), "JOGAR NOVAMENTE [ENTER]", GameManager.start_new_run)
-	_action(_end_window, Rect2(262, 169, 172, 31), "MENU PRINCIPAL", GameManager.reset_game)
+	_end_window = _window(222, "")
+	_end_caption = _centered(_end_window, 8, 16, "", 11, Retro.MINT)
+	Retro.divider(_end_window, Rect2(16, 27, WINDOW_WIDTH - 32, 1))
+	_end_heading = _centered(_end_window, 35, 35, "", 24, Retro.MINT)
+	_end_message = _centered(_end_window, 74, 40, "", 13, Retro.CREAM)
+	var stats_box: Panel = Panel.new()
+	stats_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stats_box.add_theme_stylebox_override(&"panel", Retro.style(Retro.INK, Retro.BEVEL_DARK, 1))
+	Retro.place(stats_box, _end_window, Rect2(16, 124, 418, 28))
+	_stats = _centered(_end_window, 124, 28, "", 12, Retro.GOLD)
+	_action(_end_window, Rect2(16, 172, 236, 31), "JOGAR NOVAMENTE [ENTER]", GameManager.start_new_run)
+	_action(_end_window, Rect2(262, 172, 172, 31), "MENU PRINCIPAL", GameManager.reset_game)
 
 
 func _window(height: int, caption: String) -> Panel:
@@ -371,7 +379,8 @@ func _on_state_changed(state: GameManager.GameState) -> void:
 
 
 func _update_summary(won: bool) -> void:
-	_end_caption.text = "VITÓRIA.EXE" if won else "DERROTA.EXE"
+	_end_caption.text = "VITÓRIA" if won else "FIM DE TURNO"
+	_end_caption.add_theme_color_override(&"font_color", Retro.MINT if won else Retro.GOLD)
 	_end_heading.text = "O AMANHECER CHEGOU" if won else "O BURNOUT PEDIU PAUSA"
 	_end_heading.add_theme_color_override(&"font_color", Retro.MINT if won else Retro.GOLD)
 	_end_message.text = ("O estudante atravessou a noite e viu o dia nascer.\nCuide dos seus pilares e aceite companhia."

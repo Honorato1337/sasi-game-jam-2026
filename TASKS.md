@@ -13,6 +13,7 @@
 *(Vazio)*
 
 ## CONCLUÍDO
+- [x] **T-019** | Dono: `Antigravity` | Remoção das janelas estilo sistema operacional (`retro_window.gd`, `hud.gd`, `story_dialog.gd`, `title_end_screens.gd`, `habit_terminal.gd`): substituição por molduras RPG em pixel art limpas, desobstrução da Porta Norte e correção de alinhamento/espaçamento no HUD; validado em headless e desktop `1280×720` (`0 falha(s).`) com capturas visuais inspecionadas.
 - [x] **T-018** | Dono: `Codex` | Três salas conectadas por portas físicas (`arena.tscn/.gd`), diálogos editáveis em português (`story_dialogues.gd` + `story_dialog.tscn/.gd`), HUD dos três Pilares com visão em túnel, áudio reativo (`audio_manager.gd`), menu completo e finais de *"Três Turnos"*; validado (`T-018 (headless): 0 falha(s).`) e revisado.
 - [x] **T-017** | Dono: `Codex` | Gameplay Vivo de *"Três Turnos"* (`player.tscn/.gd`, `care_station.tscn/.gd`, `enemy_base.tscn/.gd`, `ally_support.tscn/.gd`, `enemy_projectile.gd`, `slow_puddle.gd`): espada proporcional ao Pilar Corpo, interação `[E]`, 4 inimigos animados + Boss do Burnout de 2 Fases + colega aliado; validado (`T-017: 0 falha(s).`) e revisado.
 - [x] **T-016** | Dono: `Codex` | 10 PNGs pixel art 32-bit de *"Três Turnos"* (`student_sheet`, `classmate_sheet`, `room_morning/afternoon/night`, `stations_sheet`, 3 inimigos + `boss_burnout_sheet`) gerados, importados e inspecionados + `game_manager.gd` refatorado para os 3 Pilares (`Corpo`, `Mente`, `Descanso`), validado (`T-016: 0 falha(s).`) e revisado.
