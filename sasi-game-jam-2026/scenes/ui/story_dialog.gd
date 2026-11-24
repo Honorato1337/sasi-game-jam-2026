@@ -21,7 +21,8 @@ func _ready() -> void:
 	var panel: Panel = Retro.panel(self, Rect2(48, 260, 544, 88), true, false)
 	var portrait_frame: Panel = Panel.new()
 	portrait_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	portrait_frame.add_theme_stylebox_override(&"panel", Retro.style(Retro.INK, Retro.FRAME, 1))
+	portrait_frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	portrait_frame.add_theme_stylebox_override(&"panel", Retro.pixel_card_box(Retro.INK, Retro.FRAME))
 	Retro.place(portrait_frame, panel, Rect2(12, 11, 64, 66))
 	var portrait: TextureRect = TextureRect.new()
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

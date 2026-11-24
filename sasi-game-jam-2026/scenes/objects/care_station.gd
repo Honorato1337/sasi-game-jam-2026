@@ -101,8 +101,12 @@ func _draw_badge() -> void:
 	var width: float = ceilf(font.get_string_size(prompt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x)
 	var origin := Vector2(-ceilf(width / 2.0), -38)
 	var box := Rect2(origin - Vector2(5, 12), Vector2(width + 10, 17))
-	_badge.draw_rect(box, Color("#1e1729"))
-	_badge.draw_rect(box, Color("#e8b875"), false, 1.0)
+	_badge.draw_rect(Rect2(box.position + Vector2(1, 0), box.size - Vector2(2, 0)), Color("#181322"))
+	_badge.draw_rect(Rect2(box.position + Vector2(0, 1), box.size - Vector2(0, 2)), Color("#181322"))
+	_badge.draw_rect(Rect2(box.position + Vector2(2, 1), Vector2(box.size.x - 4, 1)), Color("#e8b875"))
+	_badge.draw_rect(Rect2(box.position + Vector2(2, box.size.y - 2), Vector2(box.size.x - 4, 1)), Color("#e8b875"))
+	_badge.draw_rect(Rect2(box.position + Vector2(1, 2), Vector2(1, box.size.y - 4)), Color("#e8b875"))
+	_badge.draw_rect(Rect2(box.position + Vector2(box.size.x - 2, 2), Vector2(1, box.size.y - 4)), Color("#e8b875"))
 	_badge.draw_string(font, origin, prompt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#fff2ce"))
 
 

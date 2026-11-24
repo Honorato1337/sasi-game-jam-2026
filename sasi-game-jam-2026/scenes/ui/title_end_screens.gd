@@ -87,17 +87,21 @@ func _build_title() -> void:
 	_character_actor(_title_window, Rect2(364, 198, 96, 96), STUDENT_SHEET, 8, _student_atlas)
 	_character_actor(_title_window, Rect2(464, 200, 96, 96), CLASSMATE_SHEET, 2, _classmate_atlas)
 
-	_outlined_label(_title_window, Rect2(40, 26, 240, 16), "SASI: GAME JAM 2026  •  UFAC",
-			10, Retro.MUTED, 3)
-	var hero: Label = _outlined_label(_title_window, Rect2(38, 44, 290, 40), "TRÊS TURNOS", 32, Retro.GOLD, 6)
+	Retro.label(_title_window, Rect2(40, 26, 240, 16), "SASI: GAME JAM 2026  •  UFAC",
+			10, Retro.MUTED)
+	var hero: Label = Retro.label(_title_window, Rect2(38, 44, 290, 40), "TRÊS TURNOS", 32, Retro.GOLD)
 	hero.add_theme_font_override(&"font", Retro.FONT_BOLD)
-	_outlined_label(_title_window, Rect2(40, 86, 250, 20), "Manhã, Tarde e Noite",
-			14, Retro.MINT, 4)
+	hero.add_theme_color_override(&"font_shadow_color", Color(0.08, 0.05, 0.12, 0.72))
+	hero.add_theme_constant_override(&"shadow_offset_x", 2)
+	hero.add_theme_constant_override(&"shadow_offset_y", 2)
+	Retro.label(_title_window, Rect2(40, 86, 250, 20), "Manhã, Tarde e Noite",
+			14, Retro.MINT)
 	Retro.divider(_title_window, Rect2(40, 110, 212, 1))
 
 	var play: Button = _action(_title_window, Rect2(40, 124, 212, 28), "JOGAR",
 			GameManager.start_new_run)
-	play.add_theme_stylebox_override(&"normal", Retro.style(Color("#3f3357"), Retro.GOLD, 1))
+	play.add_theme_stylebox_override(&"normal",
+			Retro.pixel_button_box(Color("#43345e"), Retro.GOLD, Color("#ffe29c"), Color("#8c5e35"), false))
 	play.add_theme_font_override(&"font", Retro.FONT_BOLD)
 
 	var settings: Button = _action(_title_window, Rect2(40, 158, 212, 28), "CONFIGURAÇÕES")
@@ -112,10 +116,10 @@ func _build_title() -> void:
 	if not OS.has_feature("web"):
 		_quit_button = _action(_title_window, Rect2(40, 260, 212, 28), "SAIR", get_tree().quit)
 
-	_cursor = _outlined_label(_title_window, Rect2(24, 124, 14, 28), ">", 12, Retro.MINT, 3)
+	_cursor = Retro.label(_title_window, Rect2(24, 124, 14, 28), ">", 12, Retro.MINT)
 	_cursor.add_theme_font_override(&"font", Retro.FONT_BOLD)
-	_outlined_label(_title_window, Rect2(40, 330, 340, 18),
-			"W/S ou Mouse para navegar  •  Enter / Clique para confirmar", 10, Retro.MUTED, 3)
+	Retro.label(_title_window, Rect2(40, 330, 340, 18),
+			"W/S ou Mouse para navegar  •  Enter / Clique para confirmar", 10, Retro.MUTED)
 
 
 func _character_actor(parent: Control, rect: Rect2, sheet: Texture2D, frame_count: int,
@@ -129,15 +133,6 @@ func _character_actor(parent: Control, rect: Rect2, sheet: Texture2D, frame_coun
 	actor.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	actor.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	Retro.place(actor, parent, rect)
-
-
-func _outlined_label(parent: Control, rect: Rect2, content: String, font_size: int,
-		color: Color, outline: int) -> Label:
-	var label_node: Label = Retro.label(parent, rect, content, font_size, color,
-			HORIZONTAL_ALIGNMENT_LEFT, false)
-	label_node.add_theme_color_override(&"font_outline_color", Color("#140e1f"))
-	label_node.add_theme_constant_override(&"outline_size", outline)
-	return label_node
 
 
 func _draw_title_fx() -> void:
@@ -294,7 +289,8 @@ func _build_end() -> void:
 	_end_message = _centered(_end_window, 74, 40, "", 13, Retro.CREAM)
 	var stats_box: Panel = Panel.new()
 	stats_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stats_box.add_theme_stylebox_override(&"panel", Retro.style(Retro.INK, Retro.BEVEL_DARK, 1))
+	stats_box.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	stats_box.add_theme_stylebox_override(&"panel", Retro.pixel_card_box(Retro.INK, Retro.BEVEL_DARK))
 	Retro.place(stats_box, _end_window, Rect2(16, 124, 418, 28))
 	_stats = _centered(_end_window, 124, 28, "", 12, Retro.GOLD)
 	_action(_end_window, Rect2(16, 172, 236, 31), "JOGAR NOVAMENTE [ENTER]", GameManager.start_new_run)
@@ -317,9 +313,7 @@ func _centered(parent: Panel, y: int, height: int, content: String, font_size: i
 func _action(parent: Panel, rect: Rect2, caption: String, callback: Callable = Callable()) -> Button:
 	var button: Button = Retro.button(parent, rect, caption)
 	button.focus_mode = Control.FOCUS_ALL
-	var focus: StyleBoxFlat = Retro.style(Color.TRANSPARENT, Retro.MINT, 2)
-	focus.draw_center = false
-	button.add_theme_stylebox_override(&"focus", focus)
+	button.add_theme_stylebox_override(&"focus", Retro.pixel_focus_box(Retro.MINT))
 	_buttons[parent].append(button)
 	button.mouse_entered.connect(_on_button_hovered.bind(button))
 	button.pressed.connect(_on_button_cue.bind(button))

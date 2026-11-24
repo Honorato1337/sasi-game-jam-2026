@@ -15,6 +15,8 @@ const BODY_HUD: Color = Color("#1e172ae0")
 const MINT: Color = Color("#81e6c0")
 const GOLD: Color = Color("#f4ba72")
 
+static var _box_cache: Dictionary[String, StyleBoxTexture] = {}
+
 
 static func style(fill: Color, border: Color, width: int = 1) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
@@ -22,6 +24,134 @@ static func style(fill: Color, border: Color, width: int = 1) -> StyleBoxFlat:
 	box.border_color = border
 	box.set_border_width_all(width)
 	box.anti_aliasing = false
+	return box
+
+
+static func pixel_panel_box(fill: Color, border: Color, highlight: Color,
+		shadow_bevel: Color) -> StyleBoxTexture:
+	var key: String = "panel_%s_%s_%s_%s" % [fill.to_html(), border.to_html(), highlight.to_html(), shadow_bevel.to_html()]
+	if _box_cache.has(key):
+		return _box_cache[key]
+	var img: Image = Image.create_empty(16, 16, false, Image.FORMAT_RGBA8)
+	img.fill_rect(Rect2i(4, 4, 8, 8), fill)
+	img.fill_rect(Rect2i(3, 3, 10, 10), INK)
+	img.fill_rect(Rect2i(4, 4, 8, 8), fill)
+	img.fill_rect(Rect2i(2, 2, 12, 1), highlight)
+	img.fill_rect(Rect2i(2, 2, 1, 12), highlight)
+	img.fill_rect(Rect2i(3, 13, 11, 1), shadow_bevel)
+	img.fill_rect(Rect2i(13, 3, 1, 11), shadow_bevel)
+	for stud: Vector2i in [Vector2i(2, 2), Vector2i(13, 2), Vector2i(2, 13), Vector2i(13, 13)]:
+		img.set_pixelv(stud, highlight)
+	img.fill_rect(Rect2i(2, 1, 12, 1), border)
+	img.fill_rect(Rect2i(2, 14, 12, 1), border)
+	img.fill_rect(Rect2i(1, 2, 1, 12), border)
+	img.fill_rect(Rect2i(14, 2, 1, 12), border)
+	img.fill_rect(Rect2i(2, 0, 12, 1), INK)
+	img.fill_rect(Rect2i(2, 15, 12, 1), INK)
+	img.fill_rect(Rect2i(0, 2, 1, 12), INK)
+	img.fill_rect(Rect2i(15, 2, 1, 12), INK)
+	for corner: Vector2i in [Vector2i(1, 1), Vector2i(14, 1), Vector2i(1, 14), Vector2i(14, 14)]:
+		img.set_pixelv(corner, INK)
+	var box: StyleBoxTexture = _make_texture_box(img, 5.0, 0.0, 0.0)
+	_box_cache[key] = box
+	return box
+
+
+static func pixel_button_box(fill: Color, border: Color, highlight: Color,
+		shadow_bevel: Color, pressed: bool = false) -> StyleBoxTexture:
+	var key: String = "btn_%s_%s_%s_%s_%s" % [fill.to_html(), border.to_html(), highlight.to_html(), shadow_bevel.to_html(), pressed]
+	if _box_cache.has(key):
+		return _box_cache[key]
+	var img: Image = Image.create_empty(16, 16, false, Image.FORMAT_RGBA8)
+	var top_left: Color = shadow_bevel if pressed else highlight
+	var bottom_right: Color = highlight if pressed else shadow_bevel
+	img.fill_rect(Rect2i(3, 3, 10, 10), fill)
+	img.fill_rect(Rect2i(2, 2, 12, 1), top_left)
+	img.fill_rect(Rect2i(2, 2, 1, 12), top_left)
+	img.fill_rect(Rect2i(3, 13, 11, 1), bottom_right)
+	img.fill_rect(Rect2i(13, 3, 1, 11), bottom_right)
+	img.fill_rect(Rect2i(2, 1, 12, 1), border)
+	img.fill_rect(Rect2i(2, 14, 12, 1), border)
+	img.fill_rect(Rect2i(1, 2, 1, 12), border)
+	img.fill_rect(Rect2i(14, 2, 1, 12), border)
+	img.fill_rect(Rect2i(1, 0, 14, 1), INK)
+	img.fill_rect(Rect2i(1, 15, 14, 1), INK)
+	img.fill_rect(Rect2i(0, 1, 1, 14), INK)
+	img.fill_rect(Rect2i(15, 1, 1, 14), INK)
+	for notch: Vector2i in [Vector2i(1, 1), Vector2i(14, 1), Vector2i(1, 14), Vector2i(14, 14)]:
+		img.set_pixelv(notch, INK)
+	var box: StyleBoxTexture = _make_texture_box(img, 4.0, 4.0, 2.0)
+	_box_cache[key] = box
+	return box
+
+
+static func pixel_focus_box(border: Color) -> StyleBoxTexture:
+	var key: String = "focus_%s" % border.to_html()
+	if _box_cache.has(key):
+		return _box_cache[key]
+	var img: Image = Image.create_empty(16, 16, false, Image.FORMAT_RGBA8)
+	img.fill_rect(Rect2i(2, 0, 12, 1), INK)
+	img.fill_rect(Rect2i(2, 15, 12, 1), INK)
+	img.fill_rect(Rect2i(0, 2, 1, 12), INK)
+	img.fill_rect(Rect2i(15, 2, 1, 12), INK)
+	img.fill_rect(Rect2i(1, 1, 14, 2), border)
+	img.fill_rect(Rect2i(1, 13, 14, 2), border)
+	img.fill_rect(Rect2i(1, 1, 2, 14), border)
+	img.fill_rect(Rect2i(13, 1, 2, 14), border)
+	img.fill_rect(Rect2i(3, 3, 10, 10), Color(0, 0, 0, 0))
+	var box: StyleBoxTexture = _make_texture_box(img, 4.0, 0.0, 0.0)
+	_box_cache[key] = box
+	return box
+
+
+static func pixel_card_box(fill: Color, border: Color) -> StyleBoxTexture:
+	var key: String = "card_%s_%s" % [fill.to_html(), border.to_html()]
+	if _box_cache.has(key):
+		return _box_cache[key]
+	var img: Image = Image.create_empty(12, 12, false, Image.FORMAT_RGBA8)
+	img.fill_rect(Rect2i(2, 2, 8, 8), fill)
+	img.fill_rect(Rect2i(2, 1, 8, 1), border)
+	img.fill_rect(Rect2i(2, 10, 8, 1), border)
+	img.fill_rect(Rect2i(1, 2, 1, 8), border)
+	img.fill_rect(Rect2i(10, 2, 1, 8), border)
+	img.fill_rect(Rect2i(1, 0, 10, 1), INK)
+	img.fill_rect(Rect2i(1, 11, 10, 1), INK)
+	img.fill_rect(Rect2i(0, 1, 1, 10), INK)
+	img.fill_rect(Rect2i(11, 1, 1, 10), INK)
+	for notch: Vector2i in [Vector2i(1, 1), Vector2i(10, 1), Vector2i(1, 10), Vector2i(10, 10)]:
+		img.set_pixelv(notch, INK)
+	var box: StyleBoxTexture = _make_texture_box(img, 3.0, 1.0, 1.0)
+	_box_cache[key] = box
+	return box
+
+
+static func _pixel_meter_fill_box(color: Color) -> StyleBoxTexture:
+	var key: String = "mfill_%s" % color.to_html()
+	if _box_cache.has(key):
+		return _box_cache[key]
+	var img: Image = Image.create_empty(4, 6, false, Image.FORMAT_RGBA8)
+	img.fill(color)
+	img.fill_rect(Rect2i(0, 0, 4, 1), color.lightened(0.26))
+	var box: StyleBoxTexture = _make_texture_box(img, 1.0, 0.0, 0.0)
+	_box_cache[key] = box
+	return box
+
+
+static func _make_texture_box(img: Image, margin: float, pad_x: float,
+		pad_y: float) -> StyleBoxTexture:
+	var tex: ImageTexture = ImageTexture.create_from_image(img)
+	var box: StyleBoxTexture = StyleBoxTexture.new()
+	box.texture = tex
+	box.texture_margin_left = margin
+	box.texture_margin_right = margin
+	box.texture_margin_top = margin
+	box.texture_margin_bottom = margin
+	box.content_margin_left = pad_x
+	box.content_margin_right = pad_x
+	box.content_margin_top = pad_y
+	box.content_margin_bottom = pad_y
+	box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
+	box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
 	return box
 
 
@@ -64,24 +194,23 @@ static func panel(parent: Node, rect: Rect2, translucent: bool = false,
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.add_theme_stylebox_override(&"panel", StyleBoxEmpty.new())
 	place(frame, parent, rect)
-	block(frame, Rect2(Vector2(2, 2), rect.size), Color(0.05, 0.03, 0.09, 0.65))
+	var shadow_color: Color = Color(0.05, 0.03, 0.09, 0.55)
+	var drop: Panel = Panel.new()
+	drop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	drop.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	drop.add_theme_stylebox_override(&"panel", pixel_card_box(shadow_color, shadow_color))
+	place(drop, frame, Rect2(Vector2(2, 2), rect.size))
 	var shell: Panel = Panel.new()
 	shell.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	shell.add_theme_stylebox_override(&"panel", style(GOLD if highlight else FRAME, INK, 1))
+	shell.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var box: StyleBoxTexture = pixel_panel_box(
+		BODY_HUD if translucent else BODY,
+		GOLD if highlight else FRAME,
+		GOLD.lightened(0.22) if highlight else BEVEL_LIGHT,
+		Color("#8a5f3c") if highlight else BEVEL_DARK
+	)
+	shell.add_theme_stylebox_override(&"panel", box)
 	place(shell, frame, Rect2(Vector2.ZERO, rect.size))
-	var inner: Panel = Panel.new()
-	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inner.add_theme_stylebox_override(&"panel", style(BODY_HUD if translucent else BODY, INK, 1))
-	place(inner, frame, Rect2(Vector2(2, 2), rect.size - Vector2(4, 4)))
-	var accent: Color = GOLD if highlight else BEVEL_LIGHT
-	block(frame, Rect2(3, 3, maxf(0.0, rect.size.x - 6), 1), Color(accent, 0.45))
-	for corner: Vector2 in [
-		Vector2(2, 2),
-		Vector2(rect.size.x - 4, 2),
-		Vector2(2, rect.size.y - 4),
-		Vector2(rect.size.x - 4, rect.size.y - 4),
-	]:
-		block(frame, Rect2(corner, Vector2(2, 2)), accent)
 	return frame
 
 
@@ -106,6 +235,7 @@ static func button(parent: Node, rect: Rect2, content: String = "") -> Button:
 	action.text = content
 	action.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	action.focus_mode = Control.FOCUS_NONE
+	action.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	action.add_theme_font_size_override(&"font_size", 12)
 	action.add_theme_color_override(&"font_color", CREAM)
 	action.add_theme_color_override(&"font_hover_color", CREAM)
@@ -113,10 +243,14 @@ static func button(parent: Node, rect: Rect2, content: String = "") -> Button:
 	action.add_theme_color_override(&"font_shadow_color", Color(0.08, 0.05, 0.12, 0.85))
 	action.add_theme_constant_override(&"shadow_offset_x", 1)
 	action.add_theme_constant_override(&"shadow_offset_y", 1)
-	action.add_theme_stylebox_override(&"normal", style(TITLE, FRAME, 1))
-	action.add_theme_stylebox_override(&"hover", style(Color("#3c5560"), MINT, 2))
-	action.add_theme_stylebox_override(&"pressed", style(BODY, GOLD, 2))
-	action.add_theme_stylebox_override(&"disabled", style(INK, BEVEL_DARK, 1))
+	action.add_theme_stylebox_override(&"normal",
+			pixel_button_box(TITLE, FRAME, Color("#6b5984"), Color("#221a2e"), false))
+	action.add_theme_stylebox_override(&"hover",
+			pixel_button_box(Color("#36505c"), MINT, Color("#b0f7dc"), Color("#20343d"), false))
+	action.add_theme_stylebox_override(&"pressed",
+			pixel_button_box(BODY, GOLD, Color("#ffe29c"), Color("#8c5e35"), true))
+	action.add_theme_stylebox_override(&"disabled",
+			pixel_button_box(INK, BEVEL_DARK, Color("#342a42"), INK, false))
 	place(action, parent, rect)
 	return action
 
@@ -126,8 +260,9 @@ static func meter(parent: Node, rect: Rect2, color: Color) -> ProgressBar:
 	bar.show_percentage = false
 	bar.step = 0.0
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bar.add_theme_stylebox_override(&"background", style(INK, BEVEL_DARK, 1))
-	bar.add_theme_stylebox_override(&"fill", style(color, color, 0))
+	bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	bar.add_theme_stylebox_override(&"background", pixel_card_box(INK, BEVEL_DARK))
+	bar.add_theme_stylebox_override(&"fill", _pixel_meter_fill_box(color))
 	place(bar, parent, rect)
 	return bar
 
@@ -139,7 +274,8 @@ static func slider(parent: Node, rect: Rect2, fill_color: Color) -> HSlider:
 	bar.step = 5.0
 	bar.focus_mode = Control.FOCUS_NONE
 	bar.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	var track: StyleBoxFlat = style(INK, BEVEL_DARK, 1)
+	bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var track: StyleBoxTexture = pixel_card_box(INK, BEVEL_DARK)
 	track.content_margin_top = 4
 	track.content_margin_bottom = 4
 	var filled: StyleBoxFlat = style(fill_color, fill_color, 0)
@@ -159,6 +295,8 @@ static func slider(parent: Node, rect: Rect2, fill_color: Color) -> HSlider:
 
 static func _grabber_texture(fill: Color) -> ImageTexture:
 	var img: Image = Image.create_empty(8, 14, false, Image.FORMAT_RGBA8)
-	img.fill(INK)
+	img.fill_rect(Rect2i(1, 0, 6, 14), INK)
+	img.fill_rect(Rect2i(0, 1, 8, 12), INK)
 	img.fill_rect(Rect2i(1, 1, 6, 12), fill)
+	img.fill_rect(Rect2i(2, 1, 4, 1), fill.lightened(0.25))
 	return ImageTexture.create_from_image(img)
