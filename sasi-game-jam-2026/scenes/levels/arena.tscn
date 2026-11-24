@@ -1,0 +1,50 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scenes/levels/arena.gd" id="1_arena"]
+[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="3_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/habit_terminal.tscn" id="4_habits"]
+[ext_resource type="PackedScene" path="res://scenes/ui/title_end_screens.tscn" id="5_screens"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal"]
+size = Vector2(640, 16)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_vertical"]
+size = Vector2(16, 360)
+
+[node name="Arena" type="Node2D"]
+script = ExtResource("1_arena")
+
+[node name="Walls" type="StaticBody2D" parent="."]
+
+[node name="North" type="CollisionShape2D" parent="Walls"]
+position = Vector2(320, 8)
+shape = SubResource("RectangleShape2D_horizontal")
+
+[node name="South" type="CollisionShape2D" parent="Walls"]
+position = Vector2(320, 352)
+shape = SubResource("RectangleShape2D_horizontal")
+
+[node name="West" type="CollisionShape2D" parent="Walls"]
+position = Vector2(8, 180)
+shape = SubResource("RectangleShape2D_vertical")
+
+[node name="East" type="CollisionShape2D" parent="Walls"]
+position = Vector2(632, 180)
+shape = SubResource("RectangleShape2D_vertical")
+
+[node name="CareCore" type="Node2D" parent="."]
+position = Vector2(320, 180)
+
+[node name="Allies" type="Node2D" parent="."]
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(320, 219)
+
+[node name="HUD" parent="." instance=ExtResource("3_hud")]
+
+[node name="HabitTerminal" parent="." instance=ExtResource("4_habits")]
+
+[node name="TitleEndScreens" parent="." instance=ExtResource("5_screens")]

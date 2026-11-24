@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/enemies/ally_support.gd" id="1_ally"]
+
+[node name="AllySupport" type="Node2D"]
+script = ExtResource("1_ally")

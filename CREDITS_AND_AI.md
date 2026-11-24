@@ -16,4 +16,9 @@
 | Ferramenta | Finalidade | Contribuição no Projeto |
 | :--- | :--- | :--- |
 | Antigravity (Google) | Orquestração, arquitetura GDScript, revisão de código e planejamento | Estruturação de tarefas, GDD, revisão técnica e checklist de entrega |
-| OpenAI Codex | Implementação assistida de scripts/cenas em GDScript | Base de gerenciamento (`GameManager` em `scripts/autoload/game_manager.gd`) |
+| OpenAI Codex | Implementação assistida de scripts/cenas em GDScript | Scripts base de gerenciamento (`GameManager` em `scripts/autoload/game_manager.gd` e `AudioManager` em `scripts/autoload/audio_manager.gd`), configuração do projeto e implementação de InputMap, BPM, hábitos, vida do Núcleo e ondas (T-005 e T-006) |
+| OpenAI Codex | T-007: implementação e prototipagem visual | Cena e controle de Seu Antônio, pixel art procedural, anel de respiração, arcos de ataque e validação headless no Godot |
+| OpenAI Codex | Implementação e prototipagem visual da T-008 | Arena, Núcleo do Cuidado, quatro ondas, inimigos e aliados, com pixel art procedural em GDScript e validação headless no Godot |
+| OpenAI Codex | Implementação, design visual e redação da interface da T-009 | HUD de Sinais, coração pixel art procedural, shader da vinheta, janelas retrô, Caderno de Rotina, telas de título e fim de jogo, integração e validação headless do fluxo |
+| OpenAI Codex | Composição, síntese e integração do áudio da T-010 | Quatro trilhas chiptune originais com referência ao estilo de Bach, Chopin e Tchaikovsky, dez efeitos 8-bit sintetizados em memória, resposta ao BPM e validação headless no Godot. O áudio foi gerado em GDScript sem gravações, partituras ou samples de terceiros. |
+| OpenAI Codex | Refinamento visual procedural e validação integrada da T-011 | Animações pixel art de dois quadros, flashes de impacto, aura de Clareza, tremor de câmera alinhado à grade de pixels, faíscas 8-bit, pulso do Núcleo e indicador de alcance da Rede de Apoio, implementados em GDScript sem assets externos. Teste integrado no Godot 4.7.2 headless. |
