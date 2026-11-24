@@ -12,6 +12,7 @@ enum GameState {
 enum SignalLevel { CALM, WARNING, OVERLOAD, EXHAUSTED }
 
 signal state_changed(new_state: GameState)
+signal run_started
 signal score_changed(new_score: int)
 signal bpm_changed(new_bpm: float, level: SignalLevel)
 signal signal_level_changed(new_level: SignalLevel)
@@ -38,6 +39,7 @@ var sleep_rank: int = 0
 var nutrition_rank: int = 0
 var ally_count: int = 0
 var clarity_ready: bool = false
+var screen_shake_enabled: bool = true
 
 var _exhaustion_remaining: float = 0.0
 
@@ -52,6 +54,18 @@ func set_state(new_state: GameState) -> void:
 
 	current_state = new_state
 	state_changed.emit(current_state)
+
+
+func toggle_pause() -> void:
+	match current_state:
+		GameState.PLAYING:
+			set_state(GameState.PAUSED)
+		GameState.PAUSED:
+			set_state(GameState.PLAYING)
+
+
+func set_screen_shake_enabled(enabled: bool) -> void:
+	screen_shake_enabled = enabled
 
 
 func add_score(points: int) -> void:
@@ -141,6 +155,7 @@ func advance_wave() -> void:
 
 func start_new_run() -> void:
 	_reset_run(GameState.PLAYING)
+	run_started.emit()
 
 
 func reset_game() -> void:

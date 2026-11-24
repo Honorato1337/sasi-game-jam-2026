@@ -45,7 +45,6 @@ var _spawn_remaining: float = 0.0
 var _spawn_index: int = 0
 var _palette_index: int = 0
 var _allies: Array[Ally] = []
-var _previous_state: GameManager.GameState
 var _last_core_hp: int
 var _core_flash: float = 0.0
 var _core_pulse: float = 0.0
@@ -85,8 +84,8 @@ func _ready() -> void:
 	GameManager.core_hp_changed.connect(_on_core_hp_changed)
 	GameManager.wave_changed.connect(_on_wave_changed)
 	GameManager.habits_updated.connect(_on_habits_updated)
-	_previous_state = GameManager.current_state
 	GameManager.state_changed.connect(_on_state_changed)
+	GameManager.run_started.connect(_on_run_started)
 	_hud.bind_player(_player)
 	_player.attacked.connect(_on_player_attacked)
 	_player.clarity_hit.connect(_start_shake.bind(2.0, 0.14))
@@ -121,7 +120,10 @@ func _process(delta: float) -> void:
 	_core.queue_redraw()
 	_ambient_time = fposmod(_ambient_time + delta, TAU * 5.0)
 	_atmosphere.queue_redraw()
-	if _shake_remaining > 0.0:
+	if not GameManager.screen_shake_enabled:
+		_shake_remaining = 0.0
+		_camera.offset = Vector2.ZERO
+	elif _shake_remaining > 0.0:
 		_shake_remaining = maxf(0.0, _shake_remaining - delta)
 		var phase: int = ceili(_shake_remaining * 30.0)
 		var strength: float = minf(_shake_strength, float(phase))
@@ -140,6 +142,10 @@ func _process(delta: float) -> void:
 
 
 func _start_shake(strength: float, duration: float) -> void:
+	if not GameManager.screen_shake_enabled:
+		_shake_remaining = 0.0
+		_camera.offset = Vector2.ZERO
+		return
 	_shake_strength = maxf(strength, _shake_strength if _shake_remaining > 0.0 else 0.0)
 	_shake_remaining = maxf(_shake_remaining, duration)
 
@@ -207,22 +213,20 @@ func _on_wave_changed(new_wave: int) -> void:
 
 
 func _on_state_changed(new_state: GameManager.GameState) -> void:
-	var previous_state: GameManager.GameState = _previous_state
-	_previous_state = new_state
-	var run_boundaries: Array[GameManager.GameState] = [
-		GameManager.GameState.MENU, GameManager.GameState.VICTORY, GameManager.GameState.GAME_OVER,
-	]
-	if new_state in run_boundaries:
+	if new_state in [GameManager.GameState.MENU, GameManager.GameState.VICTORY,
+			GameManager.GameState.GAME_OVER]:
 		_clear_enemies()
-	elif new_state == GameManager.GameState.PLAYING and previous_state in run_boundaries:
-		_sparks.clear()
-		queue_redraw()
-		_shake_remaining = 0.0
-		_camera.offset = Vector2.ZERO
-		_core_flash = 0.0
-		_player.position = Vector2(320, 219)
-		_player.reset_run()
-		_on_wave_changed(1)
+
+
+func _on_run_started() -> void:
+	_sparks.clear()
+	queue_redraw()
+	_shake_remaining = 0.0
+	_camera.offset = Vector2.ZERO
+	_core_flash = 0.0
+	_player.position = Vector2(320, 219)
+	_player.reset_run()
+	_on_wave_changed(GameManager.wave)
 
 
 func _on_boss_defeated() -> void:

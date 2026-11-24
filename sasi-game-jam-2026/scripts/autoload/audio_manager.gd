@@ -62,6 +62,8 @@ const EFFECT_SCORES: Dictionary[StringName, Array] = {
 var music_player: AudioStreamPlayer
 var sfx_players: Array[AudioStreamPlayer] = []
 var muted: bool = false
+var music_volume: float = 1.0
+var sfx_volume: float = 1.0
 var _music_volume_db: float = 0.0
 var _sfx_volumes_db: Array[float] = []
 var _next_sfx_player_index: int = 0
@@ -123,7 +125,7 @@ func play_music(stream: AudioStream, volume_db: float = 0.0) -> void:
 		return
 	_pending_track = &""
 	_music_volume_db = volume_db
-	music_player.volume_db = _get_effective_volume(volume_db)
+	music_player.volume_db = _get_effective_volume(volume_db, music_volume)
 	if music_player.stream == stream and music_player.playing:
 		return
 	music_player.stream = stream
@@ -143,21 +145,43 @@ func play_sfx(stream: AudioStream, volume_db: float = 0.0, pitch_scale: float = 
 	_next_sfx_player_index = (index + 1) % sfx_players.size()
 	_sfx_volumes_db[index] = volume_db
 	player.stream = stream
-	player.volume_db = _get_effective_volume(volume_db)
+	player.volume_db = _get_effective_volume(volume_db, sfx_volume)
 	player.pitch_scale = maxf(pitch_scale, 0.01)
 	player.play()
 
 
 func set_muted(value: bool) -> void:
 	muted = value
+	_apply_music_volume()
+	_apply_sfx_volume()
+
+
+func set_music_volume(value: float) -> void:
+	music_volume = clampf(value, 0.0, 1.0)
+	_apply_music_volume()
+
+
+func set_sfx_volume(value: float) -> void:
+	sfx_volume = clampf(value, 0.0, 1.0)
+	_apply_sfx_volume()
+
+
+func play_ui_cue() -> void:
+	_play_effect(&"habit_select")
+
+
+func _apply_music_volume() -> void:
 	if music_player != null:
-		music_player.volume_db = _get_effective_volume(_music_volume_db)
+		music_player.volume_db = _get_effective_volume(_music_volume_db, music_volume)
+
+
+func _apply_sfx_volume() -> void:
 	for index: int in range(sfx_players.size()):
-		sfx_players[index].volume_db = _get_effective_volume(_sfx_volumes_db[index])
+		sfx_players[index].volume_db = _get_effective_volume(_sfx_volumes_db[index], sfx_volume)
 
 
-func _get_effective_volume(volume_db: float) -> float:
-	return -80.0 if muted else volume_db
+func _get_effective_volume(volume_db: float, gain: float) -> float:
+	return -80.0 if muted or gain <= 0.001 else volume_db + linear_to_db(gain)
 
 
 func _play_effect(effect: StringName, volume_db: float = -5.0) -> void:
