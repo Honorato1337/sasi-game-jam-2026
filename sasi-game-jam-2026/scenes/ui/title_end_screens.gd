@@ -87,39 +87,35 @@ func _build_title() -> void:
 	_character_actor(_title_window, Rect2(364, 198, 96, 96), STUDENT_SHEET, 8, _student_atlas)
 	_character_actor(_title_window, Rect2(464, 200, 96, 96), CLASSMATE_SHEET, 2, _classmate_atlas)
 
-	Retro.label(_title_window, Rect2(40, 26, 240, 16), "SASI: GAME JAM 2026  •  UFAC",
-			10, Retro.MUTED)
-	var hero: Label = Retro.label(_title_window, Rect2(38, 44, 290, 40), "TRÊS TURNOS", 32, Retro.GOLD)
+	var hero: Label = Retro.label(_title_window, Rect2(38, 36, 290, 40), "TRÊS TURNOS", 32, Retro.GOLD)
 	hero.add_theme_font_override(&"font", Retro.FONT_BOLD)
 	hero.add_theme_color_override(&"font_shadow_color", Color(0.08, 0.05, 0.12, 0.72))
 	hero.add_theme_constant_override(&"shadow_offset_x", 2)
 	hero.add_theme_constant_override(&"shadow_offset_y", 2)
-	Retro.label(_title_window, Rect2(40, 86, 250, 20), "Manhã, Tarde e Noite",
+	Retro.label(_title_window, Rect2(40, 78, 250, 20), "Manhã, Tarde e Noite",
 			14, Retro.MINT)
-	Retro.divider(_title_window, Rect2(40, 110, 212, 1))
+	Retro.divider(_title_window, Rect2(40, 104, 212, 1))
 
-	var play: Button = _action(_title_window, Rect2(40, 124, 212, 28), "JOGAR",
+	var play: Button = _action(_title_window, Rect2(40, 120, 212, 30), "JOGAR",
 			GameManager.start_new_run)
 	play.add_theme_stylebox_override(&"normal",
-			Retro.pixel_button_box(Color("#43345e"), Retro.GOLD, Color("#ffe29c"), Color("#8c5e35"), false))
+			Retro.pixel_button_box(Color("#4f3448"), Retro.GOLD, Color("#ffe3a0"), Color("#8c5c34"), false))
 	play.add_theme_font_override(&"font", Retro.FONT_BOLD)
 
-	var settings: Button = _action(_title_window, Rect2(40, 158, 212, 28), "CONFIGURAÇÕES")
+	var settings: Button = _action(_title_window, Rect2(40, 156, 212, 30), "CONFIGURAÇÕES")
 	settings.pressed.connect(_open_subwindow.bind(_settings_window, settings))
 
-	var help: Button = _action(_title_window, Rect2(40, 192, 212, 28), "COMO JOGAR")
+	var help: Button = _action(_title_window, Rect2(40, 192, 212, 30), "COMO JOGAR")
 	help.pressed.connect(_open_subwindow.bind(_help_window, help))
 
-	var credits: Button = _action(_title_window, Rect2(40, 226, 212, 28), "CRÉDITOS & SAÚDE")
+	var credits: Button = _action(_title_window, Rect2(40, 228, 212, 30), "CRÉDITOS & SAÚDE")
 	credits.pressed.connect(_open_subwindow.bind(_credits_window, credits))
 
 	if not OS.has_feature("web"):
-		_quit_button = _action(_title_window, Rect2(40, 260, 212, 28), "SAIR", get_tree().quit)
+		_quit_button = _action(_title_window, Rect2(40, 264, 212, 30), "SAIR", get_tree().quit)
 
-	_cursor = Retro.label(_title_window, Rect2(24, 124, 14, 28), ">", 12, Retro.MINT)
+	_cursor = Retro.label(_title_window, Rect2(24, 120, 14, 30), ">", 12, Retro.MINT)
 	_cursor.add_theme_font_override(&"font", Retro.FONT_BOLD)
-	Retro.label(_title_window, Rect2(40, 330, 340, 18),
-			"W/S ou Mouse para navegar  •  Enter / Clique para confirmar", 10, Retro.MUTED)
 
 
 func _character_actor(parent: Control, rect: Rect2, sheet: Texture2D, frame_count: int,

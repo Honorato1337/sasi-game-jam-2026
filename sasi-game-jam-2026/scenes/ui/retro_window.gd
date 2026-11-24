@@ -59,34 +59,88 @@ static func pixel_panel_box(fill: Color, border: Color, highlight: Color,
 
 static func pixel_button_box(fill: Color, border: Color, highlight: Color,
 		shadow_bevel: Color, pressed: bool = false) -> StyleBoxTexture:
-	var key: String = "btn_%s_%s_%s_%s_%s" % [fill.to_html(), border.to_html(), highlight.to_html(), shadow_bevel.to_html(), pressed]
+	var key: String = "btn_org_%s_%s_%s_%s_%s" % [fill.to_html(), border.to_html(), highlight.to_html(), shadow_bevel.to_html(), pressed]
 	if _box_cache.has(key):
 		return _box_cache[key]
-	var img: Image = Image.create_empty(16, 16, false, Image.FORMAT_RGBA8)
+	const W: int = 48
+	const H: int = 28
+	var img: Image = Image.create_empty(W, H, false, Image.FORMAT_RGBA8)
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = hash(key)
+	var bayer: Array[float] = [0.0, 0.5, 0.75, 0.25]
+	var lit_top: Color = fill.lightened(0.09)
+	var lit_mid: Color = fill.lightened(0.03)
+	var shade_low: Color = fill.darkened(0.14)
+	for y: int in range(3, H - 3):
+		var raw_t: float = float(y - 3) / float(H - 7)
+		var t: float = 1.0 - raw_t if pressed else raw_t
+		for x: int in range(3, W - 3):
+			var threshold: float = bayer[((x & 1) * 2) + (y & 1)]
+			var px: Color = fill
+			if t < 0.28:
+				var f: float = 1.0 - t / 0.28
+				px = lit_top if f > threshold else lit_mid
+			elif t > 0.70:
+				var f: float = (t - 0.70) / 0.30
+				px = shade_low if f > threshold else fill
+			if rng.randf() < 0.11:
+				px = px.lightened(0.04) if rng.randf() < 0.5 else px.darkened(0.05)
+			img.set_pixel(x, y, px)
+
+	# Estrias orgânicas horizontais simulando placa entalhada.
+	for row_y: int in range(5, H - 5, 3):
+		var cursor_x: int = rng.randi_range(5, 11)
+		while cursor_x < W - 8:
+			var span: int = rng.randi_range(3, 8)
+			var tone: Color = fill.lightened(0.06) if (row_y + cursor_x) % 2 == 0 else fill.darkened(0.07)
+			for dx: int in range(mini(span, W - 5 - cursor_x)):
+				img.set_pixel(cursor_x + dx, row_y, tone)
+			cursor_x += span + rng.randi_range(4, 9)
+
+	if not pressed:
+		img.fill_rect(Rect2i(3, H - 4, W - 6, 1), fill.darkened(0.20))
+
 	var top_left: Color = shadow_bevel if pressed else highlight
 	var bottom_right: Color = highlight if pressed else shadow_bevel
-	img.fill_rect(Rect2i(3, 3, 10, 10), fill)
-	img.fill_rect(Rect2i(2, 2, 12, 1), top_left)
-	img.fill_rect(Rect2i(2, 2, 1, 12), top_left)
-	img.fill_rect(Rect2i(3, 13, 11, 1), bottom_right)
-	img.fill_rect(Rect2i(13, 3, 1, 11), bottom_right)
-	img.fill_rect(Rect2i(2, 1, 12, 1), border)
-	img.fill_rect(Rect2i(2, 14, 12, 1), border)
-	img.fill_rect(Rect2i(1, 2, 1, 12), border)
-	img.fill_rect(Rect2i(14, 2, 1, 12), border)
-	img.fill_rect(Rect2i(1, 0, 14, 1), INK)
-	img.fill_rect(Rect2i(1, 15, 14, 1), INK)
-	img.fill_rect(Rect2i(0, 1, 1, 14), INK)
-	img.fill_rect(Rect2i(15, 1, 1, 14), INK)
-	for notch: Vector2i in [Vector2i(1, 1), Vector2i(14, 1), Vector2i(1, 14), Vector2i(14, 14)]:
+	img.fill_rect(Rect2i(2, 2, W - 4, 1), top_left)
+	img.fill_rect(Rect2i(2, 2, 1, H - 4), top_left)
+	img.fill_rect(Rect2i(3, H - 3, W - 5, 1), bottom_right)
+	img.fill_rect(Rect2i(W - 3, 3, 1, H - 5), bottom_right)
+	for chip_x: int in [16, 31]:
+		img.set_pixel(chip_x, 2, top_left.lerp(border, 0.55))
+		img.set_pixel(chip_x + 2, H - 3, bottom_right.lerp(border, 0.55))
+
+	img.fill_rect(Rect2i(2, 1, W - 4, 1), border)
+	img.fill_rect(Rect2i(2, H - 2, W - 4, 1), border)
+	img.fill_rect(Rect2i(1, 2, 1, H - 4), border)
+	img.fill_rect(Rect2i(W - 2, 2, 1, H - 4), border)
+	for rim_x: int in [11, 22, 34]:
+		img.set_pixel(rim_x, 1, border.lerp(highlight, 0.35))
+		img.set_pixel(rim_x, H - 2, border.lerp(shadow_bevel, 0.45))
+
+	img.fill_rect(Rect2i(2, 0, W - 4, 1), INK)
+	img.fill_rect(Rect2i(2, H - 1, W - 4, 1), INK)
+	img.fill_rect(Rect2i(0, 2, 1, H - 4), INK)
+	img.fill_rect(Rect2i(W - 1, 2, 1, H - 4), INK)
+	for notch: Vector2i in [Vector2i(1, 1), Vector2i(W - 2, 1), Vector2i(1, H - 2), Vector2i(W - 2, H - 2)]:
 		img.set_pixelv(notch, INK)
-	var box: StyleBoxTexture = _make_texture_box(img, 4.0, 4.0, 2.0)
+
+	for stud_pair: Array in [
+		[Vector2i(3, 3), Vector2i(4, 3)],
+		[Vector2i(W - 4, 3), Vector2i(W - 5, 3)],
+		[Vector2i(3, H - 4), Vector2i(4, H - 4)],
+		[Vector2i(W - 4, H - 4), Vector2i(W - 5, H - 4)],
+	]:
+		img.set_pixelv(stud_pair[0] as Vector2i, highlight)
+		img.set_pixelv(stud_pair[1] as Vector2i, shadow_bevel)
+
+	var box: StyleBoxTexture = _make_texture_box(img, 7.0, 5.0, 2.0)
 	_box_cache[key] = box
 	return box
 
 
 static func pixel_focus_box(border: Color) -> StyleBoxTexture:
-	var key: String = "focus_%s" % border.to_html()
+	var key: String = "focus2_%s" % border.to_html()
 	if _box_cache.has(key):
 		return _box_cache[key]
 	var img: Image = Image.create_empty(16, 16, false, Image.FORMAT_RGBA8)
@@ -94,12 +148,14 @@ static func pixel_focus_box(border: Color) -> StyleBoxTexture:
 	img.fill_rect(Rect2i(2, 15, 12, 1), INK)
 	img.fill_rect(Rect2i(0, 2, 1, 12), INK)
 	img.fill_rect(Rect2i(15, 2, 1, 12), INK)
-	img.fill_rect(Rect2i(1, 1, 14, 2), border)
-	img.fill_rect(Rect2i(1, 13, 14, 2), border)
-	img.fill_rect(Rect2i(1, 1, 2, 14), border)
-	img.fill_rect(Rect2i(13, 1, 2, 14), border)
+	for notch: Vector2i in [Vector2i(1, 1), Vector2i(14, 1), Vector2i(1, 14), Vector2i(14, 14)]:
+		img.set_pixelv(notch, INK)
+	img.fill_rect(Rect2i(2, 1, 12, 2), border)
+	img.fill_rect(Rect2i(2, 13, 12, 2), border)
+	img.fill_rect(Rect2i(1, 2, 2, 12), border)
+	img.fill_rect(Rect2i(13, 2, 2, 12), border)
 	img.fill_rect(Rect2i(3, 3, 10, 10), Color(0, 0, 0, 0))
-	var box: StyleBoxTexture = _make_texture_box(img, 4.0, 0.0, 0.0)
+	var box: StyleBoxTexture = _make_texture_box(img, 5.0, 0.0, 0.0)
 	_box_cache[key] = box
 	return box
 
@@ -244,11 +300,11 @@ static func button(parent: Node, rect: Rect2, content: String = "") -> Button:
 	action.add_theme_constant_override(&"shadow_offset_x", 1)
 	action.add_theme_constant_override(&"shadow_offset_y", 1)
 	action.add_theme_stylebox_override(&"normal",
-			pixel_button_box(TITLE, FRAME, Color("#6b5984"), Color("#221a2e"), false))
+			pixel_button_box(Color("#3a2c4a"), Color("#9982ad"), Color("#c4a8d1"), Color("#22182e"), false))
 	action.add_theme_stylebox_override(&"hover",
-			pixel_button_box(Color("#36505c"), MINT, Color("#b0f7dc"), Color("#20343d"), false))
+			pixel_button_box(Color("#33535c"), MINT, Color("#c0fae4"), Color("#1e343b"), false))
 	action.add_theme_stylebox_override(&"pressed",
-			pixel_button_box(BODY, GOLD, Color("#ffe29c"), Color("#8c5e35"), true))
+			pixel_button_box(Color("#251c32"), GOLD, Color("#ffe3a0"), Color("#8a5d36"), true))
 	action.add_theme_stylebox_override(&"disabled",
 			pixel_button_box(INK, BEVEL_DARK, Color("#342a42"), INK, false))
 	place(action, parent, rect)
