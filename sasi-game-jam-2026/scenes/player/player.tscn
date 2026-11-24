@@ -33,7 +33,7 @@ texture_filter = 1
 material = SubResource("ShaderMaterial_flash")
 position = Vector2(0, -7)
 texture = ExtResource("2_sheet")
-hframes = 4
+hframes = 8
 
 [node name="BreathRing" type="Node2D" parent="."]
 

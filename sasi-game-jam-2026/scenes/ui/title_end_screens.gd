@@ -44,8 +44,8 @@ func _build_title() -> void:
 	_title_window = _window(298, "O QUE MANTÉM DE PÉ.EXE")
 	_centered(_title_window, 26, 35, "O QUE MANTÉM DE PÉ", 27, Retro.CREAM)
 	_centered(_title_window, 62, 21, "Entre Fôlego e Rotina", 15, Retro.MINT)
-	_preview(_title_window, 21, ANTONIO_SHEET, 2, "Seu Antônio")
-	_preview(_title_window, 333, CORE_SHEET, 1, "Núcleo do Lar")
+	_preview(_title_window, 21, ANTONIO_SHEET, 8, 2, "Seu Antônio")
+	_preview(_title_window, 333, CORE_SHEET, 4, 1, "Núcleo do Lar")
 
 	_action(_title_window, Rect2(123, 93, 204, 27), "JOGAR", GameManager.start_new_run)
 	var help: Button = _action(_title_window, Rect2(123, 126, 204, 27), "COMO JOGAR")
@@ -59,10 +59,11 @@ func _build_title() -> void:
 	_centered(_title_window, 263, 19, "W/S ou ↑/↓ para navegar   •   Enter para confirmar", 11, Retro.MUTED)
 
 
-func _preview(parent: Panel, x: int, sheet: Texture2D, scale_factor: int, caption: String) -> void:
+func _preview(parent: Panel, x: int, sheet: Texture2D, frame_count: int,
+		scale_factor: int, caption: String) -> void:
 	var atlas: AtlasTexture = AtlasTexture.new()
 	atlas.atlas = sheet
-	atlas.region = Rect2(0, 0, sheet.get_width() / 4.0, sheet.get_height())
+	atlas.region = Rect2(0, 0, float(sheet.get_width()) / frame_count, sheet.get_height())
 	atlas.filter_clip = true
 	Retro.block(parent, Rect2(x + 14, 115, 68, 68), Retro.INK)
 	var preview: TextureRect = TextureRect.new()

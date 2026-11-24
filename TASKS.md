@@ -4,7 +4,9 @@
 > Sempre especifique: **ID**, **Dono**, **Arquivos-alvo**, **Descrição** e **Critério de Pronto**.
 
 ## EM PROGRESSO
-*(Vazio)*
+- [ ] **T-015** | Dono: `Codex` | **Arquivos-alvo:** `sasi-game-jam-2026/scripts/autoload/game_manager.gd`, `sasi-game-jam-2026/scripts/autoload/audio_manager.gd`, `sasi-game-jam-2026/scripts/data/story_dialogues.gd`, `sasi-game-jam-2026/scenes/ui/story_dialog.gd`, `sasi-game-jam-2026/scenes/ui/story_dialog.tscn`, `sasi-game-jam-2026/scenes/ui/hud.gd`, `sasi-game-jam-2026/scenes/levels/arena.gd`, `sasi-game-jam-2026/scenes/levels/arena.tscn`, `sasi-game-jam-2026/tools/validate_t012.gd`, `CREDITS_AND_AI.md`, `TASKS.md`
+  - **Descrição:** Game Feel Dinâmico & História Adaptável: hitstop, textos flutuantes pixel-nítidos, ritmo de spawn mais dinâmico, Orbes de Fôlego dropados por inimigos, evento Lembrança da Clara no pátio, sistema de Combo, além de arquivo central editável `story_dialogues.gd` + caixa de diálogo retrô com retrato pixel art animado e *typewriter* com voz 8-bit.
+  - **Critério de Pronto:** Combate dinâmico, diálogos funcionais e puláveis com `[ESC]`, validação headless completa aprovada no Godot 4.7.2 sem erros e status movido para `PARA REVISÃO`.
 
 ## PARA REVISÃO
 *(Vazio)*
@@ -13,6 +15,7 @@
 *(Vazio)*
 
 ## CONCLUÍDO
+- [x] **T-014** | Dono: `Codex` | Nitidez HD (`stretch/mode = "canvas_items"` + pixel snapping), `seu_antonio_sheet.png` expandido para 8 frames (`256x32`), animação de todos os estados do jogador com *squash & stretch*, afterimages de dash, poeira de passo, slash preenchido, empurrão em todo ataque, sinal `enemy_hit`, e animações/telegrafia dos 4 inimigos; 96 verificações headless + 97 no desktop aprovadas no Godot 4.7.2 sem erros e revisadas.
 - [x] **T-013** | Dono: `Codex` | Menu Principal completo (`JOGAR`, `COMO JOGAR`, `CONFIGURAÇÕES`, `CRÉDITOS & SAÚDE`, `SAIR`), `CONFIGURAÇÕES.EXE` (volumes Música/SFX, Mudo, Tremor de Tela e Tela Cheia), Menu de Pausa (`ESC`/`P`) e telas finais com navegação mouse/teclado; 88 verificações headless + 89 no desktop aprovadas no Godot 4.7.2 sem erros de script e revisadas.
 - [x] **T-012** | Dono: `Antigravity + Codex` | Reconstrução visual 32-bit em pixel art rica e texturizada (`arena_bg.png` pátio médio-escuro 2.5D + 7 spritesheets animados com sombreamento hue-shifted, halos de luz, vagalumes, sombras no chão e shaders de flash branco); 55 verificações aprovadas no Godot 4.7.2 headless sem erros de script.
 - [x] **T-011** | Dono: `Codex` | Polimento visual 8-bit e *juice* (`player.gd`, `enemy_base.gd`, `arena.gd`): animação 2 frames, flashes de impacto, aura ciano de Clareza, *screen shake* pixel-snapped, partículas/faíscas 8-bit, pulso do Núcleo e raio da aura de apoio; 30 verificações integradas aprovadas em Godot 4.7.2 headless com zero erros de script.

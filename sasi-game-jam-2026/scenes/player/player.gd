@@ -6,6 +6,7 @@ signal dashed(direction: Vector2)
 signal breathing_progressed(progress: float, is_breathing: bool)
 signal breathing_completed()
 signal hit_taken(bpm_added: float)
+signal enemy_hit(enemy_position: Vector2, damage: int, is_clarity: bool, is_boss: bool)
 
 const BASE_SPEED: float = 115.0
 const ATTACK_COOLDOWN: float = 0.32
@@ -13,7 +14,8 @@ const EXHAUSTED_ATTACK_COOLDOWN: float = 0.65
 const ATTACK_HALF_ANGLE: float = PI / 4.0
 const CLARITY_HALF_ANGLE: float = PI * 0.4
 const CLARITY_KNOCKBACK_SPEED: float = 220.0
-const ATTACK_FLASH_DURATION: float = 0.14
+const NORMAL_KNOCKBACK_SPEED: float = 95.0
+const ATTACK_FLASH_DURATION: float = 0.20
 const DASH_SPEED: float = 240.0
 const DASH_DURATION: float = 0.18
 const DASH_COOLDOWN: float = 0.75
@@ -44,6 +46,10 @@ var _hit_flash: float = 0.0
 var _animation_time: float = 0.0
 var _alternate_frame: bool = false
 var _walking: bool = false
+var _visual_time: float = 0.0
+var _ghost_remaining: float = 0.0
+var _breathing_visual: bool = false
+var _effects: Node2D
 
 @onready var _visual: Node2D = $Visual
 @onready var _sprite: Sprite2D = $Visual/Sprite2D
@@ -54,6 +60,10 @@ var _walking: bool = false
 
 
 func _ready() -> void:
+	_effects = Node2D.new()
+	_effects.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(_effects)
+	move_child(_effects, _visual.get_index())
 	_visual.draw.connect(_draw_visual)
 	_breath_ring.draw.connect(_draw_breath_ring)
 	_attack_arc.draw.connect(_draw_attack_arc)
@@ -75,6 +85,9 @@ func _physics_process(delta: float) -> void:
 	if GameManager.current_state != GameManager.GameState.PLAYING:
 		velocity = Vector2.ZERO
 		_reset_breathing()
+		if _breathing_visual:
+			_breathing_visual = false
+			_visual.queue_redraw()
 		return
 
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
@@ -98,6 +111,7 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed(&"dash") and _dash_cooldown <= 0.0 and not exhausted:
 		_dash_direction = facing_direction
 		_dash_remaining = DASH_DURATION
+		_ghost_remaining = 0.0
 		_dash_cooldown = DASH_COOLDOWN
 		GameManager.add_bpm(9.0)
 		dashed.emit(_dash_direction)
@@ -120,7 +134,8 @@ func _physics_process(delta: float) -> void:
 	if is_in_ally_aura:
 		GameManager.reduce_bpm(4.0 * delta)
 	_update_visual_tremor()
-	_update_visual_animation(delta, move_input != Vector2.ZERO)
+	_update_visual_animation(delta, move_input != Vector2.ZERO and get_position_delta().length_squared() > 0.001,
+			breathe_held, dash_step > 0.0)
 
 
 func reset_run() -> void:
@@ -136,8 +151,13 @@ func reset_run() -> void:
 	_animation_time = 0.0
 	_alternate_frame = false
 	_walking = false
+	_visual_time = 0.0
+	_breathing_visual = false
+	for effect: Node in _effects.get_children():
+		effect.queue_free()
 	_sprite.frame = 0
 	_sprite.flip_h = false
+	_sprite.scale = Vector2.ONE
 	_flash_material.set_shader_parameter(&"hit_flash", 0.0)
 	_update_visual_tremor()
 	_visual.queue_redraw()
@@ -188,12 +208,17 @@ func _attack() -> void:
 			continue
 		if offset != Vector2.ZERO and offset.normalized().dot(_attack_direction) < min_dot:
 			continue
+		var enemy_position: Vector2 = enemy.global_position
+		var is_boss: bool = enemy.has_method(&"is_boss") and bool(enemy.call(&"is_boss"))
+		var effective_damage: int = damage
+		if enemy.has_method(&"get_effective_damage"):
+			effective_damage = int(enemy.call(&"get_effective_damage", damage, _attack_is_clarity))
+		if enemy.has_method(&"apply_knockback"):
+			var impulse: float = CLARITY_KNOCKBACK_SPEED if _attack_is_clarity else NORMAL_KNOCKBACK_SPEED
+			enemy.call(&"apply_knockback", _attack_direction * impulse)
 		enemy.call(&"take_damage", damage, _attack_is_clarity, _attack_direction)
+		enemy_hit.emit(enemy_position, effective_damage, _attack_is_clarity, is_boss)
 		hit_enemy = true
-		# Enemies can accept a knockback velocity without exposing their movement state.
-		if _attack_is_clarity and is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
-			if enemy.has_method(&"apply_knockback"):
-				enemy.call(&"apply_knockback", _attack_direction * CLARITY_KNOCKBACK_SPEED)
 
 	if not _attack_is_clarity:
 		GameManager.add_bpm(4.5)
@@ -245,20 +270,77 @@ func _update_visual_tremor() -> void:
 	_visual.position = pixel + tremor
 
 
-func _update_visual_animation(delta: float, walking: bool) -> void:
+func _update_visual_animation(delta: float, moving: bool, breathe_held: bool = false,
+		dashing: bool = false) -> void:
+	var walking: bool = moving and not (dashing or breathe_held or _attack_flash > 0.0)
+	_visual_time += delta
+	_breathing_visual = breathe_held
 	if walking != _walking:
 		_walking = walking
 		_animation_time = 0.0
-		_visual.queue_redraw()
 	var frame_duration: float = 0.12 if walking else 0.55
 	_animation_time = fposmod(_animation_time + delta, frame_duration * 2.0)
 	var alternate: bool = _animation_time >= frame_duration
 	_sprite.frame = (2 if walking else 0) + int(alternate)
-	if facing_direction.x != 0.0:
-		_sprite.flip_h = facing_direction.x < 0.0
+	var pose_direction: Vector2 = _attack_direction if _attack_flash > 0.0 else facing_direction
+	var target_scale: Vector2 = Vector2.ONE
+	if dashing:
+		_sprite.frame = 6
+		pose_direction = _dash_direction
+		target_scale = Vector2(1.22, 0.84)
+	elif _attack_flash > 0.0:
+		_sprite.frame = 4 if _attack_flash > ATTACK_FLASH_DURATION * 0.60 else 5
+		target_scale = Vector2(0.94, 1.07) if _sprite.frame == 4 else Vector2(1.15, 0.92)
+	elif breathe_held:
+		_sprite.frame = 7
+		target_scale.y += sin(_visual_time * 5.0) * 0.035
+	elif walking:
+		target_scale = Vector2(1.04, 0.96) if alternate else Vector2(0.98, 1.04)
+	if pose_direction.x != 0.0:
+		_sprite.flip_h = pose_direction.x < 0.0
+	_sprite.scale = _sprite.scale.lerp(target_scale, 1.0 - exp(-delta * 22.0))
+	if dashing:
+		_ghost_remaining -= delta
+		if _ghost_remaining <= 0.0:
+			_ghost_remaining += 0.045
+			_spawn_dash_ghost()
 	if alternate != _alternate_frame:
 		_alternate_frame = alternate
-		_visual.queue_redraw()
+		if walking:
+			_spawn_step_dust()
+	_visual.queue_redraw()
+
+
+func _spawn_dash_ghost() -> void:
+	var ghost: Sprite2D = Sprite2D.new()
+	ghost.texture = _sprite.texture
+	ghost.hframes = _sprite.hframes
+	ghost.frame = 6
+	ghost.flip_h = _sprite.flip_h
+	ghost.top_level = true
+	ghost.z_index = -1
+	ghost.modulate = Color(0.75, 1.0, 0.98, 0.44)
+	_effects.add_child(ghost)
+	ghost.global_transform = _sprite.global_transform
+	var fade: Tween = ghost.create_tween()
+	fade.tween_property(ghost, "modulate:a", 0.0, 0.14)
+	fade.tween_callback(ghost.queue_free)
+
+
+func _spawn_step_dust() -> void:
+	for index: int in range(3):
+		var dust: Polygon2D = Polygon2D.new()
+		dust.polygon = PackedVector2Array([Vector2.ZERO, Vector2(2, 0), Vector2(2, 2), Vector2(0, 2)])
+		dust.color = Color(0.86, 0.72, 0.55, 0.55)
+		dust.top_level = true
+		dust.z_index = -1
+		_effects.add_child(dust)
+		dust.global_position = global_position.round() + Vector2(index * 3 - 3, 8)
+		var fade: Tween = dust.create_tween().set_parallel()
+		fade.tween_property(dust, "global_position", dust.global_position - facing_direction * 6.0
+				+ Vector2(index - 1, -4), 0.22)
+		fade.tween_property(dust, "modulate:a", 0.0, 0.22)
+		fade.chain().tween_callback(dust.queue_free)
 
 
 func _on_clarity_ready_changed(_is_ready: bool) -> void:
@@ -266,6 +348,13 @@ func _on_clarity_ready_changed(_is_ready: bool) -> void:
 
 
 func _draw_visual() -> void:
+	if _breathing_visual:
+		for index: int in range(9):
+			var phase: float = fposmod(_visual_time * 1.4 + index / 9.0, 1.0)
+			var angle: float = index * TAU / 9.0 + phase * 0.65
+			var point: Vector2 = (Vector2.from_angle(angle) * lerpf(25.0, 3.0, phase)).round()
+			var color: Color = Color(0.56, 1.0, 0.86, sin(phase * PI) * 0.85)
+			_visual.draw_rect(Rect2(point + Vector2(0, -7), Vector2(2, 2)), color)
 	if GameManager.clarity_ready:
 		var aura: Color = Color(0.45, 1.0, 0.95, 0.48 if _alternate_frame else 0.30)
 		for index: int in range(20):
@@ -285,12 +374,27 @@ func _draw_breath_ring() -> void:
 func _draw_attack_arc() -> void:
 	if _attack_flash <= 0.0:
 		return
-	var angle: float = _attack_direction.angle()
-	var color: Color = Color("#89ffe0") if _attack_is_clarity else Color("#ffda8e")
-	color.a = _attack_flash / ATTACK_FLASH_DURATION
-	var width: float = 4.0 if _attack_is_clarity else 2.0
-	_attack_arc.draw_arc(Vector2.ZERO, _attack_range, angle - _attack_half_angle,
-			angle + _attack_half_angle, 24, color, width)
-	color.a *= 0.45
-	_attack_arc.draw_arc(Vector2.ZERO, _attack_range - 5.0, angle - _attack_half_angle,
-			angle + _attack_half_angle, 24, color, 1.0)
+	var life: float = _attack_flash / ATTACK_FLASH_DURATION
+	var angle: float = _attack_direction.angle() + (0.5 - life) * 0.40
+	var radius: float = _attack_range * lerpf(1.0, 0.84, life)
+	var width: float = 15.0 if _attack_is_clarity else 9.0
+	var glow: Color = Color("#39dcec") if _attack_is_clarity else Color("#fca34d")
+	var edge: Color = Color("#edffff") if _attack_is_clarity else Color("#fff3c8")
+	glow.a = life * 0.9
+	edge.a = life
+	_draw_slash_layer(angle, radius, width, glow)
+	_draw_slash_layer(angle, radius - 1.0, width * 0.42, edge)
+
+
+func _draw_slash_layer(angle: float, radius: float, width: float, color: Color) -> void:
+	const SEGMENTS: int = 24
+	var points: PackedVector2Array = PackedVector2Array()
+	for index: int in range(SEGMENTS + 1):
+		var fraction: float = float(index) / SEGMENTS
+		var direction: Vector2 = Vector2.from_angle(angle + lerpf(-_attack_half_angle, _attack_half_angle, fraction))
+		points.append(direction * radius)
+	for index: int in range(SEGMENTS - 1, 0, -1):
+		var fraction: float = float(index) / SEGMENTS
+		var direction: Vector2 = Vector2.from_angle(angle + lerpf(-_attack_half_angle, _attack_half_angle, fraction))
+		points.append(direction * (radius - width * sin(fraction * PI)))
+	_attack_arc.draw_colored_polygon(points, color)

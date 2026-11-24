@@ -32,7 +32,8 @@ func _run() -> void:
 	_check(GameManager.current_state == GameManager.GameState.MENU and screens.visible, "MENU")
 	_sprite(courtyard, "arena_bg", 1)
 	_sprite(core, "care_core_sheet", 4)
-	_sprite(antonio, "seu_antonio_sheet", 4)
+	_sprite(antonio, "seu_antonio_sheet", 8)
+	_check(antonio.get_rect().size == Vector2(32, 32), "Antônio frame size")
 	_check(not courtyard.centered and courtyard.z_index < 0, "Backdrop alignment and layer")
 	_check(arena._dust_origins.size() == 18, "18 ambient particles")
 	_key(KEY_ENTER)
@@ -49,6 +50,16 @@ func _run() -> void:
 	_check(antonio.frame == 0 and antonio.flip_h, "Idle preserves horizontal facing")
 	player._update_visual_animation(0.55, false)
 	_check(antonio.frame == 1, "Second idle frame")
+	player._update_visual_animation(0.02, false, true)
+	_check(antonio.frame == 7 and player._breathing_visual, "Breathing pose and particles")
+	player._dash_direction = Vector2.LEFT
+	player._update_visual_animation(0.02, false, false, true)
+	_check(antonio.frame == 6 and antonio.scale.x > 1.0 and player._effects.get_child_count() > 0,
+			"Dash pose, stretch and ghost")
+
+	var hits: Array[Array] = []
+	player.enemy_hit.connect(func(at: Vector2, damage: int, clarity: bool, is_boss: bool) -> void:
+		hits.append([at, damage, clarity, is_boss]))
 
 	var routine: Enemy = arena._spawn_enemy(Enemy.EnemyType.ROUTINE_PRESSURE,
 			player.global_position + Vector2(-20, 0))
@@ -58,6 +69,10 @@ func _run() -> void:
 		_sprite(enemy.get_node("Sprite2D"), "enemy_%s_sheet" % ENEMY_SHEETS[enemy.enemy_type], 2)
 	_check_enemy_animation(other)
 	player._attack()
+	player._update_visual_animation(0.01, false)
+	_check(antonio.frame == 4, "Attack windup pose")
+	_check(hits == [[routine.global_position, 20, false, false]]
+			and routine._knockback == Vector2.LEFT * 95.0, "Normal hit signal and knockback")
 	_check(routine.hp == 10 and _flash(routine.get_node("Sprite2D")) == 1.0, "Attack and enemy flash")
 	_check(_flash(other.get_node("Sprite2D")) == 0.0, "Flash isolated per enemy")
 	routine._physics_process(0.10)
@@ -65,6 +80,7 @@ func _run() -> void:
 	_check(player.apply_enemy_contact(routine.global_position) and _flash(antonio) == 1.0,
 			"Contact hit and player flash")
 	player._physics_process(0.10)
+	_check(antonio.frame == 5, "Attack swing pose")
 	_check(_flash(antonio) == 0.0, "Player flash expires")
 	player._update_breathing(GameManager.get_breathe_duration(), true)
 	_check(GameManager.clarity_ready and not arena._sparks.is_empty(), "Breathing prepares Clarity")
@@ -111,9 +127,19 @@ func _run() -> void:
 	var boss: Enemy = enemies.get_child(enemies.get_child_count() - 1)
 	_check(boss.enemy_type == Enemy.EnemyType.EXHAUSTION_BOSS, "Boss spawns in wave 4")
 	_sprite(boss.get_node("Sprite2D"), "enemy_boss_sheet", 2)
-	boss._update_boss(6.0)
+	boss._update_boss(4.99)
+	_check(boss._boss_warning_strength() == 0.0, "No boss warning outside the final second")
+	boss._update_boss(0.02)
+	_check(boss._boss_warning_strength() > 0.0, "Boss warns during the final second")
+	boss._update_boss(1.0)
 	_check(boss._pulse_age == 0.0 and arena._shake_remaining > 0.0, "Boss pulse and shake")
-	for hit: int in range(3):
+	boss.global_position = player.global_position + Vector2(20, 0)
+	player.facing_direction = Vector2.RIGHT
+	GameManager.complete_breathing()
+	player._attack()
+	_check(hits.back() == [boss.global_position, 110, true, true] and boss.hp == 210
+			and boss._knockback == Vector2.RIGHT * 220.0, "Boss Clarity hit signal and knockback")
+	for hit: int in range(1, 3):
 		boss.take_damage(55, true)
 		_check(boss.hp == maxi(0, 320 - 110 * (hit + 1)), "Boss Clarity hit %d" % (hit + 1))
 	_check(GameManager.current_state == GameManager.GameState.VICTORY and screens.visible, "VICTORY")
@@ -155,8 +181,9 @@ func _check_menus(arena: Arena, screens: Screens) -> void:
 		if thumbnail == null:
 			continue
 		var atlas: AtlasTexture = thumbnail.texture as AtlasTexture
+		var frame_size: Vector2 = Vector2(32, 32) if title_thumbnails == 0 else Vector2(48, 56)
 		_check(atlas != null and atlas.region.position == Vector2.ZERO
-				and atlas.region.size == atlas.atlas.get_size() / Vector2(4, 1)
+				and atlas.region.size == frame_size
 				and thumbnail.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "Nearest thumbnail frame 0")
 		title_thumbnails += 1
 	_check(title_thumbnails == 2 and title_actions.size() == (4 if OS.has_feature("web") else 5),
@@ -296,9 +323,10 @@ func _click(button: Button) -> void:
 
 
 func _check_enemy_animation(enemy: Enemy) -> void:
-	enemy._physics_process(0.18)
+	enemy._physics_process(0.42)
 	var sprite: Sprite2D = enemy.get_node("Sprite2D")
-	_check(sprite.frame == 1 and sprite.flip_h, "Enemy step animation and target facing")
+	_check(sprite.frame == 1 and sprite.flip_h and absf(sprite.rotation) > 0.0,
+			"Fatigue step, sway and target facing")
 
 
 func _key(code: Key) -> void:
