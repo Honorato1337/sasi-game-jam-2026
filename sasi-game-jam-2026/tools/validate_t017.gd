@@ -133,6 +133,18 @@ func test_player() -> void:
 	check((not is_instance_valid(target) or target.is_queued_for_deletion()) and player._attack_range == 40.0 and gm.rest == 70, "Normal attack")
 	clear_group(&"enemies")
 	clear_group(&"slow_puddles")
+	var behind: Node2D = enemy(0, Vector2(-24, 0))
+	var above: Node2D = enemy(0, Vector2(0, -24))
+	var below: Node2D = enemy(0, Vector2(0, 24))
+	var right_target: Node2D = enemy(0, Vector2(24, 0))
+	var far_target: Node2D = enemy(0, Vector2(-46, 0))
+	player.facing_direction = Vector2.RIGHT
+	step(player, 0.34)
+	await action(&"attack")
+	check(behind.hp == 11 and above.hp == 11 and below.hp == 11 and right_target.hp == 11
+			and behind._knockback.x < 0.0 and far_target.hp == 35, "360 radial attack hits all surrounding enemies")
+	clear_group(&"enemies")
+	clear_group(&"slow_puddles")
 	gm.spend_rest(100.0)
 	gm.modify_mind(-80.0)
 	step(player, 0.34)

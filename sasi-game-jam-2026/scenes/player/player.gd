@@ -11,8 +11,8 @@ signal enemy_hit(enemy_position: Vector2, damage: int, is_clarity: bool, is_boss
 
 const BASE_SPEED: float = 122.0
 const ATTACK_COOLDOWN: float = 0.32
-const ATTACK_HALF_ANGLE: float = PI / 4.0
-const CLARITY_HALF_ANGLE: float = PI * 0.4
+const ATTACK_HALF_ANGLE: float = PI
+const CLARITY_HALF_ANGLE: float = PI
 const CLARITY_KNOCKBACK_SPEED: float = 220.0
 const NORMAL_KNOCKBACK_SPEED: float = 95.0
 const ATTACK_FLASH_DURATION: float = 0.20
@@ -198,7 +198,7 @@ func _attack() -> void:
 	_attack_arc.queue_redraw()
 
 	var origin: Vector2 = global_position
-	var min_dot: float = cos(_attack_half_angle)
+	var range_sq: float = _attack_range * _attack_range
 	var hit_enemy: bool = false
 	for member: Node in get_tree().get_nodes_in_group(&"enemies"):
 		if not is_instance_valid(member) or member.is_queued_for_deletion():
@@ -207,10 +207,9 @@ func _attack() -> void:
 		if enemy == null or not enemy.has_method(&"take_damage"):
 			continue
 		var offset: Vector2 = enemy.global_position - origin
-		if offset.length_squared() > _attack_range * _attack_range:
+		if offset.length_squared() > range_sq:
 			continue
-		if offset != Vector2.ZERO and offset.normalized().dot(_attack_direction) < min_dot:
-			continue
+		var push_direction: Vector2 = offset.normalized() if offset != Vector2.ZERO else _attack_direction
 		var enemy_position: Vector2 = enemy.global_position
 		var is_boss: bool = enemy.has_method(&"is_boss") and bool(enemy.call(&"is_boss"))
 		var effective_damage: int = damage
@@ -218,8 +217,8 @@ func _attack() -> void:
 			effective_damage = int(enemy.call(&"get_effective_damage", damage, _attack_is_clarity))
 		if enemy.has_method(&"apply_knockback"):
 			var impulse: float = CLARITY_KNOCKBACK_SPEED if _attack_is_clarity else NORMAL_KNOCKBACK_SPEED
-			enemy.call(&"apply_knockback", _attack_direction * impulse)
-		enemy.call(&"take_damage", damage, _attack_is_clarity, _attack_direction)
+			enemy.call(&"apply_knockback", push_direction * impulse)
+		enemy.call(&"take_damage", damage, _attack_is_clarity, push_direction)
 		enemy_hit.emit(enemy_position, effective_damage, _attack_is_clarity, is_boss)
 		hit_enemy = true
 
@@ -229,9 +228,7 @@ func _attack() -> void:
 		clarity_hit.emit()
 	if _attack_is_clarity:
 		for projectile: Node2D in get_tree().get_nodes_in_group(&"stress_projectiles"):
-			var offset: Vector2 = projectile.global_position - origin
-			if offset.length_squared() <= _attack_range * _attack_range and (
-					offset == Vector2.ZERO or offset.normalized().dot(_attack_direction) >= min_dot):
+			if (projectile.global_position - origin).length_squared() <= range_sq:
 				projectile.queue_free()
 	attacked.emit(_attack_is_clarity, origin, _attack_direction, _attack_range, damage)
 
@@ -387,27 +384,31 @@ func _draw_attack_arc() -> void:
 	if _attack_flash <= 0.0:
 		return
 	var life: float = _attack_flash / ATTACK_FLASH_DURATION
-	var angle: float = _attack_direction.angle() + (0.5 - life) * 0.40
-	var radius: float = _attack_range * lerpf(1.0, 0.60, life)
-	var width: float = 15.0 if _attack_is_clarity else 9.0
+	var spin: float = _attack_direction.angle() + (1.0 - life) * TAU * 0.75
+	var radius: float = _attack_range * lerpf(1.0, 0.62, life)
+	var width: float = 14.0 if _attack_is_clarity else 9.0
 	var glow: Color = Color("#39dcec") if _attack_is_clarity else Color("#fca34d")
 	var edge: Color = Color("#ffe298") if _attack_is_clarity else Color("#fff3c8")
+	_attack_arc.draw_arc(Vector2.ZERO, maxf(2.0, radius - width * 0.35), 0.0, TAU, 36,
+			Color(glow.r, glow.g, glow.b, life * 0.35), width * 0.7)
+	_attack_arc.draw_arc(Vector2.ZERO, radius, 0.0, TAU, 36,
+			Color(edge.r, edge.g, edge.b, life * 0.85), 2.0 if _attack_is_clarity else 1.5)
 	glow.a = life * 0.9
 	edge.a = life
-	_draw_slash_layer(angle, radius, width, glow)
-	_draw_slash_layer(angle, radius - 1.0, width * 0.42, edge)
+	_draw_slash_layer(spin, radius, width, glow, PI * 0.82)
+	_draw_slash_layer(spin, radius - 1.0, width * 0.42, edge, PI * 0.82)
 
 
-func _draw_slash_layer(angle: float, radius: float, width: float, color: Color) -> void:
-	const SEGMENTS: int = 24
+func _draw_slash_layer(angle: float, radius: float, width: float, color: Color, half_angle: float) -> void:
+	const SEGMENTS: int = 32
 	var points: PackedVector2Array = PackedVector2Array()
 	for index: int in range(SEGMENTS + 1):
 		var fraction: float = float(index) / SEGMENTS
-		var direction: Vector2 = Vector2.from_angle(angle + lerpf(-_attack_half_angle, _attack_half_angle, fraction))
+		var direction: Vector2 = Vector2.from_angle(angle + lerpf(-half_angle, half_angle, fraction))
 		points.append(direction * radius)
 	for index: int in range(SEGMENTS - 1, 0, -1):
 		var fraction: float = float(index) / SEGMENTS
-		var direction: Vector2 = Vector2.from_angle(angle + lerpf(-_attack_half_angle, _attack_half_angle, fraction))
+		var direction: Vector2 = Vector2.from_angle(angle + lerpf(-half_angle, half_angle, fraction))
 		points.append(direction * (radius - width * sin(fraction * PI)))
 	_attack_arc.draw_colored_polygon(points, color)
 
