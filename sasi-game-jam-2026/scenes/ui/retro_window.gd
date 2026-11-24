@@ -1,5 +1,8 @@
 extends RefCounted
 
+const FONT_REGULAR: Font = preload("res://assets/fonts/PixelifySans-Regular.ttf")
+const FONT_BOLD: Font = preload("res://assets/fonts/PixelifySans-Bold.ttf")
+
 const INK: Color = Color("#181322")
 const CREAM: Color = Color("#faf0dd")
 const MUTED: Color = Color("#c9c5df")
@@ -91,7 +94,9 @@ static func divider(parent: Node, rect: Rect2) -> void:
 static func window(parent: Node, rect: Rect2, caption: String = "") -> Panel:
 	var frame: Panel = panel(parent, rect, false, false)
 	if not caption.is_empty():
-		label(frame, Rect2(12, 7, rect.size.x - 24, 18), caption, 13, GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+		var header: Label = label(frame, Rect2(12, 7, rect.size.x - 24, 18), caption, 13, GOLD,
+				HORIZONTAL_ALIGNMENT_CENTER)
+		header.add_theme_font_override(&"font", FONT_BOLD)
 		divider(frame, Rect2(16, 27, rect.size.x - 32, 1))
 	return frame
 

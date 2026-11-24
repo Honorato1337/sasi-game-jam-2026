@@ -89,7 +89,8 @@ func _build_title() -> void:
 
 	_outlined_label(_title_window, Rect2(40, 26, 240, 16), "SASI: GAME JAM 2026  •  UFAC",
 			10, Retro.MUTED, 3)
-	_outlined_label(_title_window, Rect2(38, 44, 290, 40), "TRÊS TURNOS", 32, Retro.GOLD, 6)
+	var hero: Label = _outlined_label(_title_window, Rect2(38, 44, 290, 40), "TRÊS TURNOS", 32, Retro.GOLD, 6)
+	hero.add_theme_font_override(&"font", Retro.FONT_BOLD)
 	_outlined_label(_title_window, Rect2(40, 86, 250, 20), "Manhã, Tarde e Noite",
 			14, Retro.MINT, 4)
 	Retro.divider(_title_window, Rect2(40, 110, 212, 1))
@@ -97,6 +98,7 @@ func _build_title() -> void:
 	var play: Button = _action(_title_window, Rect2(40, 124, 212, 28), "JOGAR",
 			GameManager.start_new_run)
 	play.add_theme_stylebox_override(&"normal", Retro.style(Color("#3f3357"), Retro.GOLD, 1))
+	play.add_theme_font_override(&"font", Retro.FONT_BOLD)
 
 	var settings: Button = _action(_title_window, Rect2(40, 158, 212, 28), "CONFIGURAÇÕES")
 	settings.pressed.connect(_open_subwindow.bind(_settings_window, settings))
@@ -110,9 +112,10 @@ func _build_title() -> void:
 	if not OS.has_feature("web"):
 		_quit_button = _action(_title_window, Rect2(40, 260, 212, 28), "SAIR", get_tree().quit)
 
-	_cursor = _outlined_label(_title_window, Rect2(24, 124, 14, 28), "▶", 12, Retro.MINT, 3)
-	_outlined_label(_title_window, Rect2(40, 330, 320, 18),
-			"↑/↓ ou Mouse para navegar  •  Enter / Clique para confirmar", 10, Retro.MUTED, 3)
+	_cursor = _outlined_label(_title_window, Rect2(24, 124, 14, 28), ">", 12, Retro.MINT, 3)
+	_cursor.add_theme_font_override(&"font", Retro.FONT_BOLD)
+	_outlined_label(_title_window, Rect2(40, 330, 340, 18),
+			"W/S ou Mouse para navegar  •  Enter / Clique para confirmar", 10, Retro.MUTED, 3)
 
 
 func _character_actor(parent: Control, rect: Rect2, sheet: Texture2D, frame_count: int,
@@ -287,6 +290,7 @@ func _build_end() -> void:
 	_end_caption = _centered(_end_window, 8, 16, "", 11, Retro.MINT)
 	Retro.divider(_end_window, Rect2(16, 27, WINDOW_WIDTH - 32, 1))
 	_end_heading = _centered(_end_window, 35, 35, "", 24, Retro.MINT)
+	_end_heading.add_theme_font_override(&"font", Retro.FONT_BOLD)
 	_end_message = _centered(_end_window, 74, 40, "", 13, Retro.CREAM)
 	var stats_box: Panel = Panel.new()
 	stats_box.mouse_filter = Control.MOUSE_FILTER_IGNORE

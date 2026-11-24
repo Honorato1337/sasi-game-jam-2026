@@ -43,9 +43,9 @@ func _ready() -> void:
 	var vitals: Panel = Retro.panel(self, Rect2(8, 8, 192, 82), true)
 	for index: int in range(NAMES.size()):
 		var y: int = 6 + index * 14
-		_names.append(Retro.label(vitals, Rect2(8, y, 88, 14), NAMES[index], 9, COLORS[index]))
-		_meters.append(Retro.meter(vitals, Rect2(98, y + 4, 86, 6), COLORS[index]))
-	_alert = Retro.label(vitals, Rect2(8, 63, 176, 13), "", 9, Color("#ff9aab"))
+		_names.append(Retro.label(vitals, Rect2(8, y, 90, 14), NAMES[index], 10, COLORS[index]))
+		_meters.append(Retro.meter(vitals, Rect2(100, y + 4, 84, 6), COLORS[index]))
+	_alert = Retro.label(vitals, Rect2(8, 63, 176, 13), "", 10, Color("#ff9aab"))
 
 	var info: Panel = Retro.panel(self, Rect2(404, 8, 228, 72), true)
 	_room = Retro.label(info, Rect2(9, 6, 210, 14), "", 10, Retro.CREAM)

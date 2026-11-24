@@ -8,7 +8,7 @@
 ## 2. Assets de Terceiros (Sprites, Fontes, Áudio, Shaders)
 | Asset | Autor / Fonte | Licença | Onde foi usado |
 | :--- | :--- | :--- | :--- |
-| *(ex.: Fonte Pixel)* | *(ex.: Kenney)* | *(CC0)* | *(UI / HUD)* |
+| Fonte **Pixelify Sans** (`Regular` e `Bold`) | Stefie Justprince (Typecalism Foundryline) — Google Fonts / [eifetx/Pixelify-Sans](https://github.com/eifetx/Pixelify-Sans) | SIL Open Font License 1.1 (`OFL-1.1`, cópia em `assets/fonts/OFL.txt`) | Tipografia global do jogo (menus, HUD, diálogos, placas e textos flutuantes) |
 
 ## 3. Uso de Ferramentas de Inteligência Artificial (Item 12.4)
 > *"Os participantes deverão informar, no itch.io, a utilização de ferramentas de inteligência artificial na elaboração dos projetos, quando aplicável, indicando sua finalidade e contribuição no desenvolvimento da proposta."*
@@ -32,3 +32,4 @@
 | Antigravity (Google) | T-019, refatoração de UI em pixel art RPG | Substituição das janelas estilo sistema operacional por molduras pixel art de RPG em `retro_window.gd`, reorganização do HUD sem sobrepor a Porta Norte e correção de alinhamento/espaçamento validada em Godot 4.7.2 headless e desktop `1280×720`. |
 | Antigravity (Google) | T-020, arte e tela inicial dedicada + configurações | Criação do cenário original em pixel art `title_bg.png` (640×360 via `generate_32bit_art.gd`), tela inicial de tela cheia com personagens animados, cursor e fluxo `JOGAR`/`CONFIGURAÇÕES`/`SAIR`, adição de `HSlider` pixel art, seletor de resolução, restauração de padrões e persistência em `user://settings.cfg`, validado em Godot 4.7.2 headless e desktop. |
 | Antigravity (Google) | T-021, combate giratório 360° | Conversão do ataque normal e Golpe de Clareza em `player.gd` para corte radial 360° com recuo para fora, corte total de projéteis ao redor na Clareza e arco giratório visual, validado em Godot 4.7.2 headless (`validate_t017.gd` e `validate_t018.tscn`). |
+| Antigravity (Google) | T-022, tipografia Pixelify Sans | Download, importação (`PixelifySans-Regular.ttf` e `PixelifySans-Bold.ttf` + `OFL.txt`), configuração global em `project.godot`, títulos em negrito em `retro_window.gd` e `title_end_screens.gd`, verificação de glifos portugueses e ajuste de antialiasing/tamanho no HUD validados em headless e desktop `1280×720`. |
