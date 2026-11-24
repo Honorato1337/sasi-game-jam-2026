@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/enemies/enemy_base.gd" id="1_enemy"]
-[ext_resource type="Texture2D" path="res://assets/sprites/enemy_routine_sheet.png" id="2_sheet"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemy_procrastination_sheet.png" id="2_sheet"]
 [ext_resource type="Shader" path="res://assets/sprites/hit_flash.gdshader" id="3_flash"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_flash"]
@@ -10,6 +10,7 @@ shader = ExtResource("3_flash")
 shader_parameter/hit_flash = 0.0
 
 [node name="Enemy" type="Node2D" groups=["enemies"]]
+texture_filter = 1
 script = ExtResource("1_enemy")
 
 [node name="GroundShadow" type="Polygon2D" parent="."]

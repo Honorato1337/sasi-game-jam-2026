@@ -2,28 +2,34 @@ extends Node2D
 
 signal defeated
 signal boss_pulsed
+signal pillar_drained(pillar_name: String)
 
-enum EnemyType { ROUTINE_PRESSURE, FATIGUE, GRIEF_GUILT, EXHAUSTION_BOSS }
+enum EnemyType {
+	PROCRASTINATION, DEADLINE, SELF_CRITICISM, BURNOUT_BOSS,
+	# Serialized IDs and names used by the prototype arena.
+	ROUTINE_PRESSURE = 0, FATIGUE = 1, GRIEF_GUILT = 2, EXHAUSTION_BOSS = 3,
+}
 
 const Player = preload("res://scenes/player/player.gd")
-const MAX_HP: Array[int] = [30, 60, 25, 320]
-const SPEEDS: Array[float] = [55.0, 35.0, 72.0, 24.0]
+const Projectile = preload("res://scenes/enemies/enemy_projectile.gd")
+const Puddle = preload("res://scenes/enemies/slow_puddle.gd")
+const MAX_HP: Array[int] = [35, 30, 45, 380]
+const SPEEDS: Array[float] = [42.0, 76.0, 50.0, 26.0]
 const COLORS: Array[Color] = [
-	Color("#dc714f"), Color("#c29153"), Color("#9571cf"), Color("#bb405c"),
+	Color("#9c75ba"), Color("#ff9b52"), Color("#ca83ff"), Color("#ff586d"),
 ]
 const SPRITES: Array[Texture2D] = [
-	preload("res://assets/sprites/enemy_routine_sheet.png"),
-	preload("res://assets/sprites/enemy_fatigue_sheet.png"),
-	preload("res://assets/sprites/enemy_grief_sheet.png"),
-	preload("res://assets/sprites/enemy_boss_sheet.png"),
+	preload("res://assets/sprites/enemy_procrastination_sheet.png"),
+	preload("res://assets/sprites/enemy_deadline_sheet.png"),
+	preload("res://assets/sprites/enemy_selfcriticism_sheet.png"),
+	preload("res://assets/sprites/boss_burnout_sheet.png"),
 ]
-const BOSS_PULSE_INTERVAL: float = 6.0
-const BOSS_WARNING_DURATION: float = 1.0
-const BOSS_CONTACT_INTERVAL: float = 1.2
-const PULSE_DURATION: float = 1.0
+const ATTACK_INTERVALS: Array[float] = [4.0, 2.4, 3.2, 3.8]
+const WARNING_DURATIONS: Array[float] = [0.0, 0.35, 0.6, 0.85]
 const HIT_FLASH_DURATION: float = 0.09
+const DRAIN_VISUAL_DURATION: float = 0.65
 
-@export var enemy_type: EnemyType = EnemyType.ROUTINE_PRESSURE
+@export var enemy_type: EnemyType = EnemyType.PROCRASTINATION
 
 var player: Player
 var core_position: Vector2 = Vector2(320, 180)
@@ -31,10 +37,13 @@ var hp: int
 var _knockback: Vector2 = Vector2.ZERO
 var _slow_remaining: float = 0.0
 var _slow_factor: float = 1.0
-var _contact_remaining: float = BOSS_CONTACT_INTERVAL
-var _pulse_remaining: float = BOSS_PULSE_INTERVAL
-var _pulse_age: float = PULSE_DURATION
-var _pulse_origin: Vector2
+var _attack_elapsed: float = 0.0
+var _aim: Vector2 = Vector2.RIGHT
+var _charge_remaining: float = 0.0
+var _drain_elapsed: float = 0.0
+var _drain_visual: float = 0.0
+var _drain_origin: Vector2
+var _next_pillar: int = 0
 var _hit_flash: float = 0.0
 var _step_time: float = 0.0
 var _motion_time: float = 0.0
@@ -52,51 +61,31 @@ func _ready() -> void:
 	_sprite.texture = SPRITES[enemy_type]
 	if player == null:
 		player = get_tree().get_first_node_in_group(&"player") as Player
-	_update_sprite(player.global_position if enemy_type == EnemyType.GRIEF_GUILT
-			and is_instance_valid(player) else core_position)
+	_update_sprite(core_position)
 
 
 func _physics_process(delta: float) -> void:
 	if GameManager.current_state != GameManager.GameState.PLAYING or is_queued_for_deletion():
 		return
 
-	var boss: bool = is_boss()
 	if _hit_flash > 0.0:
 		_hit_flash = maxf(0.0, _hit_flash - delta)
 		if _hit_flash == 0.0:
 			_flash_material.set_shader_parameter(&"hit_flash", 0.0)
 	_step_time = fposmod(_step_time + delta, _half_step_duration() * 2.0)
 	_motion_time += delta
-	var chases_player: bool = enemy_type == EnemyType.GRIEF_GUILT
-	var has_player: bool = is_instance_valid(player)
-	var target: Vector2 = core_position
-	if chases_player:
-		target = player.global_position if has_player else global_position
+	if not is_instance_valid(player):
+		player = get_tree().get_first_node_in_group(&"player") as Player
+	if is_instance_valid(player):
+		var target: Vector2 = player.global_position
+		_update_attack(delta, target)
+		_move(delta, target)
+		_check_contact()
+		_update_sprite(target)
+	else:
+		_update_sprite(core_position)
 
-	var reach: float = 16.0 if boss else 0.0
-	var distance: float = global_position.distance_to(target)
-	var slowed_step: float = minf(delta, _slow_remaining)
-	var travel: float = SPEEDS[enemy_type] * (delta - slowed_step * (1.0 - _slow_factor))
-	global_position = global_position.move_toward(target, minf(travel, maxf(0.0, distance - reach)))
-	global_position += _knockback * delta
-	_knockback = _knockback.move_toward(Vector2.ZERO, 850.0 * delta)
-	_slow_remaining -= slowed_step
-
-	if has_player and not boss and global_position.distance_to(player.global_position) <= 13.0:
-		if chases_player:
-			if player.apply_enemy_contact(global_position, 16.0):
-				var retreat: Vector2 = player.global_position.direction_to(global_position)
-				apply_knockback((retreat if retreat != Vector2.ZERO else player.facing_direction) * 115.0)
-		else:
-			player.apply_enemy_contact(global_position, 14.0)
-
-	if boss:
-		_update_boss(delta)
-	elif not chases_player and global_position.distance_to(core_position) <= 13.0:
-		GameManager.damage_core(8 if enemy_type == EnemyType.ROUTINE_PRESSURE else 14)
-		queue_free()
-	_update_sprite(target)
-	if chases_player:
+	if enemy_type == EnemyType.SELF_CRITICISM:
 		_trail_remaining -= delta
 		if _trail_remaining <= 0.0:
 			_trail_remaining += 0.065
@@ -105,6 +94,103 @@ func _physics_process(delta: float) -> void:
 				_trail.pop_back()
 	queue_redraw()
 
+
+func _move(delta: float, target: Vector2) -> void:
+	var distance: float = global_position.distance_to(target)
+	var direction: Vector2 = global_position.direction_to(target)
+	var speed: float = SPEEDS[enemy_type]
+	if enemy_type == EnemyType.SELF_CRITICISM and distance <= 115.0:
+		speed = -speed if distance < 85.0 else 0.0
+		if direction == Vector2.ZERO:
+			direction = Vector2.RIGHT
+	elif is_boss():
+		speed = minf(speed, maxf(0.0, distance - 32.0) / delta)
+	elif enemy_type == EnemyType.DEADLINE and _warning_strength() > 0.0:
+		speed = 0.0
+	elif enemy_type == EnemyType.PROCRASTINATION:
+		# Each hop averages the base speed over one cycle.
+		speed *= 1.0 - cos(_motion_time * TAU / 0.62)
+	var slowed_step: float = minf(delta, _slow_remaining)
+	var charge_step: float = minf(delta, _charge_remaining)
+	var travel: Vector2 = direction * speed * (delta - charge_step) + _aim * 165.0 * charge_step
+	global_position += travel * (1.0 - slowed_step / delta * (1.0 - _slow_factor))
+	global_position += _knockback * delta
+	_knockback = _knockback.move_toward(Vector2.ZERO, 850.0 * delta)
+	_slow_remaining -= slowed_step
+	_charge_remaining -= charge_step
+
+
+func _check_contact() -> void:
+	if global_position.distance_squared_to(player.global_position) > 13.0 * 13.0:
+		return
+	match enemy_type:
+		EnemyType.PROCRASTINATION:
+			player.apply_enemy_contact(global_position, 8, 0.0, 10.0)
+		EnemyType.DEADLINE:
+			player.apply_enemy_contact(global_position, 10, 8.0, 0.0)
+
+
+func _attack_interval() -> float:
+	return 2.8 if is_phase_two() else ATTACK_INTERVALS[enemy_type]
+
+
+func is_phase_two() -> bool:
+	return is_boss() and hp <= 190
+
+
+func _update_attack(delta: float, target: Vector2) -> void:
+	var interval: float = _attack_interval()
+	var warning_start: float = interval - WARNING_DURATIONS[enemy_type]
+	if _attack_elapsed < warning_start:
+		_aim = global_position.direction_to(target)
+		if _aim == Vector2.ZERO:
+			_aim = Vector2.RIGHT
+	_attack_elapsed += delta
+	if _attack_elapsed >= interval:
+		_attack_elapsed = 0.0
+		match enemy_type:
+			EnemyType.PROCRASTINATION: _spawn_puddle()
+			EnemyType.DEADLINE: _charge_remaining = 0.28
+			EnemyType.SELF_CRITICISM: _spawn_projectile(_aim)
+			EnemyType.BURNOUT_BOSS:
+				var half_count: int = 2 if is_phase_two() else 1
+				for index: int in range(-half_count, half_count + 1):
+					_spawn_projectile(_aim.rotated(index * 0.25))
+
+	if is_boss():
+		_drain_visual = maxf(0.0, _drain_visual - delta)
+		_drain_elapsed += delta
+		if _drain_elapsed >= (5.5 if is_phase_two() else 7.0):
+			_drain_elapsed = 0.0
+			_drain_visual = DRAIN_VISUAL_DURATION
+			_drain_origin = global_position
+			_drain_pillar()
+
+
+func _drain_pillar() -> void:
+	const PILLARS: Array[String] = ["CORPO", "MENTE", "DESCANSO"]
+	match _next_pillar:
+		0: GameManager.modify_body(-22.0)
+		1: GameManager.modify_mind(-22.0)
+		2: GameManager.modify_rest(-22.0)
+	pillar_drained.emit(PILLARS[_next_pillar])
+	_next_pillar = (_next_pillar + 1) % PILLARS.size()
+	boss_pulsed.emit()
+
+
+func _spawn_projectile(direction: Vector2) -> void:
+	var projectile := Projectile.new()
+	projectile.player = player
+	projectile.direction = direction
+	projectile.is_stress = is_boss()
+	get_parent().add_child(projectile)
+	projectile.global_position = global_position + direction * 12.0
+
+
+func _spawn_puddle() -> void:
+	var puddle := Puddle.new()
+	get_parent().add_child(puddle)
+	puddle.global_position = global_position
 
 func _update_sprite(target: Vector2) -> void:
 	var boss: bool = is_boss()
@@ -116,19 +202,24 @@ func _update_sprite(target: Vector2) -> void:
 	var sway: float = 0.0
 	var scale_factor: Vector2 = Vector2.ONE
 	match enemy_type:
-		EnemyType.ROUTINE_PRESSURE:
-			var hop: float = sin(fposmod(_motion_time, 0.42) * PI / 0.42)
+		EnemyType.PROCRASTINATION:
+			var hop: float = sin(fposmod(_motion_time, 0.62) * PI / 0.62)
 			bob = -roundf(hop * 5.0)
 			scale_factor = Vector2(1.12 - hop * 0.23, 0.88 + hop * 0.25)
-		EnemyType.FATIGUE:
+		EnemyType.DEADLINE:
 			var step: float = sin(_motion_time * TAU / 0.80)
 			bob = -roundf(absf(step) * 2.0)
 			sway = step * 0.05
-		EnemyType.GRIEF_GUILT:
+		EnemyType.SELF_CRITICISM:
 			bob = -3.0 + sin(_motion_time * TAU / 0.95) * 3.0
 	_sprite.rotation = sway
 	_sprite.scale = scale_factor
-	_sprite.self_modulate = Color.WHITE.lerp(Color("#ff586d"), _boss_warning_strength())
+	var warning_color := Color("#ff586d")
+	if enemy_type == EnemyType.DEADLINE:
+		warning_color = Color("#ff9b52")
+	elif enemy_type == EnemyType.SELF_CRITICISM:
+		warning_color = Color("#ca83ff")
+	_sprite.self_modulate = Color.WHITE.lerp(warning_color, _warning_strength())
 	# Keep the full sprite and its health bar visible at the north spawn.
 	var ground_y: float = maxf(28.0 if boss else 10.0,
 			6.0 + size.y - global_position.round().y)
@@ -141,56 +232,30 @@ func _update_sprite(target: Vector2) -> void:
 
 func _half_step_duration() -> float:
 	match enemy_type:
-		EnemyType.FATIGUE:
+		EnemyType.DEADLINE:
 			return 0.40
-		EnemyType.EXHAUSTION_BOSS:
+		EnemyType.BURNOUT_BOSS:
 			return 0.32
 		_:
 			return 0.16
 
 
-func _update_boss(delta: float) -> void:
-	if global_position.distance_to(core_position) <= 16.5:
-		_contact_remaining -= delta
-		if _contact_remaining <= 0.0:
-			_contact_remaining += BOSS_CONTACT_INTERVAL
-			GameManager.damage_core(12)
-	else:
-		_contact_remaining = BOSS_CONTACT_INTERVAL
-
-	if GameManager.current_state != GameManager.GameState.PLAYING:
-		return
-	_pulse_age += delta
-	_pulse_remaining -= delta
-	if _pulse_remaining <= 0.0:
-		_pulse_remaining += BOSS_PULSE_INTERVAL
-		_pulse_age = 0.0
-		_pulse_origin = global_position
-		boss_pulsed.emit()
-		if is_instance_valid(player) and not player.is_in_ally_aura:
-			GameManager.add_bpm(10.0)
-
-
 func is_boss() -> bool:
-	return enemy_type == EnemyType.EXHAUSTION_BOSS
+	return enemy_type == EnemyType.BURNOUT_BOSS
 
 
-func _boss_warning_strength() -> float:
-	if not is_boss() or _pulse_remaining > BOSS_WARNING_DURATION:
+func _warning_strength() -> float:
+	var duration: float = WARNING_DURATIONS[enemy_type]
+	var remaining: float = _attack_interval() - _attack_elapsed
+	if duration <= 0.0 or remaining > duration:
 		return 0.0
-	var progress: float = 1.0 - _pulse_remaining / BOSS_WARNING_DURATION
-	return 0.35 + 0.40 * (0.5 + 0.5 * sin(progress * TAU * 3.0))
+	return 0.55 + 0.35 * sin(_motion_time * 24.0)
 
 
 func get_effective_damage(amount: int, is_clarity: bool) -> int:
-	if amount > 0 and is_clarity:
-		match enemy_type:
-			EnemyType.EXHAUSTION_BOSS:
-				return 110
-			EnemyType.FATIGUE:
-				return maxi(amount, MAX_HP[EnemyType.FATIGUE])
+	if amount > 0 and is_clarity and is_boss():
+		return 120
 	return maxi(0, amount)
-
 
 func take_damage(amount: int, is_clarity: bool = false,
 		_hit_direction: Vector2 = Vector2.ZERO) -> void:
@@ -202,6 +267,8 @@ func take_damage(amount: int, is_clarity: bool = false,
 	_flash_material.set_shader_parameter(&"hit_flash", 1.0)
 	queue_redraw()
 	if hp == 0:
+		if enemy_type == EnemyType.PROCRASTINATION:
+			_spawn_puddle()
 		queue_free()
 		defeated.emit()
 
@@ -218,7 +285,7 @@ func apply_slow(duration: float, factor: float = 0.55) -> void:
 
 func _draw() -> void:
 	var boss: bool = is_boss()
-	if enemy_type == EnemyType.GRIEF_GUILT:
+	if enemy_type == EnemyType.SELF_CRITICISM:
 		var size: Vector2 = _sprite.get_rect().size
 		var source: Rect2 = Rect2(Vector2(_sprite.frame * size.x, 0), size)
 		for index: int in range(_trail.size() - 1, -1, -1):
@@ -226,16 +293,21 @@ func _draw() -> void:
 			draw_texture_rect_region(_sprite.texture, Rect2(-size * 0.5, size), source,
 					Color(0.78, 0.49, 1.0, 0.20 - index * 0.045), false, true)
 		draw_set_transform(Vector2.ZERO)
-	var warning: float = _boss_warning_strength()
+	var warning: float = _warning_strength()
 	if warning > 0.0:
-		var radius: float = lerpf(29.0, 66.0, _pulse_remaining / BOSS_WARNING_DURATION)
-		draw_circle(_sprite.position, radius, Color(0.94, 0.13, 0.30, warning * 0.14))
-		draw_arc(_sprite.position, radius, 0.0, TAU, 64, Color(1.0, 0.22, 0.37, warning), 3.0)
-	if boss and _pulse_age < PULSE_DURATION:
-		var progress: float = _pulse_age / PULSE_DURATION
-		var pulse_color: Color = Color(1.0, 0.3, 0.42, (1.0 - progress) * 0.65)
-		draw_arc(to_local(_pulse_origin), lerpf(18.0, 750.0, progress),
-				0.0, TAU, 96, pulse_color, 2.0)
+		if boss:
+			var remaining: float = _attack_interval() - _attack_elapsed
+			var radius: float = lerpf(26.0, 56.0, clampf(remaining / 0.85, 0.0, 1.0))
+			draw_circle(Vector2.ZERO, radius, Color(0.94, 0.13, 0.30, warning * 0.14))
+			draw_arc(Vector2.ZERO, radius, 0.0, TAU, 48, Color(1.0, 0.22, 0.37, warning), 2.0)
+		else:
+			var color := Color("#ffa354") if enemy_type == EnemyType.DEADLINE else Color("#d7a0ff")
+			draw_line(_aim * 12.0, _aim * 36.0, Color(color, warning), 2.0)
+	if _drain_visual > 0.0:
+		var progress: float = 1.0 - _drain_visual / DRAIN_VISUAL_DURATION
+		var pulse_color := Color(0.75, 0.22, 0.63, 1.0 - progress)
+		draw_arc(to_local(_drain_origin), lerpf(22.0, 165.0, progress),
+				0.0, TAU, 64, pulse_color, 3.0)
 
 	var width: float = 30.0 if boss else 16.0
 	var bar: Vector2 = _sprite.position + Vector2(-width * 0.5, -_sprite.get_rect().size.y * 0.5 - 4.0)

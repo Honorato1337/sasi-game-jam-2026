@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/objects/care_station.gd" id="1_station"]
+[ext_resource type="Texture2D" path="res://assets/sprites/stations_sheet.png" id="2_sheet"]
+
+[node name="CareStation" type="Node2D" groups=["care_stations"]]
+script = ExtResource("1_station")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+show_behind_parent = true
+texture_filter = 1
+position = Vector2(0, -12)
+texture = ExtResource("2_sheet")
+hframes = 4
+
+[node name="Badge" type="Node2D" parent="."]
+visible = false
+z_index = 2

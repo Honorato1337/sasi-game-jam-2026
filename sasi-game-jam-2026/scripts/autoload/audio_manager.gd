@@ -45,6 +45,9 @@ const BOSS: Array[Vector3i] = [
 	Vector3i(85, 42, 2), Vector3i(82, 46, 1), Vector3i(78, 42, 1),
 ]
 const EFFECT_SCORES: Dictionary[StringName, Array] = {
+	&"voice_blip": [Vector3i(76, 0, 1)],
+	&"pickup": [Vector3i(72, 0, 1), Vector3i(84, 0, 2)],
+	&"door_open": [Vector3i(67, 48, 2), Vector3i(76, 52, 2), Vector3i(84, 60, 4)],
 	&"attack": [Vector3i(77, 0, 1), Vector3i(65, 0, 1), Vector3i(54, 0, 1)],
 	&"clarity_strike": [Vector3i(72, 48, 1), Vector3i(79, 55, 1), Vector3i(84, 60, 3)],
 	&"dash": [Vector3i(55, 0, 1), Vector3i(62, 0, 1), Vector3i(71, 0, 1), Vector3i(82, 0, 1)],
@@ -71,9 +74,7 @@ var _music: Dictionary[StringName, AudioStreamWAV] = {}
 var _effects: Dictionary[StringName, AudioStreamWAV] = {}
 var _pending_track: StringName
 var _synthesis_deadline: int = 0
-var _bpm: float
-var _signal_level: GameManager.SignalLevel
-var _previous_core_hp: int
+const ROOM_TRACKS: Array[StringName] = [&"morning", &"nocturne", &"boss"]
 var _beat_phase: float = 1.0
 var _vibrato_time: float = 0.0
 var _breath_cue_frame: int = -1
@@ -90,14 +91,10 @@ func _ready() -> void:
 		sfx_players.append(player)
 		_sfx_volumes_db.append(0.0)
 
-	_bpm = GameManager.bpm
-	_previous_core_hp = GameManager.core_hp
-	_on_signal_level_changed(GameManager.signal_level)
 	GameManager.state_changed.connect(_on_state_changed)
-	GameManager.wave_changed.connect(_on_wave_changed)
-	GameManager.bpm_changed.connect(_on_bpm_changed)
-	GameManager.signal_level_changed.connect(_on_signal_level_changed)
-	GameManager.core_hp_changed.connect(_on_core_hp_changed)
+	GameManager.room_changed.connect(_on_room_changed)
+	GameManager.mind_state_changed.connect(_on_mind_state_changed)
+	GameManager.exhausted_changed.connect(_on_exhausted_changed)
 	GameManager.clarity_ready_changed.connect(_on_clarity_ready_changed)
 	GameManager.habits_updated.connect(_on_habits_updated)
 	get_tree().node_added.connect(_on_node_added)
@@ -110,11 +107,11 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if GameManager.current_state != GameManager.GameState.PLAYING:
 		return
-	if _signal_level == GameManager.SignalLevel.OVERLOAD:
+	if GameManager.mind_state == GameManager.MindState.OVERLOAD and not GameManager.is_exhausted:
 		_vibrato_time = fmod(_vibrato_time + delta, 1.0)
 		music_player.pitch_scale = 1.12 + 0.008 * sin(TAU * 4.0 * _vibrato_time)
-	if _signal_level != GameManager.SignalLevel.CALM:
-		_beat_phase += delta * _bpm / 60.0
+	if GameManager.mind_state != GameManager.MindState.CALM or GameManager.is_exhausted:
+		_beat_phase += delta * GameManager.bpm / 60.0
 		if _beat_phase >= 1.0:
 			_beat_phase = fmod(_beat_phase, 1.0)
 			_play_effect(&"heartbeat", -10.0)
@@ -170,6 +167,18 @@ func play_ui_cue() -> void:
 	_play_effect(&"habit_select")
 
 
+func play_voice_blip() -> void:
+	_play_effect(&"voice_blip", -16.0)
+
+
+func play_pickup() -> void:
+	_play_effect(&"pickup", -9.0)
+
+
+func play_door_open() -> void:
+	_play_effect(&"door_open", -7.0)
+
+
 func _apply_music_volume() -> void:
 	if music_player != null:
 		music_player.volume_db = _get_effective_volume(_music_volume_db, music_volume)
@@ -191,6 +200,7 @@ func _play_effect(effect: StringName, volume_db: float = -5.0) -> void:
 func _on_state_changed(state: GameManager.GameState) -> void:
 	if state != GameManager.GameState.PLAYING:
 		_beat_phase = 1.0
+		_stop_heartbeat()
 	music_player.stream_paused = state == GameManager.GameState.PAUSED
 	match state:
 		GameManager.GameState.VICTORY:
@@ -199,29 +209,27 @@ func _on_state_changed(state: GameManager.GameState) -> void:
 		GameManager.GameState.GAME_OVER:
 			stop_music()
 			_play_effect(&"game_over")
-		GameManager.GameState.MENU, GameManager.GameState.HABIT_SELECT, GameManager.GameState.PLAYING:
+		GameManager.GameState.MENU, GameManager.GameState.HABIT_SELECT, GameManager.GameState.PLAYING, GameManager.GameState.DIALOGUE:
 			_update_music()
 
 
-func _on_wave_changed(_wave: int) -> void:
-	if GameManager.current_state == GameManager.GameState.PLAYING:
-		_update_music()
+func _on_room_changed(_room: int) -> void:
+	_update_music()
 
 
 func _update_music() -> void:
 	var track: StringName
+	var volume: float = MUSIC_VOLUME_DB
 	match GameManager.current_state:
 		GameManager.GameState.MENU, GameManager.GameState.HABIT_SELECT:
 			track = &"menu"
 			music_player.pitch_scale = 1.0
+		GameManager.GameState.DIALOGUE:
+			track = ROOM_TRACKS[GameManager.room - 1]
+			music_player.pitch_scale = 1.0
+			volume -= 7.0
 		GameManager.GameState.PLAYING:
-			match GameManager.wave:
-				1:
-					track = &"morning"
-				2, 3:
-					track = &"nocturne"
-				4:
-					track = &"boss"
+			track = ROOM_TRACKS[GameManager.room - 1]
 			_update_pitch()
 		_:
 			return
@@ -230,38 +238,43 @@ func _update_music() -> void:
 		stop_music()
 		_pending_track = track
 		return
-	play_music(stream, MUSIC_VOLUME_DB)
+	play_music(stream, volume)
 
 
-func _on_bpm_changed(bpm: float, _level: GameManager.SignalLevel) -> void:
-	_bpm = bpm
+func _on_mind_state_changed(_state: GameManager.MindState) -> void:
+	_update_reaction()
 
 
-func _on_signal_level_changed(level: GameManager.SignalLevel) -> void:
-	if _signal_level == GameManager.SignalLevel.CALM:
-		_beat_phase = 1.0
-	_signal_level = level
+func _on_exhausted_changed(_exhausted: bool) -> void:
+	_update_reaction()
+
+
+func _update_reaction() -> void:
 	_vibrato_time = 0.0
 	if GameManager.current_state == GameManager.GameState.PLAYING:
 		_update_pitch()
+	if GameManager.mind_state == GameManager.MindState.CALM and not GameManager.is_exhausted:
+		_beat_phase = 1.0
+		_stop_heartbeat()
 
 
 func _update_pitch() -> void:
-	match _signal_level:
-		GameManager.SignalLevel.CALM:
-			music_player.pitch_scale = 1.0
-		GameManager.SignalLevel.WARNING:
-			music_player.pitch_scale = 1.06
-		GameManager.SignalLevel.OVERLOAD:
-			music_player.pitch_scale = 1.12
-		GameManager.SignalLevel.EXHAUSTED:
-			music_player.pitch_scale = 0.92
+	if GameManager.is_exhausted:
+		music_player.pitch_scale = 0.90
+	else:
+		match GameManager.mind_state:
+			GameManager.MindState.CALM: music_player.pitch_scale = 1.0
+			GameManager.MindState.ANXIOUS: music_player.pitch_scale = 1.06
+			GameManager.MindState.OVERLOAD: music_player.pitch_scale = 1.12
 
 
-func _on_core_hp_changed(hp: int, _max_hp: int) -> void:
-	if hp < _previous_core_hp:
-		_play_effect(&"core_hit")
-	_previous_core_hp = hp
+func _stop_heartbeat() -> void:
+	var heartbeat: AudioStreamWAV = _effects.get(&"heartbeat") as AudioStreamWAV
+	if heartbeat == null:
+		return
+	for player: AudioStreamPlayer in sfx_players:
+		if player.stream == heartbeat:
+			player.stop()
 
 
 func _on_clarity_ready_changed(is_ready: bool) -> void:

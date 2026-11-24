@@ -1,8 +1,8 @@
 extends CanvasLayer
 
 const Retro = preload("res://scenes/ui/retro_window.gd")
-const ANTONIO_SHEET: Texture2D = preload("res://assets/sprites/seu_antonio_sheet.png")
-const CORE_SHEET: Texture2D = preload("res://assets/sprites/care_core_sheet.png")
+const STUDENT_SHEET: Texture2D = preload("res://assets/sprites/student_sheet.png")
+const CLASSMATE_SHEET: Texture2D = preload("res://assets/sprites/classmate_sheet.png")
 const WINDOW_WIDTH: int = 450
 
 var _title_window: Panel
@@ -24,6 +24,8 @@ var _end_caption: Label
 var _end_heading: Label
 var _end_message: Label
 var _stats: Label
+var _previews: Dictionary[AtlasTexture, int] = {}
+var _preview_time: float
 
 
 func _ready() -> void:
@@ -41,11 +43,11 @@ func _ready() -> void:
 
 
 func _build_title() -> void:
-	_title_window = _window(298, "O QUE MANTÉM DE PÉ.EXE")
-	_centered(_title_window, 26, 35, "O QUE MANTÉM DE PÉ", 27, Retro.CREAM)
-	_centered(_title_window, 62, 21, "Entre Fôlego e Rotina", 15, Retro.MINT)
-	_preview(_title_window, 21, ANTONIO_SHEET, 8, 2, "Seu Antônio")
-	_preview(_title_window, 333, CORE_SHEET, 4, 1, "Núcleo do Lar")
+	_title_window = _window(298, "TRÊS TURNOS.EXE")
+	_centered(_title_window, 26, 35, "TRÊS TURNOS", 27, Retro.CREAM)
+	_centered(_title_window, 62, 21, "Manhã, Tarde e Noite", 15, Retro.MINT)
+	_preview(_title_window, 21, STUDENT_SHEET, 8, 2, "Estudante")
+	_preview(_title_window, 333, CLASSMATE_SHEET, 2, 2, "Colega")
 
 	_action(_title_window, Rect2(123, 93, 204, 27), "JOGAR", GameManager.start_new_run)
 	var help: Button = _action(_title_window, Rect2(123, 126, 204, 27), "COMO JOGAR")
@@ -65,6 +67,7 @@ func _preview(parent: Panel, x: int, sheet: Texture2D, frame_count: int,
 	atlas.atlas = sheet
 	atlas.region = Rect2(0, 0, float(sheet.get_width()) / frame_count, sheet.get_height())
 	atlas.filter_clip = true
+	_previews[atlas] = frame_count
 	Retro.block(parent, Rect2(x + 14, 115, 68, 68), Retro.INK)
 	var preview: TextureRect = TextureRect.new()
 	preview.texture = atlas
@@ -78,10 +81,20 @@ func _preview(parent: Panel, x: int, sheet: Texture2D, frame_count: int,
 			HORIZONTAL_ALIGNMENT_CENTER)
 
 
+func _process(delta: float) -> void:
+	if _active_window != _title_window:
+		return
+	_preview_time = fposmod(_preview_time + delta, 2.0)
+	for atlas: AtlasTexture in _previews:
+		var region: Rect2 = atlas.region
+		region.position.x = region.size.x * (int(_preview_time * 4.0) % _previews[atlas])
+		atlas.region = region
+
+
 func _build_help() -> void:
 	_help_window = _window(294, "COMO JOGAR.EXE")
-	var controls: Array[String] = ["WASD / Setas", "Espaço / Clique", "Shift", "Segurar R", "Esc / P"]
-	var actions: Array[String] = ["Mover", "Atacar", "Esquivar", "Respirar", "Pausar"]
+	var controls: Array[String] = ["WASD / Setas", "Espaço / Clique", "Shift", "Segurar R", "E", "Esc / P"]
+	var actions: Array[String] = ["Mover", "Espada", "Dash", "Respirar", "Interagir", "Pausar"]
 	for index: int in range(controls.size()):
 		var x: int = 16 + (index % 2) * 213
 		var y: int = 29 + floori(index / 2.0) * 28
@@ -90,11 +103,11 @@ func _build_help() -> void:
 		Retro.label(_help_window, Rect2(x + 121, y, 76, 24), actions[index], 12, Retro.CREAM,
 				HORIZONTAL_ALIGNMENT_RIGHT)
 
-	var topics: Array[String] = ["SINAIS", "EQUILÍBRIO", "CONEXÕES"]
+	var topics: Array[String] = ["CORPO", "MENTE", "DESCANSO"]
 	var explanations: Array[String] = [
-		"Observe o BPM. Atacar e esquivar aceleram o coração.\nEm sobrecarga, a visão se fecha e o ritmo muda.",
-		"Segure R para baixar o BPM. Complete a respiração\npara transformar o próximo ataque no Golpe de Clareza.",
-		"Escolha Rede de Apoio entre ondas. Os aliados\nprotegem o Núcleo e ajudam a baixar o BPM por perto.",
+		"Corpo baixo encurta a espada e deixa o passo lento.\nBeba água [E] e recolha gotas dos inimigos.",
+		"Com a Mente baixa, a visão se fecha. Segure [R]\npara carregar Clareza ou peça ajuda ao colega [E].",
+		"Espada e dash gastam energia. Dê uma pausa para\nrecuperá-la. Na última sala, reacenda os pilares [E].",
 	]
 	for index: int in range(topics.size()):
 		var y: int = 118 + index * 43
@@ -358,12 +371,11 @@ func _on_state_changed(state: GameManager.GameState) -> void:
 
 
 func _update_summary(won: bool) -> void:
-	_end_caption.text = "CADERNO DE ROTINA.EXE — Resumo do dia"
-	_end_heading.text = "O LAR SEGUE DE PÉ" if won else "A SOBRECARGA PEDIU PAUSA"
+	_end_caption.text = "VITÓRIA.EXE" if won else "DERROTA.EXE"
+	_end_heading.text = "O AMANHECER CHEGOU" if won else "O BURNOUT PEDIU PAUSA"
 	_end_heading.add_theme_color_override(&"font_color", Retro.MINT if won else Retro.GOLD)
-	_end_message.text = ("Seu Antônio e Clara atravessaram o dia.\nRespirar e aceitar ajuda também é cuidar."
-			if won else "Seu Antônio chegou ao limite.\nAmanhã, há tempo para respirar e pedir ajuda.")
-	_stats.text = "Onda %d/%d    •    Núcleo %d/%d HP    •    Rede de Apoio %d/%d" % [
-		GameManager.wave, GameManager.MAX_WAVES, GameManager.core_hp, GameManager.max_core_hp,
-		GameManager.ally_count, GameManager.MAX_ALLIES,
+	_end_message.text = ("O estudante atravessou a noite e viu o dia nascer.\nCuide dos seus pilares e aceite companhia."
+			if won else "O estudante chegou ao limite.\nÉ hora de respirar, descansar e pedir apoio.")
+	_stats.text = "Sala %d/3   •   HP %d/%d   •   Score %d   •   Combo x%d" % [
+		GameManager.room, GameManager.hp, GameManager.max_hp, GameManager.score, maxi(1, GameManager.combo),
 	]

@@ -1,129 +1,78 @@
-# GDD Completo — O Que Mantém de Pé *(Entre Fôlego e Rotina)*
+# GDD Completo — Três Turnos *(Manhã, Tarde e Noite)*
 
 > **Evento:** SASI: Game Jam 2026 (UFAC) — Tema Oficial: **SAÚDE EM JOGO** (*Sinais*, *Equilíbrio* e *Conexões*)
 
 ---
 
-## 1. Ficha Técnica & Visão Geral
-- **Título provisório:** *O Que Mantém de Pé* *(subtítulo: Entre Fôlego e Rotina)*
-- **Gênero / Plataforma:** Ação Top-Down 2D em Arena Única + Gestão de Equilíbrio entre Ondas — Web HTML5 no **itch.io** (e Desktop fallback), Engine **Godot 4.7 (`GL Compatibility`)**.
-- **Resolução e Renderização:** Base pixel-perfect **`640x360`** com janela **`1280x720`** (`stretch/mode = "viewport"`, `stretch/aspect = "keep"`, filtro de textura **`Nearest`**).
-- **Duração da Demo:** ~3m30s a 4m00s (4 ondas curtas de 45s + telas rápidas do Caderno Retrô entre turnos).
-- **Pitch (1 frase):** Controle Seu Antônio, um avô/cuidador tentando manter de pé o Núcleo do Lar e o cuidado com a neta ao longo de 4 turnos intensos, aprendendo a ler os sinais físicos e mentais do próprio corpo (BPM, visão e música), respirar no momento certo e contar com uma rede de apoio antes de entrar em exaustão.
+## 1. Visão Geral
+- **Título:** *Três Turnos*
+- **Gênero / Plataforma:** Ação & Aventura Top-Down 2D em 3 Salas estilo *Zelda: Link's Awakening* — Web HTML5 no **itch.io** (e Desktop fallback), Engine **Godot 4.7 (`GL Compatibility`)**.
+- **Resolução e Nitidez:** Base **`640x360`** com janela **`1280x720`** usando `stretch/mode = "canvas_items"` + `snap_2d_transforms_to_pixel = true` + filtro de textura **`Nearest`** (sprites pixel art 32-bit crocantes e textos HD sem embaçamento).
+- **Duração & Ritmo:** Jogo completo com progressão de 3 Salas interligadas por portas físicas, diálogos curtos adaptáveis, estações de cuidado interativas, Colega NPC aliado e Boss do Burnout em 2 fases (~4–6 minutos de jornada completa).
+- **Pitch (1 frase):** Controle um estudante universitário que enxerga os desafios acadêmicos como monstros de RPG ao longo de 3 salas (*Manhã, Tarde e Noite*), precisando ler os sinais reais de **Corpo**, **Mente** e **Descanso**, equilibrar seus hábitos e contar com um colega antes de sucumbir ao Boss do Burnout.
 
 ---
 
-## 2. Narrativa, Personagens e Simbolismo de Saúde
-- **Protagonista — Seu Antônio (Avô / Cuidador):** Um senhor determinado tentando dar conta da rotina da casa, da própria saúde e do cuidado com a neta Clara após o luto familiar. Visual pixel art 8-bit *chibi* com contornos escuros definidos.
-- **O Núcleo do Cuidado e da Estabilidade (`100 HP`):** O cristal/lar no centro da arena que representa tudo o que o avô tenta sustentar de pé (rotina, lar, estabilidade emocional e cuidado). Se o Núcleo chegar a `0 HP`, a sobrecarga vence (*Game Over*).
-- **Rede de Apoio (Aliados de Conexão):** Vizinhos, amigos idosos e colegas/estudantes que, quando chamados entre os turnos, posicionam-se ao redor do Núcleo ajudando a repelir pressões e criando uma aura calma que alivia o BPM do protagonista.
-
-### Alinhamento com os Critérios do Edital (100 pts) e Apresentação (27/11 às 11h)
-1. **Criatividade e Conceito (25 pts):** Transforma sobrecarga física e emocional em feedback sensorial jogável — o jogador não lê "você está cansado"; ele sente o batimento acelerar, a visão fechar e a música desafinar se ignorar os limites do corpo.
-2. **Aderência aos 3 Mundos do Tema (25 pts):**
-   - **Mundo 1 — SINAIS:** Monitor de BPM, batimento audível, visão em túnel progressiva, tremor no sprite e desafinação/aceleração da trilha 8-bit.
-   - **Mundo 2 — EQUILÍBRIO:** Respiração ativa em tempo real (`R`), Golpe de Clareza e escolhas de autocuidado (*Descansar/Dormir*, *Alimentar & Hidratar*) no Caderno Retrô entre ondas.
-   - **Mundo 3 — CONEXÕES:** Opção *Rede de Apoio* que coloca aliados na arena ao lado do Núcleo, demonstrando na mecânica que ninguém precisa sustentar tudo sozinho.
-3. **Jogabilidade e UX (25 pts — 1º critério de desempate):** Controles simples e imediatos (`WASD`/Setas + `Espaço`/Clique + `Shift` + `R`), legíveis nos primeiros 10 segundos.
-4. **Roteiro da Apresentação Presencial (5º Card):**
-   - *Problema de saúde:* Sobrecarga física e emocional de cuidadores e idosos (estresse cardiovascular, fadiga crônica, luto e isolamento).
-   - *Público-alvo:* Jovens, adultos e familiares/cuidadores (sensibilização intergeracional sobre autocuidado e rede de apoio).
-   - *Contribuição:* Faz o jogador experimentar na prática do controle a diferença entre forçar o corpo até a exaustão versus reconhecer sinais precoces, pausar para respirar e pedir ajuda.
+## 2. Protagonista, História & Direção Audiovisual
+- **Protagonista — Estudante Universitário (inspirado no Stark de *Frieren*):**
+  - Jovem universitário de cabelo ruivo com raízes pretas bem marcadas, casaco/moletom preto, mochila nas costas e **espada de RPG** na imaginação acadêmica.
+- **Direção Visual 32-bit:**
+  - Cenários top-down 2.5D em tons **médios-escuros confortáveis** (nunca claros/chapados), ricos em textura (madeira, ladrilhos sombreados, estantes, lâmpadas, tapetes, portas RPG), com iluminação aditiva e partículas ambientais.
+  - Interface em estilo **Janelas Retrô 8-bit/32-bit** (`retro_window.gd`).
+- **Direção Sonora 8-bit Clássica:**
+  - **Sala 1 (Manhã):** **Bach** 8-bit (ritmo matinal vivo).
+  - **Sala 2 (Tarde):** **Chopin** 8-bit (pressão e melancolia crescente).
+  - **Sala 3 (Noite):** **Tchaikovsky** 8-bit (clímax dramático contra o Burnout).
+  - A música reage em tempo real ao pilar da **Mente** (acelera + vibrato quando ansioso/sobrecarregado e toca batimento cardíaco).
+- **História Adaptável (`scripts/data/story_dialogues.gd`):**
+  - Todos os diálogos ficam centralizados em um único arquivo GDScript editável e comentado em português, com caixa de diálogo retrô, retrato pixel art animado e efeito *typewriter* pulável (`ESC`).
 
 ---
 
-## 3. Matemática e Regras Exatas das Mecânicas
+## 3. Os 3 Pilares de Equilíbrio & Seus Sinais (Mecânica Central)
 
-### 3.1 Controles e Ações do Protagonista
-| Ação | Teclas (`InputMap`) | Parâmetros Exatos | Custo em BPM |
-| :--- | :--- | :--- | :--- |
-| **Mover (8 direções)** | `WASD` / Setas (`move_*`) | Velocidade base: **`115 px/s`** | `0` (queda passiva **`-6.0 BPM/s`** se sem atacar/dash) |
-| **Ataque Base** | `Espaço` / `Clique Esq.` (`attack`) | Dano: **`20`**, Alcance: **`36 px`** (arco frontal), Cooldown: **`0.32s`** | **`+4.5 BPM`** por golpe |
-| **Dash** | `Shift` (`dash`) | Velocidade: **`240 px/s`** por **`0.18s`**, Cooldown: **`0.75s`** | **`+9.0 BPM`** por dash |
-| **Contato / Golpe Sofrido** | Colisão com inimigo/pulso | Knockback leve no personagem + invulnerabilidade breve (`0.4s`) | **`+14.0 BPM`** *(ou valor do inimigo)* |
-| **Respirar (`Equilíbrio`)** | Segurar `R` (`breathe`) | Canalização: **`1.5s`**, caminha a **`40%`** da velocidade (`46 px/s`), fecha o Anel de Fôlego | **`-28.0 BPM/s`** durante a canalização + **`-15.0 BPM`** extras ao completar |
-| **Golpe de Clareza** | `Espaço` / `Clique Esq.` (após completar `R`) | Dano: **`55`** (**`110`** contra o Boss), Alcance: **`54 px`**, empurrão em arco amplo | **`0 BPM`** |
+Cada sala gira em torno dos **3 Pilares (`0.0 – 100.0`)** + **Vida do Estudante (`100 HP`)**:
 
-### 3.2 Estados de Sinal de BPM (`70.0` a `180.0 BPM`)
-| Estado (`SignalLevel`) | Faixa de BPM | Efeitos Visuais, Sonoros e no Controle (*Sinais*) |
-| :--- | :--- | :--- |
-| **`CALM`** | `70.0 – 119.9` | Visão limpa (`0%` vinheta), música `1.0x` afinada, velocidade `100%`, coração verde/normal. |
-| **`WARNING`** | `120.0 – 149.9` | Coração amarelo/laranja pulsando no HUD, vinheta **`25%`**, música **`1.06x`**, batimento cardíaco audível. |
-| **`OVERLOAD`** | `150.0 – 179.9` | Coração vermelho rápido, vinheta **`55%`** (visão em túnel), música **`1.12x`** com leve desafinação, tremor no sprite, velocidade **`-15%`**. |
-| **`EXHAUSTED`** | `180.0` (teto) | Colapso de **`2.5s`**: velocidade **`45%`**, **sem dash**, ataque lento (`0.65s`), tremor intenso até o BPM recuar para **`135.0 BPM`** *(ou até completar uma Respiração `R`, que limpa a exaustão na hora)*. |
-
----
-
-## 4. Caderno / Terminal Retrô entre Ondas (3 Escolhas)
-Ao final das **Ondas 1, 2 e 3**, abre-se uma janela pixelada retrô 8-bit onde o jogador escolhe **1 cuidado** para o próximo turno:
-
-1. **Descansar / Dormir *(e Remédio em Dia)*:**
-   - Reduz em **`-20%`** todo ganho futuro de BPM (acumulável), aumenta recuperação passiva em **`+2.5 BPM/s`** e reseta o BPM atual para **`70.0`**.
-2. **Alimentar & Hidratar:**
-   - Aumenta velocidade base em **`+15%`**, reduz tempo necessário de respiração (`R`) em **`-0.2s`** *(mínimo `0.9s`)* e restaura **`+25 HP`** do Núcleo.
-3. **Conexão / Rede de Apoio:**
-   - Adiciona **`+1 Aliado`** ao redor do Núcleo *(máximo 3 aliados)*. Cada aliado emite um pulso de **`15` de dano** + lentidão em área a cada **`1.8s`** e cria uma aura calma de **`-4.0 BPM/s`** quando Seu Antônio está perto do centro.
-
----
-
-## 5. Bestiário & As 4 Ondas (45s cada)
-
-### 5.1 Inimigos
-| Inimigo | HP | Velocidade | Alvo e Comportamento | Observação Tática |
+| Pilar | O que representa | Como cai | **Sinal no Controle (O Jurado SENTE)** | Como Equilibrar |
 | :--- | :--- | :--- | :--- | :--- |
-| **Pressão da Rotina** | `30` | `55 px/s` | Avança direto no Núcleo (`-8 HP` por impacto) | Cai rápido, mas vem em grupo. |
-| **Fadiga** | `60` | `35 px/s` | Lenta e pesada; foca no Núcleo (`-14 HP` por impacto) | Cai com **1 único Golpe de Clareza**. |
-| **Luto / Culpa** | `25` | `72 px/s` | Persegue o **Avô**, causando **`+16 BPM`** no contato | Pressiona o jogador a se mover ou usar `R` no momento seguro. |
-| **Boss da Exaustão / Sobrecarga** | `320` | `24 px/s` | Avança na Onda 4; emite pulso de pressão a cada **`6.0s`** (`+10 BPM` na arena) e ataca o Núcleo | Vulnerável ao **Golpe de Clareza (`110` de dano)**; incentiva respirar e usar Aliados. |
+| **CORPO** | Alimentação e hidratação | Inicia baixo na Manhã (`35%`), desgaste gradual/golpes de *Procrastinação* | **Abaixo de `40%`:** alcance da espada cai de **`40 px` para `24 px`**, dano cai (`24 → 14`) e velocidade cai **`-25%`**. | Apertar **`E`** na **Estação de Água/Lanche** (`+45`) ou pegar **Gotas d'Água** dropadas. |
+| **MENTE** | Foco e calma emocional | Drenado por *Autocobrança*, *Prazo* e ataques do *Burnout* | **`25%–49%` (`ANXIOUS`):** vinheta `25%`, música `1.06x` + heartbeat.<br>**`< 25%` (`OVERLOAD`):** vinheta `55%`, música `1.12x` + desafinação, tremor na tela/sprite. | Segurar **`R` (Respirar por `1.5s`)** (`+35 Mente` + carrega **Golpe de Foco**) ou apoio do **Colega NPC (`E`)**. |
+| **DESCANSO** | Energia e fôlego | Cada golpe de espada (**`-10`**) e dash (**`-16`**) consome energia | **Zerar (`0%`):** estudante entra em **Exaustão Ofegante por `2.0s`** (não ataca nem dá dash, velocidade `55%`, gotas de suor e tremor). | Pausar ataques (`+22/s` após `0.45s` sem atacar/dash), usar **Canto de Pausa (`E`)** ou respirar **`R`**. |
 
-### 5.2 Cronograma das 4 Ondas
-| Onda | Turno & Atmosfera | Paleta da Arena | Trilha 8-bit | Composição dos Inimigos |
-| :--- | :--- | :--- | :--- | :--- |
-| **Onda 1 (45s)** | **Manhã** — *O Despertar da Rotina* | Azul claro / creme alvorada | **Bach** (ritmo estável) | *Pressão da Rotina* (tutorial natural de ataque e respiração). |
-| **Onda 2 (45s)** | **Tarde** — *O Peso Acumulado* | Âmbar / laranja quente | **Chopin** (fluida) | *Pressão da Rotina* + *Fadiga*. |
-| **Onda 3 (45s)** | **Noite** — *Saudade & Culpa* | Azul-marinho / roxo noturno | **Chopin Noturno** (tensa) | *Pressão da Rotina* + *Fadiga* + *Luto/Culpa*. |
-| **Onda 4 (45s+)** | **Madrugada** — *Boss da Exaustão* | Índigo escuro / carmesim | **Tchaikovsky** (dramática) | **Boss da Exaustão** + reforços leves até derrotar o Boss ou zerar o tempo final com o Núcleo de pé. |
-
----
-
-## 6. Arquitetura de Cenas, Nós e Sinais no Godot 4 (`sasi-game-jam-2026/`)
-
-```text
-sasi-game-jam-2026/
-├── project.godot                     # 640x360 -> 1280x720, Nearest, Autoloads, InputMap
-├── scripts/autoload/
-│   ├── game_manager.gd               # Estado global, BPM, SignalLevel, core_hp, wave, hábitos
-│   └── audio_manager.gd              # Sintetizador 8-bit (Bach/Chopin/Tchaikovsky) + SFX + reação ao BPM
-├── scenes/player/
-│   ├── player.tscn                   # CharacterBody2D + Sprite2D + Hitbox + BreathRing
-│   └── player.gd                     # Movimento, ataque, dash, respiração (R), Golpe de Clareza
-├── scenes/levels/
-│   ├── arena.tscn                    # Arena 640x360, Núcleo Central, spawner, marcadores de aliados
-│   └── arena.gd                      # Troca de paleta, timer de 45s das 4 ondas, vitória/derrota
-├── scenes/enemies/
-│   ├── enemy_base.tscn / .gd         # Base reutilizável configurada por tipo (Rotina/Fadiga/Luto/Boss)
-│   └── ally_support.tscn / .gd       # Aliado de Conexão ao redor do Núcleo
-└── scenes/ui/
-    ├── hud.tscn / .gd                # Coração BPM, barra do Núcleo, vinheta de túnel, badge Clareza, timer/onda
-    ├── habit_terminal.tscn / .gd     # Caderno/Terminal Retrô entre ondas (3 escolhas de cuidado)
-    └── title_end_screens.tscn / .gd  # Tela Inicial (Play + Controles), Vitória e Game Over
-```
-
-**Fluxo de Sinais Principais (`GameManager`):**
-- `state_changed(new_state)`
-- `bpm_changed(new_bpm, signal_level)`
-- `core_hp_changed(new_hp, max_hp)`
-- `wave_changed(new_wave)`
-- `habits_updated(sleep_rank, nutrition_rank, ally_count)`
-- `clarity_ready_changed(is_ready)`
+### Controles Completos
+- `WASD` / Setas: Mover (`122 px/s` base)
+- `Espaço` / `Clique Esq.`: Golpe de Espada (`24` dano, `40 px`, custo `-10` Descanso) ou **Golpe de Foco/Clareza** (`65` dano / `120` no Boss, `60 px`, custo `0`, ativa após completar `R`)
+- `Shift`: Dash (`245 px/s` por `0.18s`, custo `-16` Descanso, invulnerabilidade breve)
+- Segurar `R`: Respirar fundo (`1.5s`, recupera Mente + Descanso e carrega **Golpe de Foco**)
+- `E`: Interagir com **Estações de Cuidado**, **Colega NPC** ou **Pilares** da Sala 3
+- `Esc` / `P`: Pausar (ou pular diálogo com `Esc`)
 
 ---
 
-## 7. Plano de Produção em 6 Etapas
+## 4. Estrutura das 3 Salas (Manhã → Tarde → Noite)
 
-1. **Etapa 1 — Fundação do Projeto (`T-005` + `T-006`):** Configurar `project.godot` (`640x360`, `Nearest`, Autoloads e `InputMap`) e expandir `GameManager` com toda a matemática de BPM, `SignalLevel`, Núcleo e hábitos. *Teste no Godot: projeto abre sem erros no tamanho certo e sinais respondem.*
-2. **Etapa 2 — Protagonista & Sensação de Controle (`T-007`):** Implementar `player.tscn/.gd` com movimento, ataque, dash, respiração (`R` por `1.5s`), Golpe de Clareza e estado `EXHAUSTED`. *Teste no Godot: andar, atacar, dar dash e sentir o BPM subir e baixar ao segurar `R`.*
-3. **Etapa 3 — Arena, Núcleo, Ondas & Inimigos (`T-008`):** Criar arena 8-bit, Núcleo no centro, paleta por turno, os 4 tipos de inimigos (incluindo Boss) e Aliados de Conexão. *Teste no Godot: jogar as 4 ondas completas com spawn e dano no Núcleo.*
-4. **Etapa 4 — HUD de Sinais, Caderno Retrô & Telas (`T-009`):** Criar HUD (coração/BPM, visão em túnel, barra do Núcleo, indicador Golpe de Clareza), janela retrô entre ondas e telas de Início/Vitória/Game Over. *Teste no Godot: loop completo jogável do botão Play até o fim.*
-5. **Etapa 5 — Trilha Clássica 8-bit & SFX Reativos (`T-010`):** Implementar gerador chiptune em `AudioManager` com temas de Bach, Chopin e Tchaikovsky reagindo ao BPM + SFX 8-bit de ataque, respiração, acerto e alerta. *Teste no Godot: ouvir a música acelerar/desafinar em sobrecarga e voltar ao normal ao respirar.*
-6. **Etapa 6 — Sprites Finais, Juice & Export Web (`T-011`):** Integrar sprites pixel art dedicados (Seu Antônio, Núcleo, inimigos, aliados), *hitstop* / *screen shake* / partículas, atualizar `CREDITS_AND_AI.md` e validar exportação HTML5 no itch.io.
+### Sala 1 — MANHÃ (*O Despertar & A Correria*) — Trilha: **Bach 8-bit**
+- **Cenário:** Quarto e corredor universitário ao amanhecer (`room_morning.png`).
+- **Foco Pedagógico & Gameplay:** O estudante acorda com **Corpo = `35%`** (espada curta e passo lento logo no início para o jurado sentir na prática o **Sinal do Corpo**).
+- **Desafios:** *Procrastinação* (slime preguiçoso que salta e cria poça de lentidão) e *Prazo* (diabrete rápido).
+- **Condição para abrir a Porta Norte:** Derrotar os inimigos da sala **E** equilibrar o **Corpo (`>= 50%`)** na Estação de Água/Lanche (`[E]`).
+
+### Sala 2 — TARDE (*O Laboratório & A Pressão*) — Trilha: **Chopin 8-bit**
+- **Cenário:** Laboratório de informática / biblioteca com bancadas táticas que criam cobertura (`room_afternoon.png`).
+- **Foco:** Entra a **Autocobrança** (espectro que drena a Mente à distância, fechando a visão e acelerando a música).
+- **Conexões (Mundo 3):** O jogador encontra o **Colega Universitário NPC** na sala; ao apertar **`E`**, o Colega se junta à luta lançando pulsos calmantes (`18` dano + lentidão nos inimigos + regenera `+3.5 Mente/s` quando o estudante está por perto).
+- **Condição para abrir a Porta Norte:** Derrotar os inimigos da sala **E** manter **Corpo e Mente `>= 45%`**.
+
+### Sala 3 — NOITE (*Madrugada vs. A Sombra do Burnout*) — Trilha: **Tchaikovsky 8-bit**
+- **Cenário:** Quarto/mente na madrugada (`room_night.png`) com **3 Pilares físicos** posicionados no salão (**CORPO**, **MENTE** e **DESCANSO**).
+- **Boss — A Sombra do Burnout (`380 HP`, 2 Fases):**
+  - Alterna entre **disparos telegrafados de estresse** (que o jogador esquiva com Dash ou corta com o **Golpe de Foco**) e **dreno direto de um dos 3 Pilares** a cada `7s` (`5.5s` na Fase 2 abaixo de 50% HP) com aviso visual na tela!
+  - Se um Pilar físico cair abaixo de `40%`, o sinal dele pesa no jogador; correr até o Pilar piscando e apertar **`E`** reacende-o imediatamente (`+40`), enquanto segurar **`R`** prepara o **Golpe de Foco (`120` de dano no Boss!)**.
+- **Vitória:** Derrotar a Sombra do Burnout com os pilares de pé abre o Amanhecer + diálogo final + tela de Vitória!
+
+---
+
+## 5. Alinhamento com os 4 Critérios do Edital (100 pts) & Apresentação (27/11 às 11h)
+- *Problema de saúde:* Esgotamento acadêmico (*burnout*), negligência alimentar/hídrica, ansiedade e exaustão física em estudantes universitários.
+- *Público-alvo:* Estudantes universitários e jovens adultos.
+- *Contribuição:* Faz o jogador sentir no próprio controle o impacto da má alimentação (alcance/força), ansiedade (visão/música) e falta de pausas (exaustão ofegante), provando que autocuidado e pedir apoio a colegas são parte da vitória.

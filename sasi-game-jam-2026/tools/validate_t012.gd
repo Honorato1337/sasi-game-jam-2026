@@ -1,11 +1,12 @@
 extends Node
-## Run after --import with --headless --path sasi-game-jam-2026 res://tools/validate_t012.tscn.
+## Validador histórico da arena de ondas. Para Três Turnos, execute validate_t018.tscn.
 
 const Arena = preload("res://scenes/levels/arena.gd")
 const Enemy = preload("res://scenes/enemies/enemy_base.gd")
 const Player = preload("res://scenes/player/player.gd")
 const Screens = preload("res://scenes/ui/title_end_screens.gd")
 const ARENA: PackedScene = preload("res://scenes/levels/arena.tscn")
+const LEGACY_WAVE_DURATION: float = 45.0
 const TURN_COLORS: Array[String] = ["c8d6eb", "e8bc8e", "7c86be", "96688a"]
 const ENEMY_SHEETS: Array[String] = ["routine", "fatigue", "grief", "boss"]
 
@@ -19,6 +20,11 @@ func _ready() -> void:
 
 func _run() -> void:
 	var arena: Arena = ARENA.instantiate() as Arena
+	if not arena.has_node("CareCore"):
+		arena.free()
+		print("T-012: arena de ondas arquivada. Execute res://tools/validate_t018.tscn para Três Turnos.")
+		get_tree().quit()
+		return
 	add_child(arena)
 	var player: Player = arena.get_node("Player")
 	var courtyard: Sprite2D = arena.get_node("Courtyard")
@@ -77,7 +83,7 @@ func _run() -> void:
 	_check(_flash(other.get_node("Sprite2D")) == 0.0, "Flash isolated per enemy")
 	routine._physics_process(0.10)
 	_check(_flash(routine.get_node("Sprite2D")) == 0.0, "Enemy flash expires")
-	_check(player.apply_enemy_contact(routine.global_position) and _flash(antonio) == 1.0,
+	_check(bool(player.call(&"apply_enemy_contact", routine.global_position)) and _flash(antonio) == 1.0,
 			"Contact hit and player flash")
 	player._physics_process(0.10)
 	_check(antonio.frame == 5, "Attack swing pose")
@@ -254,7 +260,7 @@ func _check_menus(arena: Arena, screens: Screens) -> void:
 	_key(KEY_DOWN)
 	_key(KEY_ENTER)
 	_check(GameManager.current_state == GameManager.GameState.PLAYING and GameManager.wave == 1
-			and GameManager.core_hp == GameManager.max_core_hp and arena._time_left == Arena.WAVE_DURATION
+			and GameManager.core_hp == GameManager.max_core_hp and arena._time_left == LEGACY_WAVE_DURATION
 			and player.position == Vector2(320, 219) and arena._camera.offset == Vector2.ZERO,
 			"Restart from pause resets wave one, health, player and camera")
 	_key(KEY_P)

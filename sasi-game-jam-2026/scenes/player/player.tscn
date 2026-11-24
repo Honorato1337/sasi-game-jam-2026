@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scenes/player/player.gd" id="1_player"]
 
-[ext_resource type="Texture2D" path="res://assets/sprites/seu_antonio_sheet.png" id="2_sheet"]
+[ext_resource type="Texture2D" path="res://assets/sprites/student_sheet.png" id="2_sheet"]
 [ext_resource type="Shader" path="res://assets/sprites/hit_flash.gdshader" id="3_flash"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_flash"]

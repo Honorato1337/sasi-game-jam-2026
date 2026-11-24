@@ -1,13 +1,33 @@
 extends Node
 
-enum GameState {
-	MENU,
-	PLAYING,
-	HABIT_SELECT,
-	PAUSED,
-	VICTORY,
-	GAME_OVER,
-}
+# HABIT_SELECT is used by the legacy arena until T-018.
+enum GameState { MENU, DIALOGUE, PLAYING, PAUSED, VICTORY, GAME_OVER, HABIT_SELECT }
+enum MindState { CALM, ANXIOUS, OVERLOAD }
+
+signal pillars_changed(body: float, mind: float, rest: float)
+signal hp_changed(new_hp: int, max_hp: int)
+signal mind_state_changed(new_state: MindState)
+signal exhausted_changed(is_exhausted: bool)
+signal room_changed(new_room: int)
+signal ally_activated(active: bool)
+signal combo_changed(new_combo: int)
+
+const MAX_PILLAR: float = 100.0
+const MAX_ROOMS: int = 3
+const REST_RECOVERY_DELAY: float = 0.45
+const REST_RECOVERY_RATE: float = 22.0
+
+var body: float = MAX_PILLAR
+var mind: float = MAX_PILLAR
+var rest: float = MAX_PILLAR
+var max_hp: int = 100
+var hp: int = 100
+var mind_state: MindState = MindState.CALM
+var is_exhausted: bool = false
+var ally_active: bool = false
+var room: int = 1
+var combo: int = 0
+var _rest_delay: float = 0.0
 
 enum SignalLevel { CALM, WARNING, OVERLOAD, EXHAUSTED }
 
@@ -23,17 +43,19 @@ signal clarity_ready_changed(is_ready: bool)
 
 const MIN_BPM: float = 70.0
 const MAX_BPM: float = 180.0
-const EXHAUSTION_DURATION: float = 2.5
-const EXHAUSTION_RECOVERY_BPM: float = 135.0
+const EXHAUSTION_DURATION: float = 2.0
 const MAX_WAVES: int = 4
 const MAX_ALLIES: int = 3
 
 var current_state: GameState = GameState.MENU
 var score: int = 0
-var bpm: float = MIN_BPM
+var bpm: float:
+	get: return 75.0 + (MAX_PILLAR - mind) * 0.95
 var signal_level: SignalLevel = SignalLevel.CALM
-var max_core_hp: int = 100
-var core_hp: int = max_core_hp
+var max_core_hp: int:
+	get: return max_hp
+var core_hp: int:
+	get: return hp
 var wave: int = 1
 var sleep_rank: int = 0
 var nutrition_rank: int = 0
@@ -78,28 +100,28 @@ func add_score(points: int) -> void:
 
 func add_bpm(amount: float) -> void:
 	if amount > 0.0:
-		_set_bpm(bpm + amount * pow(0.8, sleep_rank))
+		modify_mind(-amount * pow(0.8, sleep_rank) / 0.95)
 
 
 func reduce_bpm(amount: float) -> void:
 	if amount > 0.0:
-		_set_bpm(bpm - amount)
+		modify_mind(amount / 0.95)
 
 
 ## Call once per gameplay frame. Set recover_passively to false during combat actions.
 func tick_bpm(delta: float, recover_passively: bool = true) -> void:
 	if current_state != GameState.PLAYING or delta <= 0.0:
 		return
-	_exhaustion_remaining = maxf(0.0, _exhaustion_remaining - delta)
-	var recovery: float = 0.0
+	tick_pillars(delta)
 	if recover_passively:
-		recovery = (6.0 + 2.5 * sleep_rank) * delta
-	_set_bpm(bpm - recovery)
+		reduce_bpm((6.0 + 2.5 * sleep_rank) * delta)
 
 
 func complete_breathing() -> void:
 	_exhaustion_remaining = 0.0
-	_set_bpm(bpm - 15.0, true)
+	_set_exhausted(false)
+	modify_mind(35.0)
+	modify_rest(25.0)
 	_set_clarity_ready(true)
 
 
@@ -129,7 +151,7 @@ func apply_habit_choice(choice: String) -> void:
 		"sleep":
 			sleep_rank += 1
 			_exhaustion_remaining = 0.0
-			_set_bpm(MIN_BPM, true)
+			modify_mind(MAX_PILLAR)
 		"nutrition":
 			nutrition_rank += 1
 			heal_core(25)
@@ -163,17 +185,13 @@ func reset_game() -> void:
 
 
 func get_move_speed_multiplier() -> float:
-	var nutrition_multiplier: float = 1.0 + 0.15 * nutrition_rank
-	match signal_level:
-		SignalLevel.EXHAUSTED:
-			return nutrition_multiplier * 0.45
-		SignalLevel.OVERLOAD:
-			return nutrition_multiplier * 0.85
-	return nutrition_multiplier
+	if is_exhausted:
+		return 0.55
+	return 0.75 if body < 40.0 else 1.0
 
 
 func get_breathe_duration() -> float:
-	return maxf(0.9, 1.5 - 0.2 * nutrition_rank)
+	return 1.5
 
 
 func _reset_run(new_state: GameState) -> void:
@@ -181,7 +199,17 @@ func _reset_run(new_state: GameState) -> void:
 	nutrition_rank = 0
 	ally_count = 0
 	_exhaustion_remaining = 0.0
-	_set_bpm(MIN_BPM, true)
+	_rest_delay = 0.0
+	_set_exhausted(false)
+	body = 35.0 if new_state == GameState.PLAYING else MAX_PILLAR
+	rest = MAX_PILLAR
+	modify_mind(MAX_PILLAR)
+	pillars_changed.emit(body, mind, rest)
+	enter_room(1)
+	reset_combo()
+	if ally_active:
+		ally_active = false
+		ally_activated.emit(false)
 	_set_core_hp(max_core_hp)
 	_set_clarity_ready(false)
 	habits_updated.emit(sleep_rank, nutrition_rank, ally_count)
@@ -194,35 +222,139 @@ func _reset_run(new_state: GameState) -> void:
 	set_state(new_state)
 
 
-func _set_bpm(value: float, clear_exhaustion: bool = false) -> void:
-	var previous_bpm: float = bpm
-	var previous_level: SignalLevel = signal_level
-	bpm = clampf(value, MIN_BPM, MAX_BPM)
+func tick_pillars(delta: float, is_breathing: bool = false, near_ally: bool = false) -> void:
+	if current_state != GameState.PLAYING or delta <= 0.0:
+		return
+	modify_body(-0.85 * delta)
+	if ally_active and near_ally:
+		modify_mind(3.5 * delta)
+	var remaining: float = delta
+	if is_exhausted:
+		var spent: float = minf(remaining, _exhaustion_remaining)
+		_exhaustion_remaining -= spent
+		remaining -= spent
+		if _exhaustion_remaining <= 0.000001:
+			_set_exhausted(false)
+			modify_rest(35.0 - rest)
+	var delay: float = minf(remaining, _rest_delay)
+	_rest_delay -= delay
+	if remaining > delay:
+		modify_rest((remaining - delay) * (34.0 if is_breathing else REST_RECOVERY_RATE))
 
-	if bpm >= MAX_BPM:
-		if previous_level != SignalLevel.EXHAUSTED:
-			_exhaustion_remaining = EXHAUSTION_DURATION
-		signal_level = SignalLevel.EXHAUSTED
-	elif previous_level == SignalLevel.EXHAUSTED and not clear_exhaustion \
-			and (_exhaustion_remaining > 0.0 or bpm > EXHAUSTION_RECOVERY_BPM):
-		signal_level = SignalLevel.EXHAUSTED
-	elif bpm >= 150.0:
-		signal_level = SignalLevel.OVERLOAD
-	elif bpm >= 120.0:
-		signal_level = SignalLevel.WARNING
-	else:
-		signal_level = SignalLevel.CALM
 
-	if previous_level != signal_level:
-		signal_level_changed.emit(signal_level)
-	if previous_bpm != bpm or previous_level != signal_level:
-		bpm_changed.emit(bpm, signal_level)
+func modify_body(delta_val: float) -> void:
+	var next: float = clampf(body + delta_val, 0.0, MAX_PILLAR)
+	if body != next:
+		body = next
+		pillars_changed.emit(body, mind, rest)
+
+
+func modify_mind(delta_val: float) -> void:
+	var next: float = clampf(mind + delta_val, 0.0, MAX_PILLAR)
+	if mind == next:
+		return
+	mind = next
+	var level: MindState = MindState.CALM
+	if mind < 25.0:
+		level = MindState.OVERLOAD
+	elif mind < 50.0:
+		level = MindState.ANXIOUS
+	if level != mind_state:
+		mind_state = level
+		mind_state_changed.emit(level)
+	_sync_signal_level()
+	bpm_changed.emit(bpm, signal_level)
+	pillars_changed.emit(body, mind, rest)
+
+
+func modify_rest(delta_val: float) -> void:
+	var next: float = clampf(rest + delta_val, 0.0, MAX_PILLAR)
+	if rest == next:
+		return
+	rest = next
+	if delta_val < 0.0:
+		_rest_delay = REST_RECOVERY_DELAY
+	if rest == 0.0:
+		_rest_delay = 0.0
+		_exhaustion_remaining = EXHAUSTION_DURATION
+		_set_exhausted(true)
+	pillars_changed.emit(body, mind, rest)
+
+
+func spend_rest(amount: float) -> void:
+	if amount > 0.0 and not is_exhausted:
+		modify_rest(-amount)
+
+
+func _set_exhausted(value: bool) -> void:
+	if is_exhausted != value:
+		is_exhausted = value
+		_sync_signal_level()
+		exhausted_changed.emit(value)
+
+
+func _sync_signal_level() -> void:
+	var level: SignalLevel = SignalLevel.CALM
+	if is_exhausted:
+		level = SignalLevel.EXHAUSTED
+	elif mind_state == MindState.OVERLOAD:
+		level = SignalLevel.OVERLOAD
+	elif mind_state == MindState.ANXIOUS:
+		level = SignalLevel.WARNING
+	if signal_level != level:
+		signal_level = level
+		signal_level_changed.emit(level)
+
+
+func get_attack_range() -> float:
+	if clarity_ready:
+		return 60.0
+	return 24.0 if body < 40.0 else 40.0
+
+
+func get_attack_damage() -> int:
+	if clarity_ready:
+		return 65
+	return 14 if body < 40.0 else 24
+
+
+func activate_ally() -> void:
+	if not ally_active:
+		ally_active = true
+		ally_activated.emit(true)
+
+
+func enter_room(room_index: int) -> void:
+	var next: int = clampi(room_index, 1, MAX_ROOMS)
+	if room != next:
+		room = next
+		room_changed.emit(room)
+
+
+func increment_combo() -> void:
+	combo += 1
+	combo_changed.emit(combo)
+
+
+func reset_combo() -> void:
+	if combo != 0:
+		combo = 0
+		combo_changed.emit(combo)
+
+
+func damage_player(amount: int) -> void:
+	damage_core(amount)
+
+
+func heal_player(amount: int) -> void:
+	heal_core(amount)
 
 
 func _set_core_hp(value: int) -> void:
 	var new_hp: int = clampi(value, 0, max_core_hp)
 	if core_hp != new_hp:
-		core_hp = new_hp
+		hp = new_hp
+		hp_changed.emit(hp, max_hp)
 		core_hp_changed.emit(core_hp, max_core_hp)
 
 
@@ -240,6 +372,7 @@ func _ensure_input_map() -> void:
 	_add_input_action(&"attack", [KEY_SPACE], MOUSE_BUTTON_LEFT)
 	_add_input_action(&"dash", [KEY_SHIFT])
 	_add_input_action(&"breathe", [KEY_R])
+	_add_input_action(&"interact", [KEY_E])
 
 
 func _add_input_action(action: StringName, keys: Array[Key],

@@ -4,9 +4,7 @@
 > Sempre especifique: **ID**, **Dono**, **Arquivos-alvo**, **Descrição** e **Critério de Pronto**.
 
 ## EM PROGRESSO
-- [ ] **T-015** | Dono: `Codex` | **Arquivos-alvo:** `sasi-game-jam-2026/scripts/autoload/game_manager.gd`, `sasi-game-jam-2026/scripts/autoload/audio_manager.gd`, `sasi-game-jam-2026/scripts/data/story_dialogues.gd`, `sasi-game-jam-2026/scenes/ui/story_dialog.gd`, `sasi-game-jam-2026/scenes/ui/story_dialog.tscn`, `sasi-game-jam-2026/scenes/ui/hud.gd`, `sasi-game-jam-2026/scenes/levels/arena.gd`, `sasi-game-jam-2026/scenes/levels/arena.tscn`, `sasi-game-jam-2026/tools/validate_t012.gd`, `CREDITS_AND_AI.md`, `TASKS.md`
-  - **Descrição:** Game Feel Dinâmico & História Adaptável: hitstop, textos flutuantes pixel-nítidos, ritmo de spawn mais dinâmico, Orbes de Fôlego dropados por inimigos, evento Lembrança da Clara no pátio, sistema de Combo, além de arquivo central editável `story_dialogues.gd` + caixa de diálogo retrô com retrato pixel art animado e *typewriter* com voz 8-bit.
-  - **Critério de Pronto:** Combate dinâmico, diálogos funcionais e puláveis com `[ESC]`, validação headless completa aprovada no Godot 4.7.2 sem erros e status movido para `PARA REVISÃO`.
+*(Vazio)*
 
 ## PARA REVISÃO
 *(Vazio)*
@@ -15,18 +13,12 @@
 *(Vazio)*
 
 ## CONCLUÍDO
-- [x] **T-014** | Dono: `Codex` | Nitidez HD (`stretch/mode = "canvas_items"` + pixel snapping), `seu_antonio_sheet.png` expandido para 8 frames (`256x32`), animação de todos os estados do jogador com *squash & stretch*, afterimages de dash, poeira de passo, slash preenchido, empurrão em todo ataque, sinal `enemy_hit`, e animações/telegrafia dos 4 inimigos; 96 verificações headless + 97 no desktop aprovadas no Godot 4.7.2 sem erros e revisadas.
-- [x] **T-013** | Dono: `Codex` | Menu Principal completo (`JOGAR`, `COMO JOGAR`, `CONFIGURAÇÕES`, `CRÉDITOS & SAÚDE`, `SAIR`), `CONFIGURAÇÕES.EXE` (volumes Música/SFX, Mudo, Tremor de Tela e Tela Cheia), Menu de Pausa (`ESC`/`P`) e telas finais com navegação mouse/teclado; 88 verificações headless + 89 no desktop aprovadas no Godot 4.7.2 sem erros de script e revisadas.
-- [x] **T-012** | Dono: `Antigravity + Codex` | Reconstrução visual 32-bit em pixel art rica e texturizada (`arena_bg.png` pátio médio-escuro 2.5D + 7 spritesheets animados com sombreamento hue-shifted, halos de luz, vagalumes, sombras no chão e shaders de flash branco); 55 verificações aprovadas no Godot 4.7.2 headless sem erros de script.
-- [x] **T-011** | Dono: `Codex` | Polimento visual 8-bit e *juice* (`player.gd`, `enemy_base.gd`, `arena.gd`): animação 2 frames, flashes de impacto, aura ciano de Clareza, *screen shake* pixel-snapped, partículas/faíscas 8-bit, pulso do Núcleo e raio da aura de apoio; 30 verificações integradas aprovadas em Godot 4.7.2 headless com zero erros de script.
-- [x] **T-010** | Dono: `Codex` | Sintetizador 8-bit procedural (`audio_manager.gd`) com 4 faixas chiptune (Menu, Bach, Chopin, Tchaikovsky), 10 SFX 8-bit, reação dinâmica de pitch/vibrato/heartbeat ao BPM e síntese distribuída entre frames para Web, validado em Godot 4.7.2 headless e revisado.
-- [x] **T-009** | Dono: `Codex` | HUD de Sinais (`hud.tscn/.gd`), janela retrô reutilizável (`retro_window.gd`), Caderno Retrô entre ondas (`habit_terminal.tscn/.gd`), telas de Título/Vitória/Derrota (`title_end_screens.tscn/.gd`) e integração na arena implementados, validados em Godot 4.7.2 headless e revisados.
-- [x] **T-008** | Dono: `Codex` | Arena Única (`640x360`), Núcleo do Cuidado, spawner das 4 ondas, 4 tipos de inimigos (`enemy_base.tscn/.gd`) e Aliados de Conexão (`ally_support.tscn/.gd`) implementados, validados em Godot 4.7.2 headless e revisados.
-- [x] **T-007** | Dono: `Codex` | Protagonista Seu Antônio implementado em `sasi-game-jam-2026/scenes/player/player.tscn` e `player.gd` (movimento, ataque, dash, respiração `R` com `BreathRing`, Golpe de Clareza e tremor em sobrecarga/exaustão), validado em Godot 4.7.2 headless e revisado.
-- [x] **T-006** | Dono: `Codex` | `GameManager` expandido com matemática completa de BPM, `SignalLevel`, exaustão, Golpe de Clareza, Núcleo, ondas, hábitos e `_ensure_input_map()` (`sasi-game-jam-2026/scripts/autoload/game_manager.gd`), validado em Godot 4.7.2 headless e revisado.
-- [x] **T-005** | Dono: `Codex` | `project.godot` configurado (`640x360` -> `1280x720`, `viewport` + `keep`, `Nearest`, Autoloads `GameManager` e `AudioManager`).
-- [x] **T-004** | Dono: `Codex` | Script base `AudioManager` criado em `sasi-game-jam-2026/scripts/autoload/audio_manager.gd` e revisado pelo Antigravity.
-- [x] **T-003** | Dono: `Codex` | Script base `GameManager` criado em `sasi-game-jam-2026/scripts/autoload/game_manager.gd` e revisado pelo Antigravity.
-- [x] **T-002** | Dono: `Usuário + Antigravity` | Projeto Godot 4 (`GL Compatibility`) criado em `sasi-game-jam-2026/` com estrutura de pastas (`scenes/`, `scripts/`, `assets/`, `audio/`).
-- [x] **T-001** | Dono: `Antigravity + Usuário + Equipe` | Conceito final definido (*O Que Mantém de Pé* / *Entre Fôlego e Rotina*) e `GDD.md` preenchido com alinhamento aos 3 Mundos e critérios do edital.
-- [x] **T-000** | Dono: `Antigravity` | Estrutura inicial de orquestração (`AGENTS.md`, `TASKS.md`, `GDD.md`, `CREDITS_AND_AI.md`, `ITCH_SUBMISSION_CHECKLIST.md`, `.gitignore`).
+- [x] **T-018** | Dono: `Codex` | Três salas conectadas por portas físicas (`arena.tscn/.gd`), diálogos editáveis em português (`story_dialogues.gd` + `story_dialog.tscn/.gd`), HUD dos três Pilares com visão em túnel, áudio reativo (`audio_manager.gd`), menu completo e finais de *"Três Turnos"*; validado (`T-018 (headless): 0 falha(s).`) e revisado.
+- [x] **T-017** | Dono: `Codex` | Gameplay Vivo de *"Três Turnos"* (`player.tscn/.gd`, `care_station.tscn/.gd`, `enemy_base.tscn/.gd`, `ally_support.tscn/.gd`, `enemy_projectile.gd`, `slow_puddle.gd`): espada proporcional ao Pilar Corpo, interação `[E]`, 4 inimigos animados + Boss do Burnout de 2 Fases + colega aliado; validado (`T-017: 0 falha(s).`) e revisado.
+- [x] **T-016** | Dono: `Codex` | 10 PNGs pixel art 32-bit de *"Três Turnos"* (`student_sheet`, `classmate_sheet`, `room_morning/afternoon/night`, `stations_sheet`, 3 inimigos + `boss_burnout_sheet`) gerados, importados e inspecionados + `game_manager.gd` refatorado para os 3 Pilares (`Corpo`, `Mente`, `Descanso`), validado (`T-016: 0 falha(s).`) e revisado.
+- [x] **T-014** | Dono: `Codex` | Nitidez HD (`stretch/mode = "canvas_items"` + pixel snapping), expansão de animações 8 frames, *squash & stretch*, afterimages, poeira e telegrafia (commit `f216c80`).
+- [x] **T-013** | Dono: `Codex` | Menu Principal completo, `CONFIGURAÇÕES.EXE` (volumes Música/SFX, Mudo, Tremor de Tela, Tela Cheia), Menu de Pausa (`ESC`/`P`) e telas finais (base preservada).
+- [x] **T-012** | Dono: `Antigravity + Codex` | Pipeline de geração pixel art 32-bit em Godot + shaders de flash branco (`hit_flash.gdshader`).
+- [x] **T-010** | Dono: `Codex` | Sintetizador 8-bit procedural (`audio_manager.gd`) com faixas estilo Bach, Chopin e Tchaikovsky + SFX em memória.
+- [x] **T-009** | Dono: `Codex` | Componente `retro_window.gd` e arquitetura de UI retrô.
+- [x] **T-000–T-008** | Dono: `Antigravity + Codex + Usuário` | Fundação do projeto Godot 4, orquestração e protótipo inicial da jam.

@@ -1,6 +1,7 @@
 extends CharacterBody2D
 
 signal attacked(is_clarity: bool, origin: Vector2, direction: Vector2, attack_range: float, damage: int)
+signal interacted(station_name: String, feedback_text: String)
 signal clarity_hit
 signal dashed(direction: Vector2)
 signal breathing_progressed(progress: float, is_breathing: bool)
@@ -8,18 +9,17 @@ signal breathing_completed()
 signal hit_taken(bpm_added: float)
 signal enemy_hit(enemy_position: Vector2, damage: int, is_clarity: bool, is_boss: bool)
 
-const BASE_SPEED: float = 115.0
+const BASE_SPEED: float = 122.0
 const ATTACK_COOLDOWN: float = 0.32
-const EXHAUSTED_ATTACK_COOLDOWN: float = 0.65
 const ATTACK_HALF_ANGLE: float = PI / 4.0
 const CLARITY_HALF_ANGLE: float = PI * 0.4
 const CLARITY_KNOCKBACK_SPEED: float = 220.0
 const NORMAL_KNOCKBACK_SPEED: float = 95.0
 const ATTACK_FLASH_DURATION: float = 0.20
-const DASH_SPEED: float = 240.0
+const DASH_SPEED: float = 245.0
 const DASH_DURATION: float = 0.18
 const DASH_COOLDOWN: float = 0.75
-const HIT_INVULNERABILITY: float = 0.4
+const HIT_INVULNERABILITY: float = 0.45
 const HIT_PUSH_DURATION: float = 0.10
 const HIT_FLASH_DURATION: float = 0.09
 const HIT_PUSH_SPEED: float = 105.0
@@ -34,6 +34,7 @@ var _attack_range: float = 0.0
 var _attack_half_angle: float = 0.0
 var _attack_is_clarity: bool = false
 var _dash_cooldown: float = 0.0
+var _last_dash_frame: int = -1
 var _dash_remaining: float = 0.0
 var _dash_direction: Vector2 = Vector2.ZERO
 var _hit_cooldown: float = 0.0
@@ -106,20 +107,22 @@ func _physics_process(delta: float) -> void:
 		facing_direction = move_input.normalized()
 
 	var breathe_held: bool = Input.is_action_pressed(&"breathe")
+	GameManager.tick_pillars(delta, breathe_held, _near_ally())
 	_update_breathing(delta, breathe_held)
-	var exhausted: bool = GameManager.signal_level == GameManager.SignalLevel.EXHAUSTED
-	if Input.is_action_just_pressed(&"dash") and _dash_cooldown <= 0.0 and not exhausted:
+	if Input.is_action_just_pressed(&"interact"):
+		_interact()
+	if Input.is_action_just_pressed(&"dash") and _dash_cooldown <= 0.0 and not GameManager.is_exhausted:
 		_dash_direction = facing_direction
 		_dash_remaining = DASH_DURATION
 		_ghost_remaining = 0.0
 		_dash_cooldown = DASH_COOLDOWN
-		GameManager.add_bpm(9.0)
+		GameManager.spend_rest(16.0)
 		dashed.emit(_dash_direction)
 
 	if Input.is_action_just_pressed(&"attack") and _attack_cooldown <= 0.0:
 		_attack()
 
-	var speed: float = BASE_SPEED * GameManager.get_move_speed_multiplier()
+	var speed: float = BASE_SPEED * GameManager.get_move_speed_multiplier() * _ground_speed_multiplier()
 	if breathe_held:
 		speed *= 0.40
 	velocity = move_input * speed
@@ -127,12 +130,11 @@ func _physics_process(delta: float) -> void:
 	velocity = velocity.lerp(_dash_direction * DASH_SPEED, dash_step / delta)
 	velocity += _hit_direction * HIT_PUSH_SPEED * minf(delta, _hit_push_remaining) / delta
 	move_and_slide()
+	if dash_step > 0.0:
+		_last_dash_frame = Engine.get_physics_frames()
 	_dash_remaining -= dash_step
 	_hit_push_remaining = maxf(0.0, _hit_push_remaining - delta)
 
-	GameManager.tick_bpm(delta, _attack_cooldown <= 0.0 and dash_step <= 0.0)
-	if is_in_ally_aura:
-		GameManager.reduce_bpm(4.0 * delta)
 	_update_visual_tremor()
 	_update_visual_animation(delta, move_input != Vector2.ZERO and get_position_delta().length_squared() > 0.001,
 			breathe_held, dash_step > 0.0)
@@ -145,6 +147,7 @@ func reset_run() -> void:
 	_attack_flash = 0.0
 	_dash_cooldown = 0.0
 	_dash_remaining = 0.0
+	_last_dash_frame = -1
 	_hit_cooldown = 0.0
 	_hit_push_remaining = 0.0
 	_hit_flash = 0.0
@@ -165,8 +168,8 @@ func reset_run() -> void:
 	_attack_arc.queue_redraw()
 
 
-func apply_enemy_contact(from_position: Vector2, bpm_cost: float = 14.0) -> bool:
-	if _hit_cooldown > 0.0 or GameManager.current_state != GameManager.GameState.PLAYING:
+func apply_enemy_contact(from_position: Vector2, hp_damage: int, mind_damage: float, body_damage: float) -> bool:
+	if _hit_cooldown > 0.0 or _dash_remaining > 0.0 or Engine.get_physics_frames() == _last_dash_frame or GameManager.current_state != GameManager.GameState.PLAYING:
 		return false
 	_hit_cooldown = HIT_INVULNERABILITY
 	_hit_flash = HIT_FLASH_DURATION
@@ -175,20 +178,20 @@ func apply_enemy_contact(from_position: Vector2, bpm_cost: float = 14.0) -> bool
 	_hit_direction = from_position.direction_to(global_position)
 	if _hit_direction == Vector2.ZERO:
 		_hit_direction = -facing_direction
-	var previous_bpm: float = GameManager.bpm
-	GameManager.add_bpm(bpm_cost)
-	hit_taken.emit(GameManager.bpm - previous_bpm)
+	GameManager.modify_mind(-mind_damage)
+	GameManager.modify_body(-body_damage)
+	GameManager.damage_player(hp_damage)
+	hit_taken.emit(mind_damage)
 	return true
 
 
 func _attack() -> void:
+	if GameManager.is_exhausted:
+		return
 	_attack_cooldown = ATTACK_COOLDOWN
-	if GameManager.signal_level == GameManager.SignalLevel.EXHAUSTED:
-		_attack_cooldown = EXHAUSTED_ATTACK_COOLDOWN
-
+	var damage: int = GameManager.get_attack_damage()
+	_attack_range = GameManager.get_attack_range()
 	_attack_is_clarity = GameManager.consume_clarity_strike()
-	var damage: int = 55 if _attack_is_clarity else 20
-	_attack_range = 54.0 if _attack_is_clarity else 36.0
 	_attack_half_angle = CLARITY_HALF_ANGLE if _attack_is_clarity else ATTACK_HALF_ANGLE
 	_attack_direction = facing_direction
 	_attack_flash = ATTACK_FLASH_DURATION
@@ -221,9 +224,15 @@ func _attack() -> void:
 		hit_enemy = true
 
 	if not _attack_is_clarity:
-		GameManager.add_bpm(4.5)
+		GameManager.spend_rest(10.0)
 	elif hit_enemy:
 		clarity_hit.emit()
+	if _attack_is_clarity:
+		for projectile: Node2D in get_tree().get_nodes_in_group(&"stress_projectiles"):
+			var offset: Vector2 = projectile.global_position - origin
+			if offset.length_squared() <= _attack_range * _attack_range and (
+					offset == Vector2.ZERO or offset.normalized().dot(_attack_direction) >= min_dot):
+				projectile.queue_free()
 	attacked.emit(_attack_is_clarity, origin, _attack_direction, _attack_range, damage)
 
 
@@ -237,10 +246,9 @@ func _update_breathing(delta: float, breathe_held: bool) -> void:
 	var channel_step: float = minf(delta, maxf(0.0, duration - _breath_elapsed))
 	_breath_elapsed += channel_step
 	_breath_progress = clampf(_breath_elapsed / duration, 0.0, 1.0)
-	GameManager.reduce_bpm(28.0 * channel_step)
 	_breath_ring.queue_redraw()
 	breathing_progressed.emit(_breath_progress, true)
-	if _breath_elapsed >= duration:
+	if _breath_elapsed >= duration - 0.000001:
 		_breath_completed_for_hold = true
 		GameManager.complete_breathing()
 		breathing_completed.emit()
@@ -259,11 +267,10 @@ func _reset_breathing() -> void:
 
 func _update_visual_tremor() -> void:
 	var amplitude: int = 0
-	match GameManager.signal_level:
-		GameManager.SignalLevel.OVERLOAD:
-			amplitude = 1
-		GameManager.SignalLevel.EXHAUSTED:
-			amplitude = 2
+	if GameManager.is_exhausted:
+		amplitude = 2
+	elif GameManager.mind_state == GameManager.MindState.OVERLOAD:
+		amplitude = 1
 	var tremor: Vector2 = Vector2(randi_range(-amplitude, amplitude), randi_range(-amplitude, amplitude))
 	var pixel: Vector2 = global_position.round() - global_position
 	_shadow.position = pixel + Vector2(0, 8)
@@ -348,6 +355,11 @@ func _on_clarity_ready_changed(_is_ready: bool) -> void:
 
 
 func _draw_visual() -> void:
+	if GameManager.is_exhausted or GameManager.mind_state == GameManager.MindState.OVERLOAD:
+		for index: int in range(3):
+			var phase: float = fposmod(_visual_time * 2.5 + index / 3.0, 1.0)
+			var point := Vector2((index - 1) * (10.0 + phase * 6.0), -19.0 + phase * 9.0)
+			_visual.draw_rect(Rect2(point.round(), Vector2(2, 3)), Color(0.55, 0.9, 1.0, 1.0 - phase))
 	if _breathing_visual:
 		for index: int in range(9):
 			var phase: float = fposmod(_visual_time * 1.4 + index / 9.0, 1.0)
@@ -376,10 +388,10 @@ func _draw_attack_arc() -> void:
 		return
 	var life: float = _attack_flash / ATTACK_FLASH_DURATION
 	var angle: float = _attack_direction.angle() + (0.5 - life) * 0.40
-	var radius: float = _attack_range * lerpf(1.0, 0.84, life)
+	var radius: float = _attack_range * lerpf(1.0, 0.60, life)
 	var width: float = 15.0 if _attack_is_clarity else 9.0
 	var glow: Color = Color("#39dcec") if _attack_is_clarity else Color("#fca34d")
-	var edge: Color = Color("#edffff") if _attack_is_clarity else Color("#fff3c8")
+	var edge: Color = Color("#ffe298") if _attack_is_clarity else Color("#fff3c8")
 	glow.a = life * 0.9
 	edge.a = life
 	_draw_slash_layer(angle, radius, width, glow)
@@ -398,3 +410,32 @@ func _draw_slash_layer(angle: float, radius: float, width: float, color: Color) 
 		var direction: Vector2 = Vector2.from_angle(angle + lerpf(-_attack_half_angle, _attack_half_angle, fraction))
 		points.append(direction * (radius - width * sin(fraction * PI)))
 	_attack_arc.draw_colored_polygon(points, color)
+
+
+func _interact() -> void:
+	var closest: Node2D
+	var distance_squared: float = 46.0 * 46.0
+	for station: Node2D in get_tree().get_nodes_in_group(&"care_stations"):
+		var candidate: float = global_position.distance_squared_to(station.global_position)
+		if candidate <= distance_squared and not station.is_queued_for_deletion() and station.can_interact():
+			closest = station
+			distance_squared = candidate
+	if closest != null:
+		var feedback: String = closest.interact(self)
+		if not feedback.is_empty():
+			interacted.emit(closest.get_station_name(), feedback)
+
+
+func _near_ally() -> bool:
+	for ally: Node2D in get_tree().get_nodes_in_group(&"support_allies"):
+		if not ally.is_queued_for_deletion() and ally.is_player_near(self):
+			return true
+	return false
+
+
+func _ground_speed_multiplier() -> float:
+	var multiplier: float = 1.0
+	for puddle: Node2D in get_tree().get_nodes_in_group(&"slow_puddles"):
+		if not puddle.is_queued_for_deletion() and puddle.contains_point(global_position):
+			multiplier = minf(multiplier, puddle.slow_multiplier)
+	return multiplier

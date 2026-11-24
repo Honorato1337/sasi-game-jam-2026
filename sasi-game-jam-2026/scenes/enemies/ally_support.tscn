@@ -1,9 +1,9 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/enemies/ally_support.gd" id="1_ally"]
-[ext_resource type="Texture2D" path="res://assets/sprites/allies_sheet.png" id="2_sheet"]
+[ext_resource type="Texture2D" path="res://assets/sprites/classmate_sheet.png" id="2_sheet"]
 
-[node name="AllySupport" type="Node2D"]
+[node name="AllySupport" type="Node2D" groups=["support_allies"]]
 script = ExtResource("1_ally")
 
 [node name="GroundShadow" type="Polygon2D" parent="."]
@@ -16,4 +16,4 @@ polygon = PackedVector2Array(-10, 0, -9, -1, -6, -3, 0, -4, 6, -3, 9, -1, 10, 0,
 texture_filter = 1
 position = Vector2(0, -9)
 texture = ExtResource("2_sheet")
-hframes = 3
+hframes = 2
