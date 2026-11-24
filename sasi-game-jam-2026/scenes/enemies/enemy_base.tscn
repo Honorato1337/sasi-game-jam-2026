@@ -1,6 +1,26 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/enemies/enemy_base.gd" id="1_enemy"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemy_routine_sheet.png" id="2_sheet"]
+[ext_resource type="Shader" path="res://assets/sprites/hit_flash.gdshader" id="3_flash"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_flash"]
+resource_local_to_scene = true
+shader = ExtResource("3_flash")
+shader_parameter/hit_flash = 0.0
 
 [node name="Enemy" type="Node2D" groups=["enemies"]]
 script = ExtResource("1_enemy")
+
+[node name="GroundShadow" type="Polygon2D" parent="."]
+position = Vector2(0, 8)
+scale = Vector2(1, 0.75)
+color = Color(0.055, 0.039, 0.08, 0.64)
+polygon = PackedVector2Array(-10, 0, -9, -1, -6, -3, 0, -4, 6, -3, 9, -1, 10, 0, 9, 1, 6, 3, 0, 4, -6, 3, -9, 1)
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+material = SubResource("ShaderMaterial_flash")
+position = Vector2(0, -7)
+texture = ExtResource("2_sheet")
+hframes = 2

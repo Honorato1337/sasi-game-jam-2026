@@ -22,29 +22,6 @@ const HIT_PUSH_DURATION: float = 0.10
 const HIT_FLASH_DURATION: float = 0.09
 const HIT_PUSH_SPEED: float = 105.0
 
-const PIXEL_ART: PackedStringArray = [
-	"....#######.....",
-	"...#HHHHHHH#....",
-	"..#HHhhhhHHH#...",
-	"..#HsssssssH#...",
-	"..#Hs#sss#sH#...",
-	"..#sssssssss#...",
-	"...#hhsshh#.....",
-	"....#hhhh#......",
-	"...#GG##GG#.....",
-	"..#sGtGGtGs#....",
-	"..#sGtGGtGs#....",
-	"...#tttttt#.....",
-	"...#bb##bb#.....",
-	"...#bb##bb#.....",
-	"..#####.#####...",
-]
-const PIXEL_COLORS: Dictionary[String, Color] = {
-	"#": Color("#231e2e"), "H": Color("#d4c9c5"), "h": Color("#faf0dd"),
-	"s": Color("#d79570"), "G": Color("#64b199"), "t": Color("#34736c"),
-	"b": Color("#535479"),
-}
-
 var facing_direction: Vector2 = Vector2.RIGHT
 var is_in_ally_aura: bool = false
 
@@ -69,6 +46,9 @@ var _alternate_frame: bool = false
 var _walking: bool = false
 
 @onready var _visual: Node2D = $Visual
+@onready var _sprite: Sprite2D = $Visual/Sprite2D
+@onready var _flash_material: ShaderMaterial = _sprite.material as ShaderMaterial
+@onready var _shadow: Polygon2D = $GroundShadow
 @onready var _breath_ring: Node2D = $BreathRing
 @onready var _attack_arc: Node2D = $AttackArc
 
@@ -103,7 +83,7 @@ func _physics_process(delta: float) -> void:
 	if _hit_flash > 0.0:
 		_hit_flash = maxf(0.0, _hit_flash - delta)
 		if _hit_flash == 0.0:
-			_visual.queue_redraw()
+			_flash_material.set_shader_parameter(&"hit_flash", 0.0)
 	if _attack_flash > 0.0:
 		_attack_flash = maxf(0.0, _attack_flash - delta)
 		_attack_arc.queue_redraw()
@@ -156,6 +136,9 @@ func reset_run() -> void:
 	_animation_time = 0.0
 	_alternate_frame = false
 	_walking = false
+	_sprite.frame = 0
+	_sprite.flip_h = false
+	_flash_material.set_shader_parameter(&"hit_flash", 0.0)
 	_update_visual_tremor()
 	_visual.queue_redraw()
 	_reset_breathing()
@@ -167,7 +150,7 @@ func apply_enemy_contact(from_position: Vector2, bpm_cost: float = 14.0) -> bool
 		return false
 	_hit_cooldown = HIT_INVULNERABILITY
 	_hit_flash = HIT_FLASH_DURATION
-	_visual.queue_redraw()
+	_flash_material.set_shader_parameter(&"hit_flash", 1.0)
 	_hit_push_remaining = HIT_PUSH_DURATION
 	_hit_direction = from_position.direction_to(global_position)
 	if _hit_direction == Vector2.ZERO:
@@ -257,7 +240,9 @@ func _update_visual_tremor() -> void:
 		GameManager.SignalLevel.EXHAUSTED:
 			amplitude = 2
 	var tremor: Vector2 = Vector2(randi_range(-amplitude, amplitude), randi_range(-amplitude, amplitude))
-	_visual.position = global_position.round() - global_position + tremor
+	var pixel: Vector2 = global_position.round() - global_position
+	_shadow.position = pixel + Vector2(0, 8)
+	_visual.position = pixel + tremor
 
 
 func _update_visual_animation(delta: float, walking: bool) -> void:
@@ -268,6 +253,9 @@ func _update_visual_animation(delta: float, walking: bool) -> void:
 	var frame_duration: float = 0.12 if walking else 0.55
 	_animation_time = fposmod(_animation_time + delta, frame_duration * 2.0)
 	var alternate: bool = _animation_time >= frame_duration
+	_sprite.frame = (2 if walking else 0) + int(alternate)
+	if facing_direction.x != 0.0:
+		_sprite.flip_h = facing_direction.x < 0.0
 	if alternate != _alternate_frame:
 		_alternate_frame = alternate
 		_visual.queue_redraw()
@@ -281,29 +269,16 @@ func _draw_visual() -> void:
 	if GameManager.clarity_ready:
 		var aura: Color = Color(0.45, 1.0, 0.95, 0.48 if _alternate_frame else 0.30)
 		for index: int in range(20):
-			var point: Vector2 = (Vector2.from_angle(index * TAU / 20) * Vector2(11, 12)).round()
+			var point: Vector2 = (Vector2.from_angle(index * TAU / 20) * Vector2(17, 17)).round() + Vector2(0, -6)
 			_visual.draw_rect(Rect2(point - Vector2(1, 2), Vector2(2, 2)), aura)
-	for y: int in range(PIXEL_ART.size()):
-		var row: String = PIXEL_ART[y]
-		for x: int in range(row.length()):
-			var pixel: String = row[x]
-			if PIXEL_COLORS.has(pixel):
-				var lift: int = 0
-				if _walking and y >= 12 and (x < 8) == _alternate_frame:
-					lift = 1
-				elif not _walking and _alternate_frame and y < 8:
-					lift = 1
-				var color: Color = Color("#fff5ec") if _hit_flash > 0.0 else PIXEL_COLORS[pixel]
-				if y == 7 and lift == 1:
-					_visual.draw_rect(Rect2(x - 8, y - 9, 1, 1), color)
-				_visual.draw_rect(Rect2(x - 8, y - 9 - lift, 1, 1), color)
 
 
 func _draw_breath_ring() -> void:
 	if _breath_progress <= 0.0:
 		return
-	_breath_ring.draw_arc(Vector2.ZERO, 13.0, 0.0, TAU, 32, Color("#294d50"), 1.0)
-	_breath_ring.draw_arc(Vector2.ZERO, 13.0, -PI / 2.0,
+	var center: Vector2 = Vector2(0, -7)
+	_breath_ring.draw_arc(center, 18.0, 0.0, TAU, 32, Color("#294d50"), 1.0)
+	_breath_ring.draw_arc(center, 18.0, -PI / 2.0,
 			-PI / 2.0 + TAU * _breath_progress, 32, Color("#89ffe0"), 2.0)
 
 

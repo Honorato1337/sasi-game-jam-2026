@@ -13,6 +13,7 @@
 *(Vazio)*
 
 ## CONCLUÍDO
+- [x] **T-012** | Dono: `Antigravity + Codex` | Reconstrução visual 32-bit em pixel art rica e texturizada (`arena_bg.png` pátio médio-escuro 2.5D + 7 spritesheets animados com sombreamento hue-shifted, halos de luz, vagalumes, sombras no chão e shaders de flash branco); 55 verificações aprovadas no Godot 4.7.2 headless sem erros de script.
 - [x] **T-011** | Dono: `Codex` | Polimento visual 8-bit e *juice* (`player.gd`, `enemy_base.gd`, `arena.gd`): animação 2 frames, flashes de impacto, aura ciano de Clareza, *screen shake* pixel-snapped, partículas/faíscas 8-bit, pulso do Núcleo e raio da aura de apoio; 30 verificações integradas aprovadas em Godot 4.7.2 headless com zero erros de script.
 - [x] **T-010** | Dono: `Codex` | Sintetizador 8-bit procedural (`audio_manager.gd`) com 4 faixas chiptune (Menu, Bach, Chopin, Tchaikovsky), 10 SFX 8-bit, reação dinâmica de pitch/vibrato/heartbeat ao BPM e síntese distribuída entre frames para Web, validado em Godot 4.7.2 headless e revisado.
 - [x] **T-009** | Dono: `Codex` | HUD de Sinais (`hud.tscn/.gd`), janela retrô reutilizável (`retro_window.gd`), Caderno Retrô entre ondas (`habit_terminal.tscn/.gd`), telas de Título/Vitória/Derrota (`title_end_screens.tscn/.gd`) e integração na arena implementados, validados em Godot 4.7.2 headless e revisados.

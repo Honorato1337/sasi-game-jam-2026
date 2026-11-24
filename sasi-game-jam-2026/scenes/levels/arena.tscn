@@ -1,10 +1,22 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scenes/levels/arena.gd" id="1_arena"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="3_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/habit_terminal.tscn" id="4_habits"]
 [ext_resource type="PackedScene" path="res://scenes/ui/title_end_screens.tscn" id="5_screens"]
+
+[ext_resource type="Texture2D" path="res://assets/sprites/arena_bg.png" id="6_background"]
+[ext_resource type="Texture2D" path="res://assets/sprites/care_core_sheet.png" id="2_sheet"]
+[ext_resource type="Shader" path="res://assets/sprites/hit_flash.gdshader" id="3_flash"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_flash"]
+resource_local_to_scene = true
+shader = ExtResource("3_flash")
+shader_parameter/hit_flash = 0.0
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_glow"]
+blend_mode = 1
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal"]
 size = Vector2(640, 16)
@@ -14,6 +26,25 @@ size = Vector2(16, 360)
 
 [node name="Arena" type="Node2D"]
 script = ExtResource("1_arena")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+z_index = -3
+offset_left = -8.0
+offset_top = -8.0
+offset_right = 648.0
+offset_bottom = 368.0
+mouse_filter = 2
+color = Color(0.0784314, 0.0627451, 0.109804, 1)
+
+[node name="Courtyard" type="Sprite2D" parent="."]
+texture_filter = 1
+z_index = -2
+texture = ExtResource("6_background")
+centered = false
+
+[node name="Atmosphere" type="Node2D" parent="."]
+material = SubResource("CanvasItemMaterial_glow")
+z_index = -1
 
 [node name="Walls" type="StaticBody2D" parent="."]
 
@@ -35,6 +66,19 @@ shape = SubResource("RectangleShape2D_vertical")
 
 [node name="CareCore" type="Node2D" parent="."]
 position = Vector2(320, 180)
+
+[node name="GroundShadow" type="Polygon2D" parent="CareCore"]
+position = Vector2(0, 15)
+scale = Vector2(2, 1.4)
+color = Color(0.055, 0.039, 0.08, 0.64)
+polygon = PackedVector2Array(-10, 0, -9, -1, -6, -3, 0, -4, 6, -3, 9, -1, 10, 0, 9, 1, 6, 3, 0, 4, -6, 3, -9, 1)
+
+[node name="Sprite2D" type="Sprite2D" parent="CareCore"]
+texture_filter = 1
+material = SubResource("ShaderMaterial_flash")
+position = Vector2(0, -8)
+texture = ExtResource("2_sheet")
+hframes = 4
 
 [node name="Allies" type="Node2D" parent="."]
 

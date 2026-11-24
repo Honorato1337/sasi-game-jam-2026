@@ -13,7 +13,12 @@ var _pulse_age: float = PULSE_VISUAL_DURATION
 var _pulse_origin: Vector2
 
 
+@onready var _sprite: Sprite2D = $Sprite2D
+@onready var _shadow: Polygon2D = $GroundShadow
+
+
 func _ready() -> void:
+	_sprite.frame = orbit_slot % 3
 	_update_position()
 
 
@@ -41,6 +46,9 @@ func _physics_process(delta: float) -> void:
 func _update_position() -> void:
 	var angle: float = orbit_slot * TAU / GameManager.MAX_ALLIES + _orbit_time * 0.65
 	global_position = core_position + Vector2.from_angle(angle) * 34.0
+	var pixel: Vector2 = global_position.round() - global_position
+	_shadow.position = pixel + Vector2(0, 8)
+	_sprite.position = pixel + Vector2(0, -9 + roundf(sin(_orbit_time * 3.0 + orbit_slot)))
 
 
 func _draw() -> void:
@@ -51,11 +59,3 @@ func _draw() -> void:
 		for index: int in range(48):
 			var point: Vector2 = _pulse_origin + Vector2.from_angle(index * TAU / 48) * radius
 			draw_rect(Rect2(to_local(point.round()), Vector2(2, 2)), color)
-
-	var pixel: Vector2 = global_position.round() - global_position
-	draw_rect(Rect2(pixel + Vector2(-5, -4), Vector2(10, 11)), Color("#20404a"))
-	draw_rect(Rect2(pixel + Vector2(-4, 0), Vector2(8, 6)), Color("#58c6a0"))
-	draw_rect(Rect2(pixel + Vector2(-3, -6), Vector2(6, 6)), Color("#eac695"))
-	draw_rect(Rect2(pixel + Vector2(-2, -7), Vector2(4, 2)), Color("#e9f9e1"))
-	draw_rect(Rect2(pixel + Vector2(-2, -3), Vector2(1, 1)), Color("#20404a"))
-	draw_rect(Rect2(pixel + Vector2(1, -3), Vector2(1, 1)), Color("#20404a"))

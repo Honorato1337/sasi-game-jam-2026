@@ -11,6 +11,12 @@ const SPEEDS: Array[float] = [55.0, 35.0, 72.0, 24.0]
 const COLORS: Array[Color] = [
 	Color("#dc714f"), Color("#c29153"), Color("#9571cf"), Color("#bb405c"),
 ]
+const SPRITES: Array[Texture2D] = [
+	preload("res://assets/sprites/enemy_routine_sheet.png"),
+	preload("res://assets/sprites/enemy_fatigue_sheet.png"),
+	preload("res://assets/sprites/enemy_grief_sheet.png"),
+	preload("res://assets/sprites/enemy_boss_sheet.png"),
+]
 const BOSS_PULSE_INTERVAL: float = 6.0
 const BOSS_CONTACT_INTERVAL: float = 1.2
 const PULSE_DURATION: float = 1.0
@@ -32,10 +38,18 @@ var _hit_flash: float = 0.0
 var _step_time: float = 0.0
 
 
+@onready var _sprite: Sprite2D = $Sprite2D
+@onready var _flash_material: ShaderMaterial = _sprite.material as ShaderMaterial
+@onready var _shadow: Polygon2D = $GroundShadow
+
+
 func _ready() -> void:
 	hp = MAX_HP[enemy_type]
+	_sprite.texture = SPRITES[enemy_type]
 	if player == null:
 		player = get_tree().get_first_node_in_group(&"player") as Player
+	_update_sprite(player.global_position if enemy_type == EnemyType.GRIEF_GUILT
+			and is_instance_valid(player) else core_position)
 
 
 func _physics_process(delta: float) -> void:
@@ -43,7 +57,10 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var boss: bool = enemy_type == EnemyType.EXHAUSTION_BOSS
-	_hit_flash = maxf(0.0, _hit_flash - delta)
+	if _hit_flash > 0.0:
+		_hit_flash = maxf(0.0, _hit_flash - delta)
+		if _hit_flash == 0.0:
+			_flash_material.set_shader_parameter(&"hit_flash", 0.0)
 	_step_time = fposmod(_step_time + delta, 0.64 if boss else 0.32)
 	var chases_player: bool = enemy_type == EnemyType.GRIEF_GUILT
 	var has_player: bool = is_instance_valid(player)
@@ -73,7 +90,25 @@ func _physics_process(delta: float) -> void:
 	elif not chases_player and global_position.distance_to(core_position) <= 13.0:
 		GameManager.damage_core(8 if enemy_type == EnemyType.ROUTINE_PRESSURE else 14)
 		queue_free()
+	_update_sprite(target)
 	queue_redraw()
+
+
+func _update_sprite(target: Vector2) -> void:
+	var boss: bool = enemy_type == EnemyType.EXHAUSTION_BOSS
+	var half_step: float = 0.32 if boss else 0.16
+	var size: Vector2 = _sprite.get_rect().size
+	var pixel: Vector2 = global_position.round() - global_position
+	_sprite.frame = int(_step_time >= half_step)
+	var bob: float = roundf(sin(_step_time * PI / half_step) * (2.0 if boss else 1.0))
+	# Keep the full sprite and its health bar visible at the north spawn.
+	var ground_y: float = maxf(28.0 if boss else 10.0,
+			6.0 + size.y - global_position.round().y)
+	_sprite.position = pixel + Vector2(0, ground_y - size.y * 0.5 + bob)
+	_shadow.position = pixel + Vector2(0, ground_y - 2.0)
+	_shadow.scale = Vector2(size.x / 28.0, 1.35 if boss else 0.75)
+	if target.x != global_position.x:
+		_sprite.flip_h = target.x < global_position.x
 
 
 func _update_boss(delta: float) -> void:
@@ -110,6 +145,7 @@ func take_damage(amount: int, is_clarity: bool = false,
 				amount = maxi(amount, MAX_HP[EnemyType.FATIGUE])
 	hp = maxi(0, hp - amount)
 	_hit_flash = HIT_FLASH_DURATION
+	_flash_material.set_shader_parameter(&"hit_flash", 1.0)
 	queue_redraw()
 	if hp == 0:
 		queue_free()
@@ -127,56 +163,15 @@ func apply_slow(duration: float, factor: float = 0.55) -> void:
 
 
 func _draw() -> void:
-	var pixel: Vector2 = global_position.round() - global_position
-	var shade: Color = COLORS[enemy_type]
-	var ink: Color = Color("#211827")
-	var eye: Color = Color("#ffedca")
 	var boss: bool = enemy_type == EnemyType.EXHAUSTION_BOSS
-	var step: int = int(_step_time >= (0.32 if boss else 0.16))
-	var bar_pixel: Vector2 = pixel
-	if _hit_flash > 0.0:
-		shade = Color.WHITE
-		ink = Color.WHITE
-		eye = Color.WHITE
-	if enemy_type != EnemyType.ROUTINE_PRESSURE:
-		pixel.y -= step
-	match enemy_type:
-		EnemyType.ROUTINE_PRESSURE:
-			draw_rect(Rect2(pixel + Vector2(-7, -5), Vector2(14, 11)), ink)
-			draw_rect(Rect2(pixel + Vector2(-5, -8), Vector2(10, 12)), shade)
-			draw_rect(Rect2(pixel + Vector2(-3, -5), Vector2(6, 2)), eye)
-			draw_rect(Rect2(pixel + Vector2(-4, 4 + step), Vector2(3, 3)), shade)
-			draw_rect(Rect2(pixel + Vector2(2, 5 - step), Vector2(3, 3)), shade)
-		EnemyType.FATIGUE:
-			draw_rect(Rect2(pixel + Vector2(-10, -7), Vector2(20, 15)), ink)
-			draw_rect(Rect2(pixel + Vector2(-8, -6), Vector2(16, 11)), shade)
-			draw_rect(Rect2(pixel + Vector2(-6, -9), Vector2(12, 4)), shade)
-			draw_rect(Rect2(pixel + Vector2(-8, 1), Vector2(16, 2)), ink)
-			draw_rect(Rect2(pixel + Vector2(-4, -3), Vector2(8, 2)), eye)
-		EnemyType.GRIEF_GUILT:
-			for row: int in range(8):
-				var half_width: int = 8 - absi(row - 3)
-				draw_rect(Rect2(pixel + Vector2(-half_width, row * 2 - 8),
-						Vector2(half_width * 2, 2)),
-						shade if row < 6 or _hit_flash > 0.0 else shade.darkened(0.45))
-			draw_rect(Rect2(pixel + Vector2(-4, -3), Vector2(2, 4)), eye)
-			draw_rect(Rect2(pixel + Vector2(2, -3), Vector2(2, 4)), eye)
-		EnemyType.EXHAUSTION_BOSS:
-			draw_rect(Rect2(pixel + Vector2(-15, -11), Vector2(30, 24)), ink)
-			draw_rect(Rect2(pixel + Vector2(-12, -10), Vector2(24, 19)), shade)
-			for x: int in [-11, -2, 7]:
-				draw_rect(Rect2(pixel + Vector2(x, -16), Vector2(4, 8)), shade)
-			draw_rect(Rect2(pixel + Vector2(-10, -2), Vector2(20, 5)), ink)
-			draw_rect(Rect2(pixel + Vector2(-7, -1), Vector2(4, 2)), eye)
-			draw_rect(Rect2(pixel + Vector2(3, -1), Vector2(4, 2)), eye)
-			if _pulse_age < PULSE_DURATION:
-				var progress: float = _pulse_age / PULSE_DURATION
-				var pulse_color: Color = Color(1.0, 0.3, 0.42, (1.0 - progress) * 0.65)
-				draw_arc(to_local(_pulse_origin), lerpf(18.0, 750.0, progress),
-						0.0, TAU, 96, pulse_color, 2.0)
+	if boss and _pulse_age < PULSE_DURATION:
+		var progress: float = _pulse_age / PULSE_DURATION
+		var pulse_color: Color = Color(1.0, 0.3, 0.42, (1.0 - progress) * 0.65)
+		draw_arc(to_local(_pulse_origin), lerpf(18.0, 750.0, progress),
+				0.0, TAU, 96, pulse_color, 2.0)
 
 	var width: float = 30.0 if boss else 16.0
-	var bar: Vector2 = bar_pixel + Vector2(-width * 0.5, -21.0 if boss else -13.0)
+	var bar: Vector2 = _sprite.position + Vector2(-width * 0.5, -_sprite.get_rect().size.y * 0.5 - 4.0)
 	draw_rect(Rect2(bar, Vector2(width, 3)), Color("#211827"))
 	var fill: float = roundf((width - 2) * float(hp) / MAX_HP[enemy_type])
 	draw_rect(Rect2(bar + Vector2.ONE, Vector2(fill, 1)), Color("#ffedca"))

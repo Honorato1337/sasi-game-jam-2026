@@ -18,12 +18,16 @@ const SPAWN_POINTS: Array[Vector2] = [
 	Vector2(490, 330), Vector2(22, 112), Vector2(618, 248), Vector2(150, 30),
 	Vector2(542, 30), Vector2(22, 260), Vector2(618, 92), Vector2(168, 330),
 ]
-const FLOOR_COLORS: Array[Color] = [
-	Color("#abcfdf"), Color("#b77f54"), Color("#343959"), Color("#29243f"),
+const TURN_TINTS: Array[Color] = [
+	Color("#c8d6eb"), Color("#e8bc8e"), Color("#7c86be"), Color("#96688a"),
 ]
-const TRIM_COLORS: Array[Color] = [
-	Color("#ffebc5"), Color("#f4ba72"), Color("#7272a2"), Color("#a84a69"),
+const HALO_STRENGTHS: Array[float] = [0.45, 0.39, 1.0, 1.15]
+const LANTERNS: Array[Vector2] = [
+	Vector2(30, 56), Vector2(610, 56), Vector2(30, 326), Vector2(610, 326),
 ]
+const WINDOWS: Array[Vector2] = [Vector2(216, 18), Vector2(424, 18)]
+const AMBIENT_PARTICLE_COUNT: int = 18
+const HALO_STEPS: int = 8
 const CORE_HEALTHY: Color = Color("#81e6c0")
 const CORE_CRITICAL: Color = Color("#ec626a")
 const CORE_FLASH_DURATION: float = 0.12
@@ -50,10 +54,15 @@ var _shake_strength: float = 0.0
 var _sparks: Array[Spark] = []
 var _effects_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _camera: Camera2D
-var _floor: Node2D
+var _ambient_time: float = 0.0
+var _dust_origins: PackedVector2Array = PackedVector2Array()
 
 @onready var _player: Player = $Player
+@onready var _courtyard: Sprite2D = $Courtyard
+@onready var _atmosphere: Node2D = $Atmosphere
 @onready var _core: Node2D = $CareCore
+@onready var _core_sprite: Sprite2D = $CareCore/Sprite2D
+@onready var _core_flash_material: ShaderMaterial = _core_sprite.material as ShaderMaterial
 @onready var _enemy_container: Node2D = $Enemies
 @onready var _ally_container: Node2D = $Allies
 @onready var _hud: HUD = $HUD
@@ -64,10 +73,13 @@ func _ready() -> void:
 	_camera = Camera2D.new()
 	_camera.position = PLAYFIELD.get_center()
 	add_child(_camera)
-	_floor = Node2D.new()
-	_floor.show_behind_parent = true
-	_floor.draw.connect(_draw_floor)
-	add_child(_floor)
+	var dust_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	dust_rng.seed = 1212
+	for index: int in range(AMBIENT_PARTICLE_COUNT):
+		var cell: Vector2 = Vector2(index % 6, floorf(index / 6.0))
+		var jitter: Vector2 = Vector2(dust_rng.randf_range(12, 78), dust_rng.randf_range(10, 62))
+		_dust_origins.append(Vector2(38, 67) + cell * Vector2(94, 85) + jitter)
+	_atmosphere.draw.connect(_draw_atmosphere)
 	_core.draw.connect(_draw_core)
 	_last_core_hp = GameManager.core_hp
 	GameManager.core_hp_changed.connect(_on_core_hp_changed)
@@ -105,7 +117,10 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	_core_pulse = fposmod(_core_pulse + delta, 2.4)
 	_core_flash = maxf(0.0, _core_flash - delta)
+	_update_core_sprite()
 	_core.queue_redraw()
+	_ambient_time = fposmod(_ambient_time + delta, TAU * 5.0)
+	_atmosphere.queue_redraw()
 	if _shake_remaining > 0.0:
 		_shake_remaining = maxf(0.0, _shake_remaining - delta)
 		var phase: int = ceili(_shake_remaining * 30.0)
@@ -179,11 +194,11 @@ func _finish_wave() -> void:
 
 func _on_wave_changed(new_wave: int) -> void:
 	_clear_enemies()
-	_palette_index = clampi(new_wave - 1, 0, FLOOR_COLORS.size() - 1)
+	_palette_index = clampi(new_wave - 1, 0, TURN_TINTS.size() - 1)
 	_time_left = WAVE_DURATION
 	_spawn_remaining = 3.0 if new_wave == GameManager.MAX_WAVES else 0.8
 	_spawn_index = 0
-	_floor.queue_redraw()
+	_courtyard.self_modulate = TURN_TINTS[_palette_index]
 	wave_timer_updated.emit(_time_left, new_wave)
 	if new_wave == GameManager.MAX_WAVES:
 		var boss: Enemy = _spawn_enemy(Enemy.EnemyType.EXHAUSTION_BOSS, Vector2(320, 34))
@@ -279,6 +294,7 @@ func _update_ally_aura() -> void:
 func _on_core_hp_changed(new_hp: int, _max_hp: int) -> void:
 	if new_hp < _last_core_hp and GameManager.current_state == GameManager.GameState.PLAYING:
 		_core_flash = CORE_FLASH_DURATION
+		_update_core_sprite()
 		_burst(_core.global_position, CORE_CRITICAL, 18)
 		_start_shake(3.0, 0.18)
 	_last_core_hp = new_hp
@@ -292,20 +308,36 @@ func _draw() -> void:
 		draw_rect(Rect2(spark.point.round(), Vector2(spark.size, spark.size)), color)
 
 
-func _draw_floor() -> void:
-	var floor_color: Color = FLOOR_COLORS[_palette_index]
-	var trim: Color = TRIM_COLORS[_palette_index]
-	_floor.draw_rect(Rect2(0, 0, 640, 360).grow(3), floor_color.darkened(0.50))
-	_floor.draw_rect(PLAYFIELD.grow(3.0), trim)
-	_floor.draw_rect(PLAYFIELD, floor_color)
-	var light_tile: Color = floor_color.lightened(0.13)
-	var dark_tile: Color = floor_color.darkened(0.12)
-	for y: int in range(24, 344, 16):
-		for x: int in range(24, 624, 16):
-			var shade: Color = light_tile if (x + y) % 32 == 0 else dark_tile
-			_floor.draw_rect(Rect2(x, y, 2, 2), shade)
-	_floor.draw_rect(Rect2(PLAYFIELD.get_center() - Vector2(28, 24), Vector2(56, 48)),
-			trim, false, 1.0)
+func _draw_atmosphere() -> void:
+	var warmth: Color = Color("#ffc370")
+	for point: Vector2 in LANTERNS:
+		_draw_halo(point, 31.0, warmth, 0.028)
+	for point: Vector2 in WINDOWS:
+		_draw_halo(point, 27.0, warmth, 0.028)
+	_draw_halo(_core.position, 40.0, Color("#72e9bb"), 0.023)
+
+	for index: int in range(_dust_origins.size()):
+		var phase: float = index * 2.39996
+		var drift: Vector2 = Vector2(sin(_ambient_time * 0.4 + phase) * 11.0,
+				cos(_ambient_time * 0.6 + phase) * 8.0)
+		var point: Vector2 = (_dust_origins[index] + drift).round()
+		var alpha: float = (0.11 + 0.08 * sin(_ambient_time * 1.2 + phase))
+		warmth.a = alpha * HALO_STRENGTHS[_palette_index]
+		_atmosphere.draw_rect(Rect2(point, Vector2.ONE), warmth)
+
+
+func _draw_halo(center: Vector2, radius: float, color: Color, opacity: float) -> void:
+	color.a = opacity * HALO_STRENGTHS[_palette_index]
+	for ring: int in range(HALO_STEPS, 0, -1):
+		_atmosphere.draw_circle(center, radius * float(ring) / HALO_STEPS, color)
+
+
+func _update_core_sprite() -> void:
+	var ratio: float = float(GameManager.core_hp) / GameManager.max_core_hp
+	_core_sprite.frame = int(_core_pulse * 5.0) % _core_sprite.hframes
+	_core_sprite.position.y = -8.0 - roundf(sin(_core_pulse * TAU / 2.4) * 2.0)
+	_core_sprite.self_modulate = Color("#f0808b").lerp(Color.WHITE, ratio)
+	_core_flash_material.set_shader_parameter(&"hit_flash", _core_flash / CORE_FLASH_DURATION)
 
 
 func _draw_core() -> void:
@@ -316,16 +348,6 @@ func _draw_core() -> void:
 		for index: int in range(64):
 			var point: Vector2 = (Vector2.from_angle(index * TAU / 64) * ALLY_AURA_RADIUS).round()
 			_core.draw_rect(Rect2(point - Vector2.ONE, Vector2(2, 2)), aura)
-	var crystal: Color = CORE_CRITICAL.lerp(CORE_HEALTHY, ratio).lightened(pulse * 0.14)
-	if _core_flash > 0.0:
-		crystal = crystal.lerp(Color.WHITE, _core_flash / CORE_FLASH_DURATION * 0.85)
-	_core.draw_rect(Rect2(-15, 10, 30, 6), Color("#382b42"))
-	_core.draw_rect(Rect2(-11, 8, 22, 5), Color("#77677b"))
-	for row: int in range(-8, 8):
-		var half_width: int = 10 - absi(row)
-		var y: int = row * 2 - 2
-		_core.draw_rect(Rect2(-half_width - 1, y, (half_width + 1) * 2, 2), Color("#32263a"))
-		_core.draw_rect(Rect2(-half_width, y, half_width * 2, 2), crystal)
-		_core.draw_rect(Rect2(-half_width, y, half_width, 2), crystal.lightened(0.34))
-	_core.draw_rect(Rect2(-15, 19, 30, 4), Color("#32263a"))
-	_core.draw_rect(Rect2(-14, 20, roundf(28.0 * ratio), 2), crystal)
+	var health_color: Color = CORE_CRITICAL.lerp(CORE_HEALTHY, ratio)
+	_core.draw_rect(Rect2(-17, 24, 34, 4), Color("#32263a"))
+	_core.draw_rect(Rect2(-16, 25, roundf(32.0 * ratio), 2), health_color)
