@@ -3,7 +3,10 @@
 > Documento vivo para cumprir os itens **8.3 (IV)** e **12.4** do Edital SASI Nº 01/2026 na página do itch.io.
 
 ## 1. Equipe
-- **Nome(s) e função(ões):** *(preencher)*
+- **Anna**
+- **Luiz Fernando**
+- **Ri Jardim**
+- **Jackieline**
 
 ## 2. Assets de Terceiros (Sprites, Fontes, Áudio, Shaders)
 | Asset | Autor / Fonte | Licença | Onde foi usado |

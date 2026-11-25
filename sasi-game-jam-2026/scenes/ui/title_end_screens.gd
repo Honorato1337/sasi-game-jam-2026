@@ -274,20 +274,22 @@ func _setting_label(y: int, caption: String) -> void:
 
 
 func _build_credits() -> void:
-	_credits_window = _window(252, "CRÉDITOS & SAÚDE")
-	_centered(_credits_window, 36, 20, "SASI: GAME JAM 2026  •  UFAC", 14, Retro.MINT)
-	_centered(_credits_window, 58, 34,
+	_credits_window = _window(268, "CRÉDITOS & SAÚDE")
+	_centered(_credits_window, 34, 20, "SASI: GAME JAM 2026  •  UFAC", 14, Retro.MINT)
+	_centered(_credits_window, 54, 16,
+			"Equipe: Anna  •  Luiz Fernando  •  Ri Jardim  •  Jackieline", 10, Retro.GOLD)
+	_centered(_credits_window, 72, 34,
 			"Arte pixel 32-bit e Bossa Nova procedural originais.\nDesenvolvimento com apoio de Antigravity e OpenAI Codex.",
 			11, Retro.CREAM)
-	_centered(_credits_window, 94, 24,
+	_centered(_credits_window, 108, 24,
 			"Poemas em Domínio Público: Álvaro de Campos (F. Pessoa)\ne Emily Dickinson (tradução livre).",
 			10, Retro.MUTED)
-	Retro.block(_credits_window, Rect2(16, 124, 418, 72), Retro.INK)
-	_centered(_credits_window, 128, 18, "SAÚDE EM JOGO", 12, Retro.GOLD)
-	_centered(_credits_window, 150, 40,
+	Retro.block(_credits_window, Rect2(16, 140, 418, 72), Retro.INK)
+	_centered(_credits_window, 144, 18, "SAÚDE EM JOGO", 12, Retro.GOLD)
+	_centered(_credits_window, 166, 40,
 			"Cuidar também passa por perceber os sinais do corpo,\nrespeitar seus limites e dividir a rotina com quem pode ajudar.",
 			11, Retro.CREAM)
-	_back_button(_credits_window, 214)
+	_back_button(_credits_window, 230)
 
 
 func _build_pause() -> void:
