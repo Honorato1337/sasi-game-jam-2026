@@ -2,7 +2,19 @@
 
 > **SASI: Game Jam 2026 — UFAC**  
 > Tema: **Saúde em Jogo** · *Sinais, Equilíbrio e Conexões*  
-> Engine: **Godot 4.7 (`GL Compatibility`)** · Foco em **Web (HTML5 / itch.io)** e Desktop (`1280×720`)
+> Engine: **Godot 4.7 (`GL Compatibility`)** · Foco em **Web (HTML5 / itch.io)** e Desktop (`1280×720`)  
+> Jogar online: **[louishonorato1337.itch.io/tres-turnos](https://louishonorato1337.itch.io/tres-turnos)**
+
+---
+
+## Downloads Diretos (`.zip`)
+
+| Plataforma | Arquivo | Tamanho aprox. | Download Direto |
+| :--- | :--- | :--- | :--- |
+| **Windows (`.exe`)** | `tres-turnos-windows.zip` | ~37 MB | [Baixar para Windows](https://github.com/Honorato1337/sasi-game-jam-2026/raw/master/releases/tres-turnos-windows.zip) |
+| **Linux (`.x86_64`)** | `tres-turnos-linux.zip` | ~28 MB | [Baixar para Linux](https://github.com/Honorato1337/sasi-game-jam-2026/raw/master/releases/tres-turnos-linux.zip) |
+| **macOS (`.app`)** | `tres-turnos-macos.zip` | ~59 MB | [Baixar para macOS](https://github.com/Honorato1337/sasi-game-jam-2026/raw/master/releases/tres-turnos-macos.zip) |
+| **Web (HTML5)** | `tres-turnos-web.zip` | ~11 MB | [Baixar Build Web](https://github.com/Honorato1337/sasi-game-jam-2026/raw/master/releases/tres-turnos-web.zip) |
 
 ---
 
@@ -87,6 +99,7 @@ godot --headless --path sasi-game-jam-2026 tools/validate_t018.tscn
 
 ## Créditos & Transparência
 
+- **Equipe:** Anna, Luiz Fernando, Ri Jardim e Jackieline.
 - **Tipografia:** *Pixelify Sans* (SIL OFL 1.1).
 - **Literatura (Domínio Público):** *"Cansaço"* — Álvaro de Campos (Fernando Pessoa); *"A esperança é a coisa com penas"* — Emily Dickinson (tradução livre original).
 - **Desenvolvimento e Uso de IA:** Documentados integralmente em [`CREDITS_AND_AI.md`](CREDITS_AND_AI.md) conforme as regras do edital da **SASI: Game Jam 2026 (UFAC)**.
