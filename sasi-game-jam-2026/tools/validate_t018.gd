@@ -33,9 +33,9 @@ func _on_timeout() -> void:
 func _run() -> void:
 	# A síntese procedural é distribuída entre frames no desktop e na Web.
 	var deadline: int = Time.get_ticks_msec() + 25000
-	while AudioManager._music.size() < 7 and Time.get_ticks_msec() < deadline:
+	while AudioManager._music.size() < 8 and Time.get_ticks_msec() < deadline:
 		await get_tree().process_frame
-	_check(AudioManager._music.size() == 7, "Trilhas procedurais carregadas")
+	_check(AudioManager._music.size() == 8, "Trilhas procedurais carregadas")
 	await _check_menu()
 	await _check_intro_cutscene()
 	await _check_morning()
@@ -110,8 +110,11 @@ func _check_intro_cutscene() -> void:
 	await _capture("cutscene-rotina")
 	await _tap(KEY_SPACE)
 	await _wait(0.06)
-	_check(_cutscene.get_phase_name() == "INTRO_POEM" and not AudioManager.music_player.playing,
-			"Poema Cansaço em fundo preto e silêncio")
+	_check(_cutscene.get_phase_name() == "INTRO_POEM" and AudioManager.music_player.playing
+			and AudioManager.music_player.stream == AudioManager._music.get(&"poem"),
+			"Poema Cansaço em fundo preto com música")
+	await _wait(0.90)
+	_check(_cutscene._poem_reveal_count <= 2, "Poema Cansaço revela versos devagar")
 	await _tap(KEY_SPACE)
 	await _wait(0.06)
 	await _capture("cutscene-poema")

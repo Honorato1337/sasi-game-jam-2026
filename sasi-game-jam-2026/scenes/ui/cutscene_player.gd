@@ -138,6 +138,8 @@ var _pause_before_poem: bool = false
 var _pause_elapsed: float = 0.0
 var _poem_reveal_count: int = 0
 var _poem_elapsed: float = 0.0
+var _intro_poem_schedule: Array[float] = []
+var _ending_poem_schedule: Array[float] = []
 
 var _backdrop: ColorRect
 var _montage_root: Control
@@ -151,6 +153,7 @@ var _montage_stage: Node2D
 var _portrait_stage: Node2D
 
 var _intro_poem_root: Control
+var _intro_poem_stage: Node2D
 var _intro_poem_labels: Array[Label] = []
 var _intro_poem_author: Label
 var _intro_poem_prompt: Label
@@ -185,6 +188,20 @@ func _ready() -> void:
 	_build_ending_poem_ui()
 	GameManager.state_changed.connect(_on_state_changed)
 	hide()
+
+
+func _build_poem_schedule(lines: Array[String], first_delay: float, base_step: float,
+		stanza_pause: float) -> Array[float]:
+	var schedule: Array[float] = []
+	var t: float = first_delay
+	for line: String in lines:
+		if line.is_empty():
+			t += stanza_pause
+			continue
+		schedule.append(t)
+		t += base_step + clampf(float(line.length() - 18) * 0.018, 0.0, 0.42)
+	schedule.append(t + 1.40)
+	return schedule
 
 
 func _build_montage_ui() -> void:
@@ -247,6 +264,12 @@ func _build_intro_poem_ui() -> void:
 	Retro.place(_intro_poem_root, self, Rect2(0, 0, 640, 360))
 	_intro_poem_root.hide()
 
+	_intro_poem_stage = Node2D.new()
+	_intro_poem_stage.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_intro_poem_stage.scale = Vector2(2, 2)
+	_intro_poem_stage.draw.connect(_draw_intro_poem_scene)
+	_intro_poem_root.add_child(_intro_poem_stage)
+
 	var title: Label = Retro.label(_intro_poem_root, Rect2(60, 16, 520, 20), "CANSAÇO", 14,
 			Retro.GOLD, HORIZONTAL_ALIGNMENT_CENTER, false)
 	title.add_theme_font_override(&"font", Retro.FONT_BOLD)
@@ -263,6 +286,8 @@ func _build_intro_poem_ui() -> void:
 		lbl.modulate.a = 0.0
 		_intro_poem_labels.append(lbl)
 		cursor_y += 17
+
+	_intro_poem_schedule = _build_poem_schedule(CANSACO_LINES, 0.65, 1.60, 1.05)
 
 	_intro_poem_author = Retro.label(_intro_poem_root, Rect2(48, 294, 544, 18),
 			"— Álvaro de Campos (Fernando Pessoa, 1934)", 11, Retro.BEVEL_LIGHT,
@@ -328,6 +353,8 @@ func _build_ending_poem_ui() -> void:
 		_ending_poem_labels.append(lbl)
 		cursor_y += 16
 
+	_ending_poem_schedule = _build_poem_schedule(HOPE_LINES, 0.65, 1.60, 1.05)
+
 	_ending_poem_author = Retro.label(_ending_poem_root, Rect2(48, 278, 400, 18),
 			"— Emily Dickinson (tradução livre)", 11, Retro.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	_ending_poem_author.modulate.a = 0.0
@@ -391,14 +418,14 @@ func _enter_phase(next_phase: Phase) -> void:
 			AudioManager.play_alarm_beep()
 			_refresh_montage_labels()
 		Phase.INTRO_POEM:
-			AudioManager.stop_music()
+			AudioManager.play_track(&"poem", -7.5, 1.0)
 			_poem_elapsed = 0.0
 			_poem_reveal_count = 0
 			for lbl: Label in _intro_poem_labels:
 				lbl.modulate.a = 0.0
 			_intro_poem_author.modulate.a = 0.0
 		Phase.CONSOLE_ENTRY:
-			AudioManager.stop_music()
+			AudioManager.play_track(&"poem", -10.5, 1.0)
 			_console_step = 0
 			_console_elapsed = 0.0
 			_console_caption.text = CONSOLE_CAPTIONS[0]
@@ -467,7 +494,8 @@ func _process(delta: float) -> void:
 			_montage_stage.queue_redraw()
 			_portrait_stage.queue_redraw()
 		Phase.INTRO_POEM:
-			_tick_poem(delta, _intro_poem_labels, _intro_poem_author)
+			_tick_poem(delta, _intro_poem_labels, _intro_poem_author, _intro_poem_schedule)
+			_intro_poem_stage.queue_redraw()
 		Phase.CONSOLE_ENTRY:
 			_tick_console(delta)
 			_console_stage.queue_redraw()
@@ -475,7 +503,7 @@ func _process(delta: float) -> void:
 			_tick_console_exit(delta)
 			_console_stage.queue_redraw()
 		Phase.ENDING_POEM:
-			_tick_poem(delta, _ending_poem_labels, _ending_poem_author)
+			_tick_poem(delta, _ending_poem_labels, _ending_poem_author, _ending_poem_schedule)
 			_ending_stage.queue_redraw()
 
 
@@ -524,15 +552,20 @@ func _tick_happy_montage(delta: float) -> void:
 		_refresh_montage_labels()
 
 
-func _tick_poem(delta: float, labels: Array[Label], author: Label) -> void:
+func _tick_poem(delta: float, labels: Array[Label], author: Label, schedule: Array[float]) -> void:
 	_poem_elapsed += delta
-	var target: int = mini(labels.size() + 1, int(_poem_elapsed / 0.34) + 1)
+	var target: int = 0
+	for threshold: float in schedule:
+		if _poem_elapsed >= threshold:
+			target += 1
+		else:
+			break
 	_poem_reveal_count = maxi(_poem_reveal_count, target)
 	for index: int in range(labels.size()):
 		var desired: float = 1.0 if index < _poem_reveal_count else 0.0
-		labels[index].modulate.a = move_toward(labels[index].modulate.a, desired, delta * 3.8)
+		labels[index].modulate.a = move_toward(labels[index].modulate.a, desired, delta * 0.90)
 	var author_target: float = 1.0 if _poem_reveal_count > labels.size() else 0.0
-	author.modulate.a = move_toward(author.modulate.a, author_target, delta * 3.2)
+	author.modulate.a = move_toward(author.modulate.a, author_target, delta * 0.85)
 
 
 func _tick_console(delta: float) -> void:
@@ -550,6 +583,7 @@ func _advance_console() -> void:
 		return
 	_console_caption.text = CONSOLE_CAPTIONS[_console_step]
 	if _console_step == 1:
+		AudioManager.stop_music()
 		AudioManager.play_console_boot()
 
 
@@ -642,6 +676,27 @@ func _on_state_changed(state: GameManager.GameState) -> void:
 
 # --- Renderização com assets 32-bit do jogo e animação ao vivo sincronizada ---
 
+func _draw_intro_poem_scene() -> void:
+	# Moldura minimalista com cantoneiras e poeira noturna flutuando suavemente no preto.
+	var frame_col: Color = Color("#241d32")
+	var corner_col: Color = Color("#4a3b61")
+	_intro_poem_stage.draw_rect(Rect2(14, 12, 292, 1), frame_col)
+	_intro_poem_stage.draw_rect(Rect2(14, 167, 292, 1), frame_col)
+	_intro_poem_stage.draw_rect(Rect2(14, 12, 1, 155), frame_col)
+	_intro_poem_stage.draw_rect(Rect2(306, 12, 1, 155), frame_col)
+	for cpos: Vector2 in [Vector2(13, 11), Vector2(303, 11), Vector2(13, 164), Vector2(303, 164)]:
+		_intro_poem_stage.draw_rect(Rect2(cpos, Vector2(4, 4)), corner_col)
+	for idx: int in range(_feather_seeds.size()):
+		var seed_v: Vector3 = _feather_seeds[idx]
+		var t: float = fposmod(_elapsed * 0.045 + seed_v.z * 0.09, 1.0)
+		var px: float = 20.0 + fposmod(seed_v.x + sin(_elapsed * 0.9 + seed_v.z) * 5.0, 280.0)
+		var py: float = 18.0 + t * 144.0
+		var a: float = sin(t * PI) * 0.22
+		var mcol: Color = Color("#c8b6e0" if idx % 2 == 0 else "#f4cf88")
+		mcol.a = a
+		_intro_poem_stage.draw_rect(Rect2(roundf(px), roundf(py), 1, 1), mcol)
+
+
 func _draw_montage_scene() -> void:
 	const W: float = 208.0
 	const H: float = 103.0
@@ -659,11 +714,15 @@ func _draw_montage_scene() -> void:
 					Vector2(138, 12), Vector2(182, 12), Vector2(126, 98), Vector2(70, 98),
 				]), Color(1.0, 0.92, 0.65, sun_a))
 			1, 4:
-				var scroll: float = fmod(_elapsed * 54.0, 240.0)
-				for idx: int in range(5):
-					var cx: float = fposmod(float(idx) * 52.0 - scroll, 240.0) - 18.0
-					var col: Color = Color(1.0, 0.88, 0.72, 0.38) if _scene_idx == 4 else Color(1.0, 1.0, 1.0, 0.55)
-					_montage_stage.draw_rect(Rect2(roundf(cx), 22 + (idx % 2) * 8, 16, 4), col)
+				var scroll: float = fmod(_elapsed * 42.0, 220.0)
+				for pane: Vector2i in [Vector2i(9, 63), Vector2i(75, 131), Vector2i(143, 197)]:
+					for idx: int in range(3):
+						var raw_x: float = fposmod(float(idx) * 74.0 - scroll, 220.0) - 14.0
+						var left_x: float = clampf(roundf(raw_x), float(pane.x), float(pane.y))
+						var right_x: float = clampf(roundf(raw_x) + 12.0, float(pane.x), float(pane.y))
+						if right_x > left_x:
+							var col: Color = Color(1.0, 0.90, 0.72, 0.36) if _scene_idx == 4 else Color(1.0, 1.0, 1.0, 0.42)
+							_montage_stage.draw_rect(Rect2(left_x, 22 + (idx % 2) * 5, right_x - left_x, 3), col)
 				for strap_x: int in range(28, 190, 32):
 					var sway: float = roundf(sin(_elapsed * 3.0 + float(strap_x)) * 1.2)
 					_montage_stage.draw_rect(Rect2(strap_x, 14 + jitter_y, 2, 7), Color("#d49b39"))
@@ -700,20 +759,22 @@ func _draw_montage_scene() -> void:
 				_montage_stage.draw_rect(Rect2(132, 42, 3, 2), Color("#ffd38a"))
 		1, 4:
 			var is_night: bool = _scene_idx == 4
-			var speed: float = 95.0 if is_night else 75.0
-			var scroll: float = fmod(_elapsed * speed, 240.0)
-			for idx: int in range(6):
-				var px: float = fposmod(float(idx) * 44.0 - scroll, 240.0) - 16.0
-				if is_night:
-					_montage_stage.draw_rect(Rect2(roundf(px), 22, 4, 2), Color("#ffd275"))
-					_montage_stage.draw_rect(Rect2(roundf(px) - 8, 42, 12, 2), Color(1.0, 0.42, 0.42, 0.55))
-				else:
-					_montage_stage.draw_rect(Rect2(roundf(px), 24, 14, 18), Color(0.28, 0.36, 0.52, 0.42))
-			if is_night and _cycle >= 1:
-				for drop: int in range(14):
-					var rx: float = fmod(float(drop) * 19.0 + _elapsed * 48.0, W)
-					var ry: float = fmod(float(drop) * 11.0 + _elapsed * 68.0, 42.0) + 18.0
-					_montage_stage.draw_rect(Rect2(roundf(rx), roundf(ry), 1, 3), Color(0.62, 0.78, 0.98, 0.55))
+			var speed: float = 82.0 if is_night else 64.0
+			var scroll: float = fmod(_elapsed * speed, 224.0)
+			for pane: Vector2i in [Vector2i(9, 63), Vector2i(75, 131), Vector2i(143, 197)]:
+				for idx: int in range(5):
+					var px: float = fposmod(float(idx) * 46.0 - scroll, 224.0) - 8.0
+					if px >= float(pane.x) and px + 2.0 <= float(pane.y):
+						if is_night:
+							_montage_stage.draw_rect(Rect2(roundf(px), 23, 3, 2), Color("#ffd275"))
+							_montage_stage.draw_rect(Rect2(roundf(px) - 2, 43, 6, 1), Color(1.0, 0.42, 0.42, 0.55))
+						else:
+							_montage_stage.draw_rect(Rect2(roundf(px), 22, 6, 2), Color(1.0, 1.0, 1.0, 0.35))
+				if is_night and _cycle >= 1:
+					for drop: int in range(5):
+						var rx: float = float(pane.x) + fmod(float(drop) * 13.0 + _elapsed * 32.0, float(pane.y - pane.x - 2))
+						var ry: float = 19.0 + fmod(float(drop) * 9.0 + _elapsed * 58.0, 34.0)
+						_montage_stage.draw_rect(Rect2(roundf(rx), roundf(ry), 1, 3), Color(0.62, 0.78, 0.98, 0.48))
 			for strap_x: int in range(28, 190, 32):
 				var sway: float = roundf(sin(_elapsed * 5.0 + float(strap_x)) * 2.0)
 				_montage_stage.draw_rect(Rect2(strap_x, 14 + jitter_y, 2, 7), Color("#c48f31"))
@@ -746,17 +807,24 @@ func _draw_montage_scene() -> void:
 func _draw_portrait_face() -> void:
 	var frame_idx: int = 3 if _phase == Phase.HAPPY_MONTAGE else _cycle
 	var tremor_x: float = roundf(sin(_elapsed * 26.0)) if (_phase == Phase.MONTAGE and _cycle == 2) else 0.0
+	var bg_top: Array[Color] = [Color("#181930"), Color("#1f162b"), Color("#1a1021"), Color("#20344d")]
+	var bg_bot: Array[Color] = [Color("#292b4a"), Color("#33223b"), Color("#2d182b"), Color("#3a5975")]
+	var halo_cols: Array[Color] = [Color(0.55, 0.78, 0.96, 0.14), Color(0.92, 0.68, 0.44, 0.12), Color(0.84, 0.28, 0.42, 0.14), Color(1.0, 0.88, 0.56, 0.22)]
+	_portrait_stage.draw_rect(Rect2(0, 0, 48, 25), bg_top[frame_idx])
+	_portrait_stage.draw_rect(Rect2(0, 25, 48, 23), bg_bot[frame_idx])
+	_portrait_stage.draw_circle(Vector2(24, 21), 18.0, halo_cols[frame_idx])
+	_portrait_stage.draw_rect(Rect2(1, 1, 46, 1), Color(1, 1, 1, 0.10))
+
 	var src := Rect2(float(frame_idx * 48), 0.0, 48.0, 48.0)
 	_portrait_stage.draw_texture_rect_region(PORTRAITS_TEX, Rect2(tremor_x, 0.0, 48.0, 48.0), src)
-	# Piscar sutil sincronizado ao relógio.
 	if fmod(_elapsed, 3.2) > 3.04:
 		var droop: int = 0 if frame_idx in [0, 3] else (1 if frame_idx == 1 else 2)
 		var ey: float = 19.0 + float(droop)
-		var lid_col: Color = Color("#ffd9b3") if frame_idx == 3 else Color("#d6aa9a")
-		_portrait_stage.draw_rect(Rect2(17.0 + tremor_x, ey, 4.0, 3.0), lid_col)
-		_portrait_stage.draw_rect(Rect2(27.0 + tremor_x, ey, 4.0, 3.0), lid_col)
-		_portrait_stage.draw_rect(Rect2(17.0 + tremor_x, ey + 2.0, 4.0, 1.0), Retro.INK)
-		_portrait_stage.draw_rect(Rect2(27.0 + tremor_x, ey + 2.0, 4.0, 1.0), Retro.INK)
+		var lid_col: Color = Color("#ffd9b3") if frame_idx == 3 else Color("#dfb096")
+		_portrait_stage.draw_rect(Rect2(16.0 + tremor_x, ey, 5.0, 3.0), lid_col)
+		_portrait_stage.draw_rect(Rect2(27.0 + tremor_x, ey, 5.0, 3.0), lid_col)
+		_portrait_stage.draw_rect(Rect2(16.0 + tremor_x, ey + 2.0, 5.0, 1.0), Retro.INK)
+		_portrait_stage.draw_rect(Rect2(27.0 + tremor_x, ey + 2.0, 5.0, 1.0), Retro.INK)
 
 
 func _draw_console_scene() -> void:
@@ -858,17 +926,17 @@ func _draw_ending_scene() -> void:
 	_ending_stage.draw_texture_rect(DAWN_TEX, Rect2(0, 0, W, H), false)
 
 	var pulse: float = 0.5 + 0.5 * sin(_elapsed * 2.0)
-	var sun_center: Vector2 = Vector2(272, 134)
-	for radius: float in [44.0, 28.0, 16.0]:
+	var sun_center: Vector2 = Vector2(252, 118)
+	for radius: float in [42.0, 26.0, 15.0]:
 		_ending_stage.draw_circle(sun_center, radius, Color(1.0, 0.88, 0.62, 0.10 + pulse * 0.04))
 	_ending_stage.draw_circle(sun_center, 8.0, Color("#fff3cf"))
 
 	# Pequeno pássaro da esperança em pixel art contornada sobre o galho direito.
 	var bob: float = roundf(sin(_elapsed * 3.2) * 0.8)
-	var bx: float = 270.0
-	var by: float = 73.0 + bob
-	_ending_stage.draw_rect(Rect2(bx + 3, 83, 1, 3), Color("#d48a46"))
-	_ending_stage.draw_rect(Rect2(bx + 6, 83, 1, 3), Color("#d48a46"))
+	var bx: float = 268.0
+	var by: float = 71.0 + bob
+	_ending_stage.draw_rect(Rect2(bx + 3, 81, 1, 3), Color("#d48a46"))
+	_ending_stage.draw_rect(Rect2(bx + 6, 81, 1, 3), Color("#d48a46"))
 	_ending_stage.draw_rect(Rect2(bx - 1, by + 2, 13, 10), Retro.INK)
 	_ending_stage.draw_rect(Rect2(bx - 2, by - 1, 9, 7), Retro.INK)
 	_ending_stage.draw_rect(Rect2(bx, by + 3, 11, 8), Color("#63b8d9"))

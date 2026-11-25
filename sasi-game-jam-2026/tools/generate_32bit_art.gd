@@ -2110,13 +2110,22 @@ func generate_burnout_boss_sheet() -> void:
 
 
 func _paint_bayer_sky(w: int, h: int, stops: Array[Color]) -> void:
+	var dense: Array[Color] = []
+	if stops.size() >= 2:
+		const SUB_STEPS: int = 12
+		for s: int in range(SUB_STEPS):
+			var pos: float = float(s) / float(SUB_STEPS - 1) * float(stops.size() - 1)
+			var idx0: int = mini(stops.size() - 2, int(floorf(pos)))
+			dense.append(stops[idx0].lerp(stops[idx0 + 1], pos - float(idx0)))
+	else:
+		dense.assign(stops)
 	var bayer: Array[float] = [0.0, 0.5, 0.75, 0.25]
 	for y in h:
-		var scaled := float(y) / float(maxi(1, h - 1)) * float(stops.size() - 1)
-		var band := mini(stops.size() - 2, int(floorf(scaled)))
+		var scaled := float(y) / float(maxi(1, h - 1)) * float(dense.size() - 1)
+		var band := mini(dense.size() - 2, int(floorf(scaled)))
 		var frac := scaled - float(band)
-		var c1 := stops[band]
-		var c2 := stops[band + 1]
+		var c1: Color = dense[band]
+		var c2: Color = dense[band + 1]
 		for x in w:
 			var thresh := bayer[((x & 1) * 2) + (y & 1)]
 			art.set_pixel(x, y, c2 if frac > thresh else c1)
@@ -2253,29 +2262,332 @@ func _stamp_clean_student(student_src: Image, frame_idx: int, dest_x: int, dest_
 	art.blend_rect(clean, Rect2i(0, 0, 32, 32), Vector2i(dest_x, dest_y))
 
 
+func _draw_wainscot(x: int, y_top: int, w: int, h: int, dark_hex: String, mid_hex: String, hi_hex: String) -> void:
+	rect(x, y_top, w, 2, INK)
+	rect(x, y_top + 1, w, 2, hi_hex)
+	rect(x, y_top + 3, w, h - 3, dark_hex)
+	for px in range(x + 2, x + w - 4, 14):
+		rect(px, y_top + 5, 11, h - 7, INK)
+		rect(px + 1, y_top + 6, 9, h - 9, mid_hex)
+		rect(px + 1, y_top + 6, 9, 1, hi_hex)
+
+
+func _draw_outside_view(vx: int, vy: int, vw: int, vh: int, stops: Array[Color],
+		is_night: bool, warm_win: bool) -> void:
+	var host := art
+	var view := Image.create_empty(vw, vh, false, Image.FORMAT_RGBA8)
+	art = view
+	_paint_bayer_sky(vw, vh, stops)
+	if is_night:
+		for sx in range(4, vw - 4, 9):
+			rect(sx, 3 + ((sx * 7) % maxi(4, vh / 2)), 1, 1, "e4dff2")
+		if vw >= 36:
+			rect(vw - 14, 5, 7, 7, "f7e39c")
+			rect(vw - 12, 5, 5, 5, stops[0].to_html(false))
+	else:
+		for cx in range(5, vw - 14, 24):
+			var cy: int = 5 + (cx % 7)
+			rect(cx, cy + 2, 14, 4, "d9ebf5" if not warm_win else "f5cfb8")
+			rect(cx + 3, cy, 8, 4, "ffffff" if not warm_win else "ffe7c4")
+	var ridge_col: String = "1c1a36" if is_night else ("5a6382" if not warm_win else "5c3f63")
+	var bldg_col: String = "121124" if is_night else ("384463" if not warm_win else "3b294a")
+	var leaf_dark: String = "15242b" if is_night else "284f3d"
+	var leaf_lit: String = "223840" if is_night else ("427a52" if not warm_win else "667549")
+	for x in vw:
+		var ry: int = vh - 10 - roundi(3.5 * sin(float(x) * 0.08 + 0.5))
+		rect(x, ry, 1, vh - ry, ridge_col)
+	for bx in range(4, vw - 10, 22):
+		var bh: int = 12 + (bx % 9)
+		rect(bx, vh - bh, 14, bh, bldg_col)
+		if is_night:
+			for wy in range(vh - bh + 3, vh - 3, 4):
+				rect(bx + 3, wy, 2, 2, "f4ba72" if (bx + wy) % 3 != 0 else "7ccce0")
+				rect(bx + 8, wy, 2, 2, "f4ba72")
+	for tx in range(10, vw - 6, 18):
+		for dy in range(-5, 5):
+			var sp: int = roundi(sqrt(maxf(0.0, 25.0 - float(dy * dy))))
+			rect(tx - sp, vh - 5 + dy, sp * 2, 1, leaf_dark)
+			rect(tx - sp + 1, vh - 6 + dy, maxi(1, sp), 1, leaf_lit)
+	art = host
+	art.blit_rect(view, Rect2i(0, 0, vw, vh), Vector2i(vx, vy))
+
+
+func _draw_curtains(wx: int, wy: int, ww: int, wh: int, rod_w: int, cloth_dark: String, cloth_lit: String) -> void:
+	rect(wx - 6, wy - 2, rod_w + 12, 3, INK)
+	rect(wx - 5, wy - 1, rod_w + 10, 1, "c49b6c")
+	for cx in [wx - 4, wx + ww - 2]:
+		rect(cx - 1, wy - 1, 8, wh + 3, INK)
+		rect(cx, wy, 6, wh + 1, cloth_dark)
+		rect(cx + 1, wy, 2, wh, cloth_lit)
+		rect(cx + 4, wy + 1, 1, wh - 1, cloth_lit)
+		rect(cx, wy + (wh * 2) / 3, 6, 2, "e7b958")
+
+
+func _draw_bus_scene(mode: StringName, passengers: Array[Dictionary], tint_hex: String = "") -> void:
+	const BW: int = 208
+	const BH: int = 103
+	var is_night: bool = (mode == &"night")
+	var is_sunset: bool = (mode == &"sunset")
+	var is_happy: bool = (mode == &"happy_day" or is_sunset)
+
+	var sky_stops: Array[Color] = [Color("4b6b9c"), Color("82b1d4"), Color("d4e7f2")]
+	if is_night:
+		sky_stops = [Color("0d0e1c"), Color("181a36"), Color("2c2952")]
+	elif is_sunset:
+		sky_stops = [Color("2b214d"), Color("784163"), Color("d47763"), Color("f7d488")]
+	elif is_happy:
+		sky_stops = [Color("4f84c4"), Color("8ec9e8"), Color("fff0ba")]
+
+	art = Image.create_empty(BW, BH, false, Image.FORMAT_RGBA8)
+	art.fill(Color("221c2e" if is_night else ("2b2238" if not is_happy else "312942")))
+
+	# 1. Paisagem contínua vista atrás das 3 janelas (y = 17..58).
+	_draw_outside_view(0, 17, BW, 42, sky_stops, is_night, is_sunset)
+	# Postes da avenida passando pelo vidro + reflexo sutil no vidro.
+	for pole_x in [32, 98, 166]:
+		rect(pole_x, 21, 2, 38, "242038" if is_night else "4c4e66")
+		rect(pole_x - 3, 21, 6, 2, "ffd57d" if is_night else "70738c")
+		if is_night:
+			blend_radial_tint(pole_x, 22, 12.0, Color("ffd57d"), 0.25)
+
+	# 2. Teto curvo com luminárias internas e sanca do ônibus (y = 0..17).
+	var trim_dark: String = "221c30" if is_night else ("382c4a" if is_sunset else "322a42")
+	var trim_lit: String = "392f4d" if is_night else ("594770" if is_sunset else "4e4266")
+	rect(0, 0, BW, 17, trim_dark)
+	rect(0, 8, BW, 9, trim_lit)
+	for dome_x in [24, 90, 158]:
+		rect(dome_x, 2, 26, 5, INK)
+		rect(dome_x + 1, 3, 24, 3, "fff1c2" if is_happy else "cfdcf0")
+		blend_radial_tint(dome_x + 13, 6, 22.0, Color("fff0b8" if is_happy else "c4dcf2"), 0.14)
+
+	# 3. Colunas da carroceria + molduras arredondadas das 3 janelas.
+	for px in [0, 65, 133, 199]:
+		rect(px, 16, 9, 46, INK)
+		rect(px + 1, 16, 7, 45, trim_lit)
+		rect(px + 2, 16, 2, 44, "685882" if not is_night else "4a3d61")
+	rect(0, 15, BW, 3, INK)
+	for gx in [9, 74, 142]:
+		var gw: int = 56 if gx != 74 else 59
+		rect(gx, 17, gw, 1, "1e192b")
+		rect(gx, 56, gw, 2, "1e192b")
+		rect(gx + 6, 19, 10, 1, "ffffff" if is_happy else "8b9ab8")
+		rect(gx + gw - 14, 53, 8, 3, "292338")
+		rect(gx + gw - 12, 54, 4, 1, "98a4ba")
+
+	# 4. Parede abaixo das janelas + fileira de bancos estofados bicolores.
+	rect(0, 58, BW, 45, trim_dark)
+	rect(0, 58, BW, 4, INK)
+	rect(0, 59, BW, 2, "766391" if is_happy else ("594b6e" if not is_night else "433757"))
+	var seat_dark: String = "354969" if is_night else ("47628a" if not is_happy else "42708f")
+	var seat_lit: String = "4f6e96" if is_night else ("678bb8" if not is_happy else "5fa0bf")
+	for sx in [10, 44, 78, 120, 154, 184]:
+		rect(sx, 62, 22, 25, INK)
+		rect(sx + 1, 63, 20, 22, seat_dark)
+		rect(sx + 2, 63, 18, 5, seat_lit)
+		rect(sx + 4, 62, 14, 2, "b8c4d9")
+		rect(sx + 2, 74, 18, 9, seat_lit)
+
+	# 5. Piso emborrachado frisado com faixa amarela de segurança.
+	rect(0, 86, BW, 17, "171321")
+	rect(0, 86, BW, 2, INK)
+	rect(0, 88, BW, 2, "d9a83e" if is_happy else "a67d30")
+	for fy in range(92, 103, 3):
+		rect(0, fy, BW, 1, "231d33" if not is_night else "1d1729")
+
+	# Corrimão superior dourado (alças balançando são desenhadas ao vivo por cutscene_player.gd).
+	rect(0, 11, BW, 4, INK)
+	rect(0, 12, BW, 2, "f4cf6e" if is_happy else ("c28c36" if is_night else "e8b243"))
+
+	# Passageiros antes do balaústre central + balaústre + protagonista em destaque.
+	var front_sprite: Image = null
+	var front_pos := Vector2i(82, 56)
+	for entry: Dictionary in passengers:
+		var pos: Vector2i = entry["pos"]
+		if bool(entry.get("front", false)):
+			front_sprite = entry["sprite"]
+			front_pos = pos
+		else:
+			_stamp_32x32_on_art(entry["sprite"], pos.x, pos.y)
+
+	if is_night:
+		blend_rect_tint(0, 16, BW, 86, Color("100c1c"), 0.28)
+
+	rect(101, 12, 5, 84, INK)
+	rect(102, 12, 3, 84, "f4cf6e" if is_happy else ("c99238" if is_night else "e5ae3e"))
+	rect(100, 93, 7, 3, "8c94a8")
+	if front_sprite != null:
+		_stamp_32x32_on_art(front_sprite, front_pos.x, front_pos.y)
+
+
+func _draw_cozy_mat(x: int, y: int, w: int, h: int, border_hex: String, fill_hex: String, trim_hex: String) -> void:
+	rect(x - 1, y + 1, w + 2, h, INK)
+	rect(x, y, w, h, border_hex)
+	rect(x + 2, y + 2, w - 4, h - 4, fill_hex)
+	rect(x + 4, y + 4, w - 8, h - 8, trim_hex)
+	for tx in range(x + 3, x + w - 3, 5):
+		rect(tx, y - 1, 2, 1, "c4987e")
+		rect(tx, y + h, 2, 1, "c4987e")
+
+
+func _draw_bedroom_scene(mode: StringName, student_sp: Image) -> void:
+	const BW: int = 208
+	const BH: int = 103
+	var is_sleep: bool = mode in [&"sleep", &"happy_sleep"]
+	var is_happy: bool = mode in [&"happy_wake", &"happy_sleep"]
+
+	art = Image.create_empty(BW, BH, false, Image.FORMAT_RGBA8)
+	art.fill(Color("262038" if is_sleep else ("5a3f4a" if is_happy else "463340")))
+	masonry(0, 0, BW, 41, false)
+	if is_sleep:
+		blend_rect_tint(0, 0, BW, 41, Color("141126"), 0.50 if not is_happy else 0.36)
+	_draw_wainscot(0, 40, BW, 18, "332224" if is_sleep else "4d322c",
+			"473032" if is_sleep else ("754d40" if is_happy else "5e3e36"),
+			"634648" if is_sleep else "916552")
+
+	for y in range(58, BH, 10):
+		for x in range(-20, BW, 48):
+			timber(x + ((y / 10) % 2) * 24, y, 47, 9)
+	if is_sleep:
+		blend_rect_tint(0, 58, BW, 45, Color("120e1e"), 0.52 if not is_happy else 0.35)
+	rect(0, 56, BW, 3, INK)
+	_draw_cozy_mat(114, 80, 62, 18, "8a524c" if not is_sleep else "4c323b",
+			"593a47" if not is_sleep else "352536", "734c58" if is_happy else "452d3c")
+
+	# Janela com vista para prédios/árvores lá fora + varão e cortinas pregueadas.
+	var win_stops: Array[Color] = [Color("49567d"), Color("9d6770"), Color("f1ae6e"), Color("ffe29c")]
+	if is_happy and not is_sleep:
+		win_stops = [Color("5988c2"), Color("95cde8"), Color("ffe39c"), Color("fff5cc")]
+	elif is_sleep:
+		win_stops = [Color("141733"), Color("1e254d"), Color("2e3561")]
+	rect(134, 8, 52, 36, INK)
+	_draw_outside_view(136, 10, 48, 32, win_stops, is_sleep, not is_sleep and not is_happy)
+	rect(159, 10, 2, 32, INK)
+	rect(136, 25, 48, 2, INK)
+	_draw_curtains(135, 9, 46, 33, 50, "4a2a38" if is_sleep else ("b55a5c" if is_happy else "8f484e"),
+			"6e4152" if is_sleep else ("db7976" if is_happy else "b86366"))
+
+	# Prateleira com livros + pôster RPG/relógio conforme o turno.
+	rect(56, 22, 36, 4, INK)
+	timber(57, 23, 34, 2)
+	for bi in 5:
+		rect(59 + bi * 5, 13 + (bi % 2), 4, 10 - (bi % 2), ["c76b6b", "6ea8b8", "72b07a", "e0a960", "9b7bb8"][bi])
+	rect(85, 16, 5, 7, "506e58")
+	rect(86, 14, 3, 3, "81e6c0")
+	if is_sleep:
+		wall_clock(106, 14, 1 if is_happy else 3, -1 if is_happy else 1)
+	else:
+		rpg_poster(100, 10)
+		if is_happy:
+			blend_radial_tint(160, 26, 62.0, Color("ffe89e"), 0.24)
+		else:
+			blend_radial_tint(160, 26, 42.0, Color("f4ba72"), 0.16)
+
+	# Cama detalhada com cabeceira esculpida, travesseiro fofo e colcha dobrada.
+	rect(12, 42, 92, 42, INK)
+	timber(14, 35, 8, 50)
+	timber(98, 52, 6, 34)
+	rect(22, 52, 76, 28, "344154" if not is_happy else "455d75")
+	rect(24, 46, 22, 11, INK)
+	rect(25, 47, 20, 9, "e8ded6" if is_happy else ("c9bec4" if is_sleep else "ded0c6"))
+	rect(40, 54, 58, 22, "3b6673" if is_happy else ("283654" if is_sleep else "45636a"))
+	rect(40, 54, 58, 3, "68a3ab" if is_happy else ("3d4f73" if is_sleep else "678b91"))
+	for row_y in range(60, 75, 6):
+		rect(42, row_y, 54, 2, "548a8c" if is_happy else ("34466b" if is_sleep else "5a7b82"))
+
+	if is_sleep:
+		desk(128, 54, true, "8de5ff" if is_happy else "6ec2de")
+		if is_happy:
+			rect(118, 45, 8, 10, INK)
+			rect(119, 46, 6, 8, "59e2f5")
+			rect(110, 44, 9, 10, INK)
+			rect(111, 45, 7, 8, "f4ba72")
+			blend_radial_tint(114, 48, 44.0, Color("f4ba72"), 0.24)
+		else:
+			blend_radial_tint(160, 50, 36.0, Color("6ec2de"), 0.24)
+		# Cabeça contornada dormindo apoiada no travesseiro.
+		for row_s: Vector3i in [
+			Vector3i(29, 43, 14), Vector3i(28, 44, 15), Vector3i(28, 45, 15),
+			Vector3i(28, 46, 15), Vector3i(28, 47, 15), Vector3i(29, 48, 14),
+			Vector3i(29, 49, 13), Vector3i(30, 50, 11), Vector3i(31, 51, 9),
+		]:
+			rect(row_s.x - 1, row_s.y, row_s.z + 2, 2, INK)
+		for row_s: Vector3i in [
+			Vector3i(29, 43, 14), Vector3i(28, 44, 15), Vector3i(28, 45, 15),
+			Vector3i(28, 46, 15), Vector3i(28, 47, 15), Vector3i(29, 48, 14),
+			Vector3i(29, 49, 13), Vector3i(30, 50, 11), Vector3i(31, 51, 9),
+		]:
+			rect(row_s.x, row_s.y, row_s.z, 1, "f2c2a2" if is_happy else "cca496")
+		rect(28, 40, 15, 5, INK)
+		rect(26, 42, 18, 4, INK)
+		rect(29, 41, 12, 3, "9a273e")
+		rect(27, 43, 15, 3, "9a273e")
+		rect(30, 42, 8, 2, "ec5346")
+		rect(31, 45, 3, 2, "6e1b2e")
+		rect(37, 45, 3, 2, "6e1b2e")
+		rect(29, 48, 2, 2, "b08275")
+		if is_happy:
+			rect(32, 48, 3, 1, INK)
+			rect(37, 48, 3, 1, INK)
+			rect(34, 50, 4, 1, "a8565d")
+	else:
+		_stamp_32x32_on_art(student_sp, 46 if is_happy else 42, 38)
+		rect(112, 54, 26, 24, INK)
+		timber(113, 55, 24, 22)
+		if is_happy:
+			rect(118, 42, 8, 12, INK)
+			rect(119, 43, 6, 10, "59e2f5")
+			rect(120, 44, 2, 6, "ffffff")
+		potted_plant(182, 52, false)
+
+
 func _draw_classroom_backdrop(desk_papers: bool, teacher: Image, student_sp: Image, classmate_sp: Image, mates: Array[Image]) -> void:
 	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
-	art.fill(Color("52435e"))
-	masonry(0, 0, 208, 62, false)
+	art.fill(Color("52435e" if desk_papers else "5e4c6b"))
+	masonry(0, 0, 208, 46, false)
+	_draw_wainscot(0, 44, 208, 18, "422e2d", "63453d" if desk_papers else "785346", "875f4d")
 	for y in range(62, 103, 10):
 		for x in range(-20, 208, 52):
 			timber(x + ((y / 10) % 2) * 26, y, 51, 9)
 	rect(0, 60, 208, 3, INK)
-	# Quadro verde grande + giz + janela à direita.
-	rect(28, 6, 148, 46, INK)
-	timber(29, 7, 146, 44)
-	rect(33, 11, 138, 36, "244738")
-	rect(33, 11, 138, 2, "34634e")
+
+	# Luminárias suspensas no teto iluminando o quadro.
+	for lx in [56, 132]:
+		rect(lx, 0, 24, 4, INK)
+		rect(lx + 1, 1, 22, 2, "fff1c2")
+		blend_radial_tint(lx + 12, 8, 28.0, Color("ffe89e"), 0.12)
+
+	wall_clock(4, 12, 1 if not desk_papers else 2, -1)
+	# Quadro verde amplo com grafos, equações e calha de giz + apagador.
+	rect(26, 7, 144, 46, INK)
+	timber(27, 8, 142, 44)
+	rect(31, 12, 134, 34, "224536")
+	rect(31, 12, 134, 2, "33664f")
 	for row in 3:
-		for col in 5:
+		for col in 4:
 			var span := 10 + ((row + col) * 5) % 12
-			rect(40 + col * 24, 17 + row * 9, span, 2, "ff8090" if (desk_papers and col == 3) else "dce8de")
-	rect(182, 8, 22, 30, INK)
-	rect(184, 10, 18, 26, "7ba9d4" if not desk_papers else "5e7296")
-	rect(192, 10, 2, 26, INK)
-	rect(184, 22, 18, 2, INK)
-	# Professor(a) diante do quadro + colegas + Estudante nas carteiras.
-	_stamp_32x32_on_art(teacher, 164, 24)
+			rect(38 + col * 24, 18 + row * 8, span, 2, "ff8090" if (desk_papers and col == 2) else "dce8de")
+	# Pequeno diagrama de grafo/fluxo desenhado no canto direito do quadro.
+	rect(138, 18, 6, 5, "81e6c0")
+	rect(152, 22, 6, 5, "f4ba72")
+	rect(142, 32, 6, 5, "7ccce0")
+	rect(144, 21, 8, 1, "dce8de")
+	rect(144, 24, 1, 8, "dce8de")
+	# Apagador e gizes na calha inferior do quadro.
+	rect(34, 46, 128, 3, "54453d")
+	rect(42, 45, 7, 2, "c7655b")
+	rect(53, 46, 5, 1, "faf0dd")
+	rect(61, 46, 4, 1, "81e6c0")
+
+	# Janela à direita com céu e árvore do campus ao fundo.
+	rect(176, 8, 28, 34, INK)
+	var class_sky: Array[Color] = [Color("5988c2"), Color("95cde8")]
+	if desk_papers:
+		class_sky = [Color("495c80"), Color("7889ab")]
+	_draw_outside_view(178, 10, 24, 30, class_sky, false, false)
+	rect(189, 10, 2, 30, INK)
+	rect(178, 24, 24, 2, INK)
+
+	_stamp_32x32_on_art(teacher, 146, 25)
 	_stamp_32x32_on_art(classmate_sp, 18, 42)
 	_stamp_32x32_on_art(mates[0], 130, 42)
 	_stamp_32x32_on_art(student_sp, 76, 42)
@@ -2283,27 +2595,63 @@ func _draw_classroom_backdrop(desk_papers: bool, teacher: Image, student_sp: Ima
 		_stamp_32x32_on_art(mates[1], 172, 42)
 	desk(4, 65, false)
 	desk(70, 67, true, "76dce8" if desk_papers else "81e6c0")
+	if not desk_papers:
+		rect(120, 62, 7, 9, INK)
+		rect(121, 63, 5, 7, "59e2f5")
 	blend_radial_tint(104, 65, 24.0, Color("76dce8"), 0.14)
 	desk(138, 65, false)
 
 
 func _draw_lunch_backdrop(happy: bool, cook: Image, student_sp: Image, classmate_sp: Image) -> void:
 	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
-	art.fill(Color("454354"))
-	masonry(0, 0, 208, 56, false)
+	art.fill(Color("454354" if not happy else "524d61"))
+	masonry(0, 0, 208, 42, false)
+	# Azulejos atrás do balcão do RU + lambri na sala de refeições.
+	_draw_wainscot(0, 40, 128, 16, "4a3430", "6b4b41", "8a6252")
+	for ty in range(18, 56, 6):
+		for tx in range(132, 208, 8):
+			rect(tx, ty, 7, 5, "d2dce8" if ((tx + ty) % 12) == 0 else "b9c7d6")
 	for y in range(56, 103, 12):
 		for x in range(-16, 208, 28):
-			rect(x + ((y / 12) % 2) * 14, y, 27, 11, "4c4a5c" if ((x + y) % 3) else "403e50")
-			rect(x + ((y / 12) % 2) * 14, y, 26, 1, "5c596e")
-	rect(10, 8, 56, 34, INK)
-	rect(12, 10, 52, 30, "9bd2f2" if happy else "7ba9d4")
-	rect(37, 10, 2, 30, INK)
-	rect(12, 24, 52, 2, INK)
-	wall_clock(74, 12, 3, 1)
+			rect(x + ((y / 12) % 2) * 14, y, 27, 11, "545166" if ((x + y) % 3) else "454357")
+			rect(x + ((y / 12) % 2) * 14, y, 26, 1, "66627a")
+
+	# Janela luminosa com jardim/árvores do campus.
+	rect(8, 8, 58, 34, INK)
+	var lunch_sky: Array[Color] = [Color("4b6896"), Color("7ba9cc")]
+	if happy:
+		lunch_sky = [Color("5988c2"), Color("9bd2f2")]
+	_draw_outside_view(10, 10, 54, 30, lunch_sky, false, false)
+	rect(36, 10, 2, 30, INK)
+	rect(10, 24, 54, 2, INK)
+
+	wall_clock(74, 11, 3, 1)
+	# Placa de cardápio do RU na parede central.
+	rect(98, 9, 32, 24, INK)
+	timber(99, 10, 30, 22)
+	rect(102, 13, 24, 16, "273b33")
+	rect(104, 15, 16, 2, "f4cf6e")
+	rect(104, 19, 18, 1, "faf0dd")
+	rect(104, 22, 14, 1, "81e6c0")
+	rect(104, 25, 17, 1, "faf0dd")
+
+	# Luminária pendente sobre o balcão térmico.
+	for lx in [150, 182]:
+		rect(lx, 0, 2, 7, INK)
+		rect(lx - 4, 7, 10, 4, INK)
+		rect(lx - 3, 8, 8, 2, "f4ba72")
+		blend_radial_tint(lx, 12, 22.0, Color("ffe89e"), 0.12)
+
 	_stamp_32x32_on_art(cook, 160, 14)
-	rect(134, 34, 68, 22, INK)
-	rect(136, 36, 64, 8, "8c97a8")
-	rect(136, 44, 64, 10, "5a6275")
+	# Balcão térmico com cubas coloridas e vidro protetor superior.
+	rect(132, 32, 72, 24, INK)
+	rect(134, 30, 68, 4, "93b8cc")
+	rect(134, 34, 68, 9, "9ca8ba")
+	for pan_i in 4:
+		var pcol: String = ["faf0dd", "8c5c45", "6da65f", "e89458"][pan_i]
+		rect(138 + pan_i * 15, 36, 11, 5, pcol)
+	rect(134, 44, 68, 10, "5a6275")
+
 	_stamp_32x32_on_art(student_sp, 58, 37)
 	if happy:
 		_stamp_32x32_on_art(classmate_sp, 116, 37)
@@ -2328,6 +2676,204 @@ func _draw_lunch_backdrop(happy: bool, cook: Image, student_sp: Image, classmate
 		rect(137, 59, 10, 6, "e65864")
 
 
+func _draw_student_portrait(ox: int, cycle: int) -> void:
+	var droop: int = 0 if cycle in [0, 3] else (1 if cycle == 1 else 2)
+	var skin := Color("#ffdfb8") if cycle == 3 else (Color("#f5c6a3") if cycle == 0 else (Color("#dfb199") if cycle == 1 else Color("#caa29b")))
+	var skin_lit := skin.lightened(0.10).to_html(false)
+	var skin_mid := skin.to_html(false)
+	var skin_sh := skin.darkened(0.16).to_html(false)
+	var skin_deep := skin.darkened(0.28).to_html(false)
+
+	var h_deep := "611528" if cycle != 3 else "7a1d31"
+	var h_mid := "9a273e" if cycle != 3 else "b32b44"
+	var h_lit := "ec5346" if cycle != 3 else "ff6654"
+	var h_hi := "ff7a6b" if cycle != 3 else "ff9180"
+
+	# 1. Busto / ombros inclinados com moletom escuro, gola V da camisa e alças da mochila.
+	var chest_spans: Array[Vector3i] = [
+		Vector3i(15, 31, 18), Vector3i(12, 32, 24), Vector3i(9, 33, 30),
+		Vector3i(7, 34, 34), Vector3i(6, 35, 36),
+	]
+	for span: Vector3i in chest_spans:
+		rect(ox + span.x, span.y + droop, span.z, 2, INK)
+	rect(ox + 6, 36 + droop, 36, 12 - droop, INK)
+	rect(ox + 7, 35 + droop, 34, 13 - droop, "28293a" if cycle != 3 else "2f344a")
+	rect(ox + 9, 35 + droop, 30, 13 - droop, "3d4057" if cycle != 3 else "484f6e")
+	rect(ox + 15, 34 + droop, 18, 3, "56586e")
+	# Gola V interna creme e zíper metálico.
+	rect(ox + 19, 34 + droop, 10, 4, "d9cbbd")
+	rect(ox + 20, 35 + droop, 8, 5, "f5ebde")
+	rect(ox + 21, 39 + droop, 6, 9 - droop, "f5ebde")
+	rect(ox + 23, 35 + droop, 2, 13 - droop, "8fa8ba")
+	rect(ox + 23, 38 + droop, 2, 2, "e8f4ed")
+	# Alças de couro da mochila com fivela.
+	for sx: int in [11, 32]:
+		rect(ox + sx, 33 + droop, 5, 15 - droop, INK)
+		rect(ox + sx + 1, 34 + droop, 3, 14 - droop, "70514d")
+		rect(ox + sx + 2, 34 + droop, 2, 14 - droop, "ae7953")
+		rect(ox + sx + 1, 41 + droop, 3, 2, "cb975e")
+	if cycle == 3:
+		rect(ox + 28, 40, 3, 3, "81e6c0")
+		rect(ox + 29, 41, 1, 1, "ffffff")
+
+	# 2. Pescoço com sombra projetada pelo queixo.
+	rect(ox + 19, 28 + droop, 10, 7, INK)
+	rect(ox + 20, 29 + droop, 8, 6, skin_sh)
+	rect(ox + 20, 29 + droop, 8, 2, skin_deep)
+
+	# 3. Rosto esculpido com linha do queixo e maxilar curvada + orelhas.
+	for ey_ear in [20, 21, 22, 23]:
+		rect(ox + 11, ey_ear + droop, 2, 1, INK)
+		rect(ox + 12, ey_ear + droop, 1, 1, skin_sh)
+		rect(ox + 35, ey_ear + droop, 2, 1, INK)
+		rect(ox + 35, ey_ear + droop, 1, 1, skin_sh)
+
+	var jaw_rows: Array[Vector3i] = [
+		Vector3i(13, 12, 22), Vector3i(13, 13, 22), Vector3i(13, 14, 22), Vector3i(13, 15, 22),
+		Vector3i(13, 16, 22), Vector3i(13, 17, 22), Vector3i(13, 18, 22), Vector3i(13, 19, 22),
+		Vector3i(13, 20, 22), Vector3i(13, 21, 22), Vector3i(13, 22, 22), Vector3i(13, 23, 22),
+		Vector3i(14, 24, 20), Vector3i(14, 25, 20), Vector3i(15, 26, 18), Vector3i(16, 27, 16),
+		Vector3i(18, 28, 12), Vector3i(20, 29, 8),
+	]
+	for jr: Vector3i in jaw_rows:
+		rect(ox + jr.x - 1, jr.y + droop, jr.z + 2, 2, INK)
+	for jr: Vector3i in jaw_rows:
+		rect(ox + jr.x, jr.y + droop, jr.z, 1, skin_mid)
+		if jr.y <= 21:
+			rect(ox + jr.x + 1, jr.y + droop, jr.z - 2, 1, skin_lit)
+		if jr.y >= 26:
+			rect(ox + jr.x, jr.y + droop, jr.z, 1, skin_sh)
+	# Sombras laterais do rosto, sombra sob a franja e nariz sutil.
+	rect(ox + 13, 17 + droop, 2, 7, skin_sh)
+	rect(ox + 33, 17 + droop, 2, 7, skin_sh)
+	rect(ox + 15, 16 + droop, 18, 2, skin_sh)
+	rect(ox + 24, 22 + droop, 1, 2, skin_sh)
+	rect(ox + 23, 23 + droop, 2, 1, skin_lit)
+
+	# 4. Olhos detalhados, sobrancelhas, olheiras e boca por estado emocional.
+	var ey := 19 + droop
+	if cycle == 0:
+		# Sobrancelhas firmes + olhos nítidos com esclera, íris e brilho especular.
+		rect(ox + 16, ey - 2, 5, 1, h_deep)
+		rect(ox + 27, ey - 2, 5, 1, h_deep)
+		rect(ox + 16, ey, 5, 4, INK)
+		rect(ox + 27, ey, 5, 4, INK)
+		rect(ox + 16, ey + 1, 2, 2, "faf0dd")
+		rect(ox + 30, ey + 1, 2, 2, "faf0dd")
+		rect(ox + 18, ey + 1, 3, 2, INK)
+		rect(ox + 27, ey + 1, 3, 2, INK)
+		rect(ox + 19, ey + 2, 1, 1, "693c45")
+		rect(ox + 28, ey + 2, 1, 1, "693c45")
+		rect(ox + 18, ey + 1, 1, 1, "ffffff")
+		rect(ox + 27, ey + 1, 1, 1, "ffffff")
+		rect(ox + 22, 26 + droop, 4, 1, "8c5458")
+	elif cycle == 1:
+		# Sobrancelhas caídas, pálpebra pesada, olheiras e gota de cansaço.
+		rect(ox + 15, ey - 1, 4, 1, h_deep)
+		rect(ox + 18, ey - 2, 2, 1, h_deep)
+		rect(ox + 29, ey - 1, 4, 1, h_deep)
+		rect(ox + 28, ey - 2, 2, 1, h_deep)
+		rect(ox + 16, ey + 4, 5, 2, "855e8c")
+		rect(ox + 27, ey + 4, 5, 2, "855e8c")
+		rect(ox + 16, ey, 5, 1, "38293d")
+		rect(ox + 27, ey, 5, 1, "38293d")
+		rect(ox + 16, ey + 1, 5, 3, INK)
+		rect(ox + 27, ey + 1, 5, 3, INK)
+		rect(ox + 16, ey + 2, 2, 1, "ede2d4")
+		rect(ox + 30, ey + 2, 2, 1, "ede2d4")
+		rect(ox + 18, ey + 1, 1, 1, "ffffff")
+		rect(ox + 28, ey + 1, 1, 1, "ffffff")
+		rect(ox + 32, 17 + droop, 1, 2, "8de5ff")
+		rect(ox + 22, 26 + droop, 4, 1, "784852")
+	elif cycle == 2:
+		# Olheiras fundas, olhos semicerrados ardendo e lábios tensos.
+		rect(ox + 15, ey - 1, 5, 1, INK)
+		rect(ox + 28, ey - 1, 5, 1, INK)
+		rect(ox + 15, ey + 3, 6, 3, "5c3b6b")
+		rect(ox + 27, ey + 3, 6, 3, "5c3b6b")
+		rect(ox + 16, ey + 4, 5, 2, "4a2e59")
+		rect(ox + 27, ey + 4, 5, 2, "4a2e59")
+		rect(ox + 16, ey, 5, 1, skin_deep)
+		rect(ox + 27, ey, 5, 1, skin_deep)
+		rect(ox + 16, ey + 1, 5, 2, INK)
+		rect(ox + 27, ey + 1, 5, 2, INK)
+		rect(ox + 18, ey + 2, 1, 1, "cfa0aa")
+		rect(ox + 29, ey + 2, 1, 1, "cfa0aa")
+		rect(ox + 21, 26 + droop, 6, 1, "5c353d")
+		rect(ox + 20, 27 + droop, 1, 1, "5c353d")
+		rect(ox + 27, 27 + droop, 1, 1, "5c353d")
+	else:
+		# Feliz e corado: brilho vivo, bochechas rosadas e sorriso largo!
+		rect(ox + 16, ey - 2, 4, 1, h_deep)
+		rect(ox + 28, ey - 2, 4, 1, h_deep)
+		rect(ox + 14, ey + 4, 3, 2, "f28e88")
+		rect(ox + 31, ey + 4, 3, 2, "f28e88")
+		rect(ox + 16, ey, 5, 4, INK)
+		rect(ox + 27, ey, 5, 4, INK)
+		rect(ox + 16, ey + 1, 2, 2, "ffffff")
+		rect(ox + 30, ey + 1, 2, 2, "ffffff")
+		rect(ox + 18, ey + 1, 3, 2, INK)
+		rect(ox + 27, ey + 1, 3, 2, INK)
+		rect(ox + 19, ey + 2, 1, 1, "8de5ff")
+		rect(ox + 28, ey + 2, 1, 1, "8de5ff")
+		rect(ox + 18, ey + 1, 1, 1, "ffffff")
+		rect(ox + 27, ey + 1, 1, 1, "ffffff")
+		rect(ox + 20, 25 + droop, 1, 1, "b8585e")
+		rect(ox + 27, 25 + droop, 1, 1, "b8585e")
+		rect(ox + 21, 25 + droop, 6, 2, "b8585e")
+		rect(ox + 21, 25 + droop, 6, 1, "fff7e6")
+
+	# 5. Cabelo ruivo desgrenhado com pontas diagonais assimétricas, costeletas e mechas contínuas na franja!
+	var hair_crown: Array[Vector3i] = [
+		Vector3i(18, 3, 5), Vector3i(27, 3, 5),
+		Vector3i(14, 4, 11), Vector3i(26, 4, 10),
+		Vector3i(12, 5, 25),
+		Vector3i(10, 6, 29), Vector3i(9, 7, 31),
+		Vector3i(8, 8, 33), Vector3i(7, 9, 34),
+		Vector3i(9, 10, 31), Vector3i(10, 11, 29),
+		Vector3i(11, 12, 26), Vector3i(12, 13, 24),
+		Vector3i(12, 14, 24),
+	]
+	for hr: Vector3i in hair_crown:
+		rect(ox + hr.x - 1, hr.y - 1 + droop, hr.z + 2, 2, INK)
+	for hr: Vector3i in hair_crown:
+		rect(ox + hr.x, hr.y + droop, hr.z, 1, h_mid)
+	# Sombreamento orgânico de mechas no topo e brilhos em camadas (sem barra preta cortando!).
+	rect(ox + 15, 5 + droop, 7, 2, h_lit)
+	rect(ox + 26, 5 + droop, 7, 2, h_lit)
+	rect(ox + 11, 7 + droop, 25, 3, h_lit)
+	rect(ox + 14, 7 + droop, 9, 2, h_hi)
+	rect(ox + 25, 7 + droop, 7, 2, h_hi)
+	rect(ox + 21, 5 + droop, 5, 1, h_deep)
+	rect(ox + 10, 11 + droop, 27, 2, h_lit)
+	rect(ox + 13, 10 + droop, 7, 1, h_hi)
+	rect(ox + 26, 10 + droop, 8, 1, h_hi)
+	# Pontas laterais espetadas que dão silhueta orgânica de anime pixel art.
+	for sp_x: Array in [[6, 10, 4], [38, 10, 4], [7, 13, 3], [37, 13, 3]]:
+		rect(ox + int(sp_x[0]), int(sp_x[1]) + droop, int(sp_x[2]), 2, INK)
+		rect(ox + int(sp_x[0]) + (1 if int(sp_x[0]) < 20 else 0), int(sp_x[1]) + droop, int(sp_x[2]) - 1, 1, h_mid)
+	# Costeletas laterais curvadas diante das orelhas.
+	for side_row in range(13, 23):
+		var shrink: int = (side_row - 13) / 4
+		rect(ox + 11 + shrink, side_row + droop, 3 - mini(1, shrink), 1, h_deep if shrink > 0 else h_mid)
+		rect(ox + 34, side_row + droop, 3 - mini(1, shrink), 1, h_deep if shrink > 0 else h_mid)
+		rect(ox + 10 + shrink, side_row + droop, 1, 1, INK)
+		rect(ox + 37 - shrink, side_row + droop, 1, 1, INK)
+	# Linha inferior contínua da franja + 5 pontas afiadas caindo em alturas variadas.
+	rect(ox + 13, 14 + droop, 22, 1, INK)
+	var bangs: Array[Vector3i] = [
+		Vector3i(13, 3, 3), Vector3i(17, 3, 2), Vector3i(21, 4, 3),
+		Vector3i(26, 3, 2), Vector3i(31, 4, 3),
+	]
+	for b_vec: Vector3i in bangs:
+		for dy in range(b_vec.z):
+			var bw: int = maxi(1, b_vec.y - dy)
+			var shift_x: int = dy / 2
+			rect(ox + b_vec.x + shift_x, 13 + dy + droop, bw, 1,
+					h_deep if dy == b_vec.z - 1 else h_mid)
+			rect(ox + b_vec.x + shift_x, 14 + dy + droop, bw, 1, INK)
+
+
 func generate_cutscene_assets() -> void:
 	var student := stamp(STUDENT)
 	var classmate := stamp(CLASSMATE)
@@ -2345,71 +2891,19 @@ func generate_cutscene_assets() -> void:
 	var ru_cook := _build_custom_character(student, "36282a", "5c4246", "6f919c", "a3c4cf", "ffffff", "e8b08a", "bd8264", "5c5966", "apron", true)
 
 	# 1. cutscene_wake.png (208x103)
-	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
-	art.fill(Color("453240"))
-	masonry(0, 0, 208, 56, false)
-	for y in range(58, 103, 10):
-		for x in range(-20, 208, 48):
-			timber(x + ((y / 10) % 2) * 24, y, 47, 9)
-	rect(0, 55, 208, 4, INK)
-	timber(0, 57, 208, 4)
-	rpg_poster(102, 12)
-	rect(134, 8, 52, 38, INK)
-	var prev_art := art
-	var win_sky := Image.create_empty(46, 32, false, Image.FORMAT_RGBA8)
-	art = win_sky
-	_paint_bayer_sky(46, 32, [Color("49567d"), Color("9d6770"), Color("f1ae6e"), Color("ffe29c")])
-	art = prev_art
-	art.blit_rect(win_sky, Rect2i(0, 0, 46, 32), Vector2i(137, 11))
-	rect(159, 11, 2, 32, INK)
-	rect(137, 26, 46, 2, INK)
-	rect(132, 7, 8, 40, INK)
-	rect(180, 7, 8, 40, INK)
-	rect(133, 8, 6, 38, "a4565a")
-	rect(181, 8, 6, 38, "a4565a")
-	blend_radial_tint(160, 27, 46.0, Color("f4ba72"), 0.20)
-	rect(14, 42, 92, 42, INK)
-	timber(16, 36, 8, 50)
-	rect(24, 52, 80, 28, "3b495c")
-	rect(26, 46, 22, 12, INK)
-	rect(27, 47, 20, 10, "e2d4cc")
-	rect(42, 54, 62, 22, "45636a")
-	for row_y in range(56, 75, 6):
-		rect(44, row_y, 58, 2, "65858a")
-	_stamp_32x32_on_art(student_normal, 42, 38)
-	rect(112, 54, 26, 24, INK)
-	timber(113, 55, 24, 22)
-	rect(144, 68, 46, 16, INK)
-	rect(146, 70, 42, 12, "634047")
+	_draw_bedroom_scene(&"wake", student_normal)
 	save("cutscene_wake")
 
-	# 2. cutscene_bus_day.png (208x103) — passageiros 32-bit no mesmo estilo do Estudante.
-	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
-	var bus_sky := Image.create_empty(208, 48, false, Image.FORMAT_RGBA8)
-	art = bus_sky
-	_paint_bayer_sky(208, 48, [Color("4b6896"), Color("7ba9cc"), Color("c4dced")])
-	var real_bus := Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
-	real_bus.fill(Color("272133"))
-	real_bus.blit_rect(bus_sky, Rect2i(0, 0, 208, 48), Vector2i(0, 16))
-	art = real_bus
-	rect(0, 0, 208, 17, "352c44")
-	rect(0, 62, 208, 41, "231d2e")
-	rect(0, 91, 208, 12, "191422")
-	for px in [0, 66, 134, 200]:
-		rect(px, 16, 8, 48, INK)
-		rect(px + 1, 16, 6, 46, "463a57")
-	rect(0, 60, 208, 4, "594b6e")
-	rect(0, 11, 208, 4, INK)
-	rect(0, 12, 208, 2, "e8b243")
-	_stamp_32x32_on_art(comm_cap, 8, 56)
-	_stamp_32x32_on_art(comm_pony, 34, 57)
-	_stamp_32x32_on_art(comm_phone, 58, 59)
-	_stamp_32x32_on_art(comm_glass, 118, 58)
-	_stamp_32x32_on_art(comm_mustard, 146, 56)
-	_stamp_32x32_on_art(classmate_f0, 174, 58)
-	rect(101, 12, 5, 86, INK)
-	rect(102, 12, 3, 86, "e5ae3e")
-	_stamp_32x32_on_art(student_normal, 82, 56)
+	# 2. cutscene_bus_day.png (208x103)
+	_draw_bus_scene(&"day", [
+		{"sprite": comm_cap, "pos": Vector2i(8, 56)},
+		{"sprite": comm_pony, "pos": Vector2i(34, 57)},
+		{"sprite": comm_phone, "pos": Vector2i(58, 59)},
+		{"sprite": comm_glass, "pos": Vector2i(118, 58)},
+		{"sprite": comm_mustard, "pos": Vector2i(146, 56)},
+		{"sprite": classmate_f0, "pos": Vector2i(174, 58)},
+		{"sprite": student_normal, "pos": Vector2i(82, 56), "front": true},
+	])
 	save("cutscene_bus_day")
 
 	# 3. cutscene_class.png (208x103)
@@ -2421,190 +2915,125 @@ func generate_cutscene_assets() -> void:
 	save("cutscene_lunch")
 
 	# 5. cutscene_bus_night.png (208x103)
-	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
-	var bus_night_sky := Image.create_empty(208, 48, false, Image.FORMAT_RGBA8)
-	art = bus_night_sky
-	_paint_bayer_sky(208, 48, [Color("0f0e1c"), Color("1b1c38"), Color("2f2b52")])
-	var night_bus := Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
-	night_bus.fill(Color("1c1829"))
-	night_bus.blit_rect(bus_night_sky, Rect2i(0, 0, 208, 48), Vector2i(0, 16))
-	art = night_bus
-	rect(0, 0, 208, 17, "282038")
-	rect(0, 62, 208, 41, "191524")
-	rect(0, 91, 208, 12, "120e1a")
-	for px in [0, 66, 134, 200]:
-		rect(px, 16, 8, 48, INK)
-		rect(px + 1, 16, 6, 46, "342a45")
-	rect(0, 60, 208, 4, "423654")
-	rect(0, 11, 208, 4, INK)
-	rect(0, 12, 208, 2, "c28c36")
-	_stamp_32x32_on_art(comm_cap, 8, 56)
-	_stamp_32x32_on_art(comm_phone, 36, 58)
-	_stamp_32x32_on_art(comm_glass, 120, 58)
-	_stamp_32x32_on_art(comm_pony, 150, 57)
-	_stamp_32x32_on_art(comm_mustard, 174, 59)
-	blend_rect_tint(0, 16, 208, 86, Color("100c1c"), 0.34)
-	rect(101, 12, 5, 86, INK)
-	rect(102, 12, 3, 86, "c99238")
-	_stamp_32x32_on_art(student_normal, 82, 56)
+	_draw_bus_scene(&"night", [
+		{"sprite": comm_cap, "pos": Vector2i(8, 56)},
+		{"sprite": comm_phone, "pos": Vector2i(36, 58)},
+		{"sprite": comm_glass, "pos": Vector2i(120, 58)},
+		{"sprite": comm_pony, "pos": Vector2i(150, 57)},
+		{"sprite": comm_mustard, "pos": Vector2i(174, 59)},
+		{"sprite": student_normal, "pos": Vector2i(82, 56), "front": true},
+	])
 	save("cutscene_bus_night")
 
 	# 6. cutscene_sleep.png (208x103)
-	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
-	art.fill(Color("171324"))
-	masonry(0, 0, 208, 64, false)
-	blend_rect_tint(0, 0, 208, 64, Color("141024"), 0.52)
-	for y in range(64, 103, 10):
-		for x in range(-20, 208, 48):
-			timber(x + ((y / 10) % 2) * 24, y, 47, 9)
-	blend_rect_tint(0, 64, 208, 39, Color("120e1c"), 0.58)
-	rect(134, 8, 48, 36, INK)
-	rect(136, 10, 44, 32, "1d2142")
-	for sx in [142, 152, 174]:
-		rect(sx, 14 + (sx % 7), 1, 1, "faf0dd")
-	rect(164, 15, 7, 7, "f6e09a")
-	rect(166, 15, 5, 5, "1d2142")
-	desk(126, 52, true, "6ec2de")
-	blend_radial_tint(160, 50, 34.0, Color("6ec2de"), 0.24)
-	rect(14, 46, 92, 40, INK)
-	timber(16, 40, 8, 46)
-	rect(24, 52, 22, 11, "cfc3cc")
-	rect(38, 56, 66, 24, "283654")
-	rect(28, 44, 16, 13, INK)
-	rect(29, 45, 14, 11, "cca496")
-	rect(27, 42, 18, 6, "9a273e")
-	rect(27, 41, 13, 3, INK)
+	_draw_bedroom_scene(&"sleep", student_normal)
 	save("cutscene_sleep")
 
-	# 7. cutscene_console.png (282x116) — quarto detalhado com estante, pôster RPG, cortinas e piso de tábuas.
+	# 7. cutscene_console.png (282x116) — mantém exatamente tv_rect (185,27,40,30) e janela (20,14,48,34).
 	art = Image.create_empty(282, 116, false, Image.FORMAT_RGBA8)
 	art.fill(Color("141020"))
-	masonry(0, 0, 282, 82, false)
-	blend_rect_tint(0, 0, 282, 82, Color("110d1c"), 0.52)
+	masonry(0, 0, 282, 62, false)
+	blend_rect_tint(0, 0, 282, 62, Color("110d1c"), 0.48)
+	_draw_wainscot(0, 62, 282, 20, "241926", "382736", "4f3848")
 	for y in range(82, 116, 10):
 		for x in range(-20, 282, 50):
 			timber(x + ((y / 10) % 2) * 25, y, 49, 9)
-	blend_rect_tint(0, 82, 282, 34, Color("130e1e"), 0.45)
+	blend_rect_tint(0, 82, 282, 34, Color("130e1e"), 0.42)
+	_draw_cozy_mat(46, 84, 62, 16, "2a354d", "364561", "4a5d7d")
+
+	# Janela noturna em (20, 14, 48, 34) + árvore escura lá fora + cortinas.
 	rect(18, 12, 52, 38, INK)
-	rect(20, 14, 48, 34, "1d2042")
-	for sx in [26, 36, 44, 60]:
-		rect(sx, 18 + (sx % 9), 1, 1, "dcd6ea")
-	rect(52, 19, 7, 7, "ffe29b")
-	rect(54, 19, 5, 5, "1d2042")
-	rect(16, 11, 6, 40, INK)
-	rect(17, 12, 4, 38, "633642")
-	rect(66, 11, 6, 40, INK)
-	rect(67, 12, 4, 38, "633642")
+	_draw_outside_view(20, 14, 48, 34, [Color("141733"), Color("1e2248")], true, false)
+	rect(43, 14, 2, 34, INK)
+	rect(20, 30, 48, 2, INK)
+	_draw_curtains(19, 13, 46, 35, 50, "4a2835", "703e4d")
+
 	bookcase(74, 14)
 	rpg_poster(148, 12)
+	# Estante da TV com nichos, grade frontal, TV CRT, controle/console e copo d'água.
 	rect(166, 64, 92, 34, INK)
-	timber(168, 66, 88, 10)
-	rect(170, 76, 84, 20, "3d2824")
+	timber(168, 66, 88, 9)
+	rect(170, 75, 84, 21, "332220")
+	rect(176, 78, 34, 14, "1c141d")
+	rect(214, 78, 34, 14, "1c141d")
+	for cspine in range(4):
+		rect(179 + cspine * 6, 81, 4, 10, ["4f738a", "9b4e52", "745a88", "638054"][cspine])
 	rect(176, 18, 62, 48, INK)
 	rect(178, 20, 58, 44, "352e45")
 	rect(180, 22, 54, 40, "463d57")
 	rect(184, 26, 42, 32, INK)
 	rect(185, 27, 40, 30, "151a26")
+	# Grade de áudio da TV no lado direito do gabinete.
+	for sy in range(28, 46, 3):
+		rect(228, sy, 5, 1, "231d2e")
 	rect(237, 55, 16, 11, INK)
 	rect(238, 56, 14, 9, "2b2638")
 	rect(240, 53, 10, 4, "8f96a6")
 	rect(167, 53, 8, 12, INK)
 	rect(168, 54, 6, 10, "59e2f5")
 	rect(169, 55, 2, 6, "ffffff")
-	rect(52, 84, 52, 16, INK)
-	rect(54, 86, 48, 12, "364561")
-	rect(56, 88, 44, 8, "4a5d7d")
 	rect(98, 90, 142, 2, INK)
 	save("cutscene_console")
 
-	# 8. cutscene_dawn.png (320x180)
+	# 8. cutscene_dawn.png (320x180) — aurora sedosa + campus ao fundo + galho orgânico para o pássaro.
 	art = Image.create_empty(320, 180, false, Image.FORMAT_RGBA8)
 	_paint_bayer_sky(320, 180, [
-		Color("16122b"), Color("2a2048"), Color("4a2e5c"),
+		Color("151129"), Color("2a2048"), Color("4a2e5c"),
 		Color("824364"), Color("c46966"), Color("eda46d"), Color("f7d68d"),
 	])
 	for sx in [22, 58, 96, 148, 198, 236, 288]:
-		rect(sx, 12 + (sx % 27), 1, 1, "e8e2f0")
-	for puff in [Vector4i(190, 62, 36, 7), Vector4i(248, 44, 42, 7)]:
-		rect(puff.x, puff.y, puff.z, puff.w, "573866")
+		rect(sx, 10 + (sx % 21), 1, 1, "e8e2f0")
+	for puff in [Vector4i(190, 58, 38, 7), Vector4i(248, 40, 44, 7)]:
+		rect(puff.x + 3, puff.y, puff.z - 6, puff.w, "573866")
+		rect(puff.x, puff.y + 2, puff.z, puff.w - 3, "73487a")
 		rect(puff.x + 4, puff.y + puff.w - 2, puff.z - 8, 2, "c2756b")
 	for x in 320:
-		var ridge1 := 132 + roundi(10.0 * sin(x * 0.015 + 0.5) + 4.0 * cos(x * 0.035))
+		var ridge1 := 130 + roundi(9.0 * sin(float(x) * 0.015 + 0.5) + 4.0 * cos(float(x) * 0.035))
 		rect(x, ridge1, 1, 180 - ridge1, "291e3d")
-		var ridge2 := 148 + roundi(8.0 * sin(x * 0.02 + 2.4))
+	# Prédios distantes do campus na linha da aurora (x = 188..236).
+	for bldg: Vector4i in [
+		Vector4i(188, 122, 12, 18), Vector4i(202, 116, 14, 24),
+		Vector4i(218, 124, 10, 16), Vector4i(230, 126, 8, 14),
+	]:
+		rect(bldg.x, bldg.y, bldg.z, bldg.w, "221836")
+		rect(bldg.x + 3, bldg.y + 4, 2, 2, "f4cf88")
+	for x in 320:
+		var ridge2 := 146 + roundi(8.0 * sin(float(x) * 0.02 + 2.4))
 		rect(x, ridge2, 1, 180 - ridge2, "191326")
-	rect(244, 85, 76, 6, INK)
-	timber(245, 86, 75, 4)
-	rect(258, 82, 16, 4, INK)
-	timber(259, 83, 14, 2)
-	rect(252, 82, 8, 3, "4a6e54")
-	rect(288, 82, 10, 3, "4a6e54")
+	# Tronco à direita e galho orgânico arqueado até x = 248 (pássaro pousa em bx=268, by=71, pés y=81..84).
+	rect(306, 82, 14, 98, INK)
+	rect(308, 84, 12, 96, "4a2e25")
+	rect(309, 86, 4, 92, "704a3b")
+	rect(246, 83, 66, 6, INK)
+	timber(247, 84, 65, 4)
+	rect(256, 80, 18, 4, INK)
+	rect(257, 81, 16, 2, "5b3d31")
+	rect(258, 81, 14, 1, "704c3b")
+	# Ramificações e copas de folhas com florzinhas da aurora.
+	rect(236, 86, 16, 3, INK)
+	rect(237, 87, 14, 1, "5b3d31")
+	for cluster: Vector3i in [
+		Vector3i(242, 82, 7), Vector3i(252, 79, 5), Vector3i(292, 79, 8),
+		Vector3i(306, 75, 10), Vector3i(286, 86, 6),
+	]:
+		_paint_outlined_circle(art, cluster.x, cluster.y, float(cluster.z), float(cluster.z) * 0.72,
+				Color("4a7554"), Color("2b473a"), Color("78ad71"))
+	rect(252, 77, 2, 2, "ffe091")
+	rect(294, 75, 2, 2, "ffb5c2")
+	rect(304, 71, 2, 2, "ffe091")
 	save("cutscene_dawn")
 
 	# 9. 6 Cenas luminosas da Rotina Feliz (epílogo após sair da TV).
-	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
-	art.fill(Color("5c404b"))
-	masonry(0, 0, 208, 56, false)
-	for y in range(58, 103, 10):
-		for x in range(-20, 208, 48):
-			timber(x + ((y / 10) % 2) * 24, y, 47, 9)
-	rect(0, 55, 208, 4, INK)
-	timber(0, 57, 208, 4)
-	rpg_poster(102, 12)
-	rect(134, 8, 52, 38, INK)
-	prev_art = art
-	var happy_sky := Image.create_empty(46, 32, false, Image.FORMAT_RGBA8)
-	art = happy_sky
-	_paint_bayer_sky(46, 32, [Color("5e8dc4"), Color("9bd0eb"), Color("ffe39c"), Color("fff5cc")])
-	art = prev_art
-	art.blit_rect(happy_sky, Rect2i(0, 0, 46, 32), Vector2i(137, 11))
-	rect(159, 11, 2, 32, INK)
-	rect(137, 26, 46, 2, INK)
-	rect(131, 7, 7, 40, INK)
-	rect(182, 7, 7, 40, INK)
-	rect(132, 8, 5, 38, "bf6563")
-	rect(183, 8, 5, 38, "bf6563")
-	blend_radial_tint(160, 27, 64.0, Color("ffe89e"), 0.28)
-	rect(14, 42, 92, 42, INK)
-	timber(16, 36, 8, 50)
-	rect(24, 52, 80, 28, "4a6178")
-	rect(26, 46, 22, 12, INK)
-	rect(27, 47, 20, 10, "faf0dd")
-	rect(42, 54, 62, 22, "548a8c")
-	for row_y in range(56, 75, 6):
-		rect(44, row_y, 58, 2, "81e6c0")
-	_stamp_32x32_on_art(student_happy, 48, 38)
-	rect(112, 54, 26, 24, INK)
-	timber(113, 55, 24, 22)
-	rect(118, 42, 8, 12, INK)
-	rect(119, 43, 6, 10, "59e2f5")
-	potted_plant(184, 50, false)
+	_draw_bedroom_scene(&"happy_wake", student_happy)
 	save("cutscene_happy_wake")
 
-	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
-	var happy_bus_sky := Image.create_empty(208, 48, false, Image.FORMAT_RGBA8)
-	art = happy_bus_sky
-	_paint_bayer_sky(208, 48, [Color("5988c2"), Color("94cde8"), Color("fff0b8")])
-	var hbus := Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
-	hbus.fill(Color("2e273d"))
-	hbus.blit_rect(happy_bus_sky, Rect2i(0, 0, 208, 48), Vector2i(0, 16))
-	art = hbus
-	rect(0, 0, 208, 17, "3d3352")
-	rect(0, 62, 208, 41, "2a2238")
-	rect(0, 91, 208, 12, "1e1829")
-	for px in [0, 66, 134, 200]:
-		rect(px, 16, 8, 48, INK)
-		rect(px + 1, 16, 6, 46, "564869")
-	rect(0, 60, 208, 4, "6e5d85")
-	rect(0, 11, 208, 4, INK)
-	rect(0, 12, 208, 2, "f4cf6e")
-	_stamp_32x32_on_art(comm_cap, 18, 57)
-	_stamp_32x32_on_art(comm_pony, 48, 57)
-	_stamp_32x32_on_art(classmate_f0, 132, 57)
-	_stamp_32x32_on_art(comm_glass, 164, 58)
-	rect(101, 12, 5, 86, INK)
-	rect(102, 12, 3, 86, "f4cf6e")
-	_stamp_32x32_on_art(student_happy, 82, 56)
+	_draw_bus_scene(&"happy_day", [
+		{"sprite": comm_cap, "pos": Vector2i(18, 57)},
+		{"sprite": comm_pony, "pos": Vector2i(48, 57)},
+		{"sprite": classmate_f0, "pos": Vector2i(132, 57)},
+		{"sprite": comm_glass, "pos": Vector2i(164, 58)},
+		{"sprite": student_happy, "pos": Vector2i(82, 56), "front": true},
+	])
 	save("cutscene_happy_bus")
 
 	_draw_classroom_backdrop(false, teacher, student_happy, classmate_f0, [comm_glass])
@@ -2613,140 +3042,19 @@ func generate_cutscene_assets() -> void:
 	_draw_lunch_backdrop(true, ru_cook, student_happy, classmate_f0)
 	save("cutscene_happy_lunch")
 
-	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
-	var sunset_sky := Image.create_empty(208, 48, false, Image.FORMAT_RGBA8)
-	art = sunset_sky
-	_paint_bayer_sky(208, 48, [Color("2d224f"), Color("784364"), Color("cf7563"), Color("f4cf88")])
-	var sbus := Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
-	sbus.fill(Color("2b2138"))
-	sbus.blit_rect(sunset_sky, Rect2i(0, 0, 208, 48), Vector2i(0, 16))
-	art = sbus
-	rect(0, 0, 208, 17, "382b47")
-	rect(0, 62, 208, 41, "261d33")
-	rect(0, 91, 208, 12, "1c1526")
-	for px in [0, 66, 134, 200]:
-		rect(px, 16, 8, 48, INK)
-		rect(px + 1, 16, 6, 46, "4d3b5c")
-	rect(0, 60, 208, 4, "6e5575")
-	rect(0, 11, 208, 4, INK)
-	rect(0, 12, 208, 2, "f4cf6e")
-	_stamp_32x32_on_art(comm_pony, 20, 57)
-	_stamp_32x32_on_art(classmate_f0, 134, 57)
-	_stamp_32x32_on_art(comm_mustard, 168, 58)
-	rect(101, 12, 5, 86, INK)
-	rect(102, 12, 3, 86, "f4cf6e")
-	_stamp_32x32_on_art(student_happy, 82, 56)
-	blend_radial_tint(160, 32, 52.0, Color("f4ba72"), 0.16)
+	_draw_bus_scene(&"sunset", [
+		{"sprite": comm_pony, "pos": Vector2i(20, 57)},
+		{"sprite": classmate_f0, "pos": Vector2i(134, 57)},
+		{"sprite": comm_mustard, "pos": Vector2i(168, 58)},
+		{"sprite": student_happy, "pos": Vector2i(82, 56), "front": true},
+	])
 	save("cutscene_happy_sunset")
 
-	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
-	art.fill(Color("1c1830"))
-	masonry(0, 0, 208, 64, false)
-	blend_rect_tint(0, 0, 208, 64, Color("19152e"), 0.44)
-	for y in range(64, 103, 10):
-		for x in range(-20, 208, 48):
-			timber(x + ((y / 10) % 2) * 24, y, 47, 9)
-	rect(134, 8, 48, 36, INK)
-	rect(136, 10, 44, 32, "20264a")
-	for sx in [142, 152, 174]:
-		rect(sx, 14 + (sx % 7), 1, 1, "faf0dd")
-	rect(164, 15, 7, 7, "f6e09a")
-	rect(166, 15, 5, 5, "20264a")
-	desk(126, 52, false)
-	rect(118, 44, 8, 10, INK)
-	rect(119, 45, 6, 8, "59e2f5")
-	rect(110, 44, 10, 10, INK)
-	rect(111, 45, 8, 8, "f4ba72")
-	blend_radial_tint(115, 48, 42.0, Color("f4ba72"), 0.22)
-	rect(14, 46, 92, 40, INK)
-	timber(16, 40, 8, 46)
-	rect(24, 52, 22, 11, "ebe0d3")
-	rect(38, 56, 66, 24, "3b6673")
-	rect(28, 44, 16, 13, INK)
-	rect(29, 45, 14, 11, "f2c2a2")
-	rect(27, 42, 18, 6, "9a273e")
-	rect(27, 41, 13, 3, INK)
-	rect(32, 49, 3, 1, INK)
-	rect(37, 49, 3, 1, INK)
-	rect(34, 52, 4, 1, "a8565d")
+	_draw_bedroom_scene(&"happy_sleep", student_happy)
 	save("cutscene_happy_sleep")
 
 	# 10. cutscene_portraits.png (192x48 = 4 quadros 48x48, transparente RGBA8)
 	art = Image.create_empty(192, 48, false, Image.FORMAT_RGBA8)
 	for cycle in 4:
-		var ox := cycle * 48
-		var droop := 0 if cycle in [0, 3] else (1 if cycle == 1 else 2)
-		var skin := Color("#ffd9b3") if cycle == 3 else (Color("#f2c4a2") if cycle == 0 else (Color("#ddb098") if cycle == 1 else Color("#c99e94")))
-		var skin_shade := skin.darkened(0.16)
-		rect(ox + 6, 33 + droop, 36, 15 - droop, INK)
-		rect(ox + 7, 34 + droop, 34, 14 - droop, "282838" if cycle != 3 else "2d3145")
-		rect(ox + 9, 35 + droop, 30, 13 - droop, "3d4057" if cycle != 3 else "484d69")
-		rect(ox + 12, 34 + droop, 5, 14 - droop, "70514d")
-		rect(ox + 13, 35 + droop, 3, 13 - droop, "ae7953")
-		rect(ox + 31, 34 + droop, 5, 14 - droop, "70514d")
-		rect(ox + 32, 35 + droop, 3, 13 - droop, "ae7953")
-		rect(ox + 23, 35 + droop, 2, 13 - droop, "e0e7f2")
-		if cycle == 3:
-			rect(ox + 26, 37, 3, 3, "81e6c0")
-		rect(ox + 19, 29 + droop, 10, 6, INK)
-		rect(ox + 20, 30 + droop, 8, 5, skin_shade.to_html(false))
-		rect(ox + 12, 11 + droop, 24, 20, INK)
-		rect(ox + 14, 30 + droop, 20, 2, INK)
-		rect(ox + 13, 12 + droop, 22, 18, skin.to_html(false))
-		rect(ox + 14, 28 + droop, 20, 2, skin_shade.to_html(false))
-		rect(ox + 10, 4 + droop, 28, 9, INK)
-		rect(ox + 15, 2 + droop, 9, 4, INK)
-		rect(ox + 27, 3 + droop, 8, 4, INK)
-		rect(ox + 11, 5 + droop, 26, 7, "9a273e")
-		rect(ox + 16, 3 + droop, 7, 3, "9a273e")
-		rect(ox + 28, 4 + droop, 6, 3, "9a273e")
-		rect(ox + 14, 3 + droop, 20, 3, INK)
-		rect(ox + 14, 7 + droop, 20, 4, "ec5346" if cycle != 3 else "ff6254")
-		rect(ox + 7, 8 + droop, 4, 3, INK)
-		rect(ox + 37, 8 + droop, 4, 3, INK)
-		rect(ox + 10, 12 + droop, 5, 11, INK)
-		rect(ox + 11, 12 + droop, 3, 10, "9a273e")
-		rect(ox + 33, 12 + droop, 5, 11, INK)
-		rect(ox + 34, 12 + droop, 3, 10, "9a273e")
-		for bang in [15, 22, 29]:
-			rect(ox + bang, 11 + droop, 4, 5, "9a273e")
-			rect(ox + bang + 1, 11 + droop, 2, 4, "ec5346")
-		var ey := 19 + droop
-		if cycle == 0:
-			rect(ox + 17, ey, 4, 4, INK)
-			rect(ox + 27, ey, 4, 4, INK)
-			rect(ox + 17, ey, 2, 2, "faf0dd")
-			rect(ox + 27, ey, 2, 2, "faf0dd")
-			rect(ox + 21, 26 + droop, 6, 1, "8c5458")
-		elif cycle == 1:
-			rect(ox + 16, ey + 4, 6, 2, "785280")
-			rect(ox + 26, ey + 4, 6, 2, "785280")
-			rect(ox + 17, ey + 1, 4, 3, INK)
-			rect(ox + 27, ey + 1, 4, 3, INK)
-			rect(ox + 17, ey, 4, 1, "38293d")
-			rect(ox + 27, ey, 4, 1, "38293d")
-			rect(ox + 21, 26 + droop, 6, 1, "693c45")
-		elif cycle == 2:
-			rect(ox + 16, ey + 3, 6, 3, "563766")
-			rect(ox + 26, ey + 3, 6, 3, "563766")
-			rect(ox + 17, ey + 1, 4, 3, INK)
-			rect(ox + 27, ey + 1, 4, 3, INK)
-			rect(ox + 16, ey, 5, 1, INK)
-			rect(ox + 26, ey, 5, 1, INK)
-			rect(ox + 21, 26 + droop, 6, 1, "5c353d")
-			rect(ox + 20, 27 + droop, 1, 2, "5c353d")
-			rect(ox + 27, 27 + droop, 1, 2, "5c353d")
-		else:
-			rect(ox + 15, ey + 4, 3, 2, "f28e88")
-			rect(ox + 30, ey + 4, 3, 2, "f28e88")
-			rect(ox + 17, ey, 4, 4, INK)
-			rect(ox + 27, ey, 4, 4, INK)
-			rect(ox + 17, ey, 2, 2, "ffffff")
-			rect(ox + 27, ey, 2, 2, "ffffff")
-			rect(ox + 19, ey + 2, 1, 1, "8de5ff")
-			rect(ox + 29, ey + 2, 1, 1, "8de5ff")
-			rect(ox + 19, 24 + droop, 1, 1, "a8565d")
-			rect(ox + 28, 24 + droop, 1, 1, "a8565d")
-			rect(ox + 20, 25 + droop, 8, 2, "b8585e")
-			rect(ox + 21, 25 + droop, 6, 1, "faf0dd")
+		_draw_student_portrait(cycle * 48, cycle)
 	save("cutscene_portraits")

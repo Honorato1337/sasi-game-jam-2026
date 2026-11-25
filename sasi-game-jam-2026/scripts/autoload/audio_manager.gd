@@ -5,72 +5,11 @@ const Player = preload("res://scenes/player/player.gd")
 const SFX_POOL_SIZE: int = 8
 const SAMPLE_RATE: int = 22050
 const WAVE_SIZE: int = 1024
+const SHAKER_SIZE: int = 4096
 const SYNTHESIS_BUDGET_US: int = 5000
 const SYNTHESIS_BLOCK_SIZE: int = 512
 const MUSIC_VOLUME_DB: float = -7.5
 
-# Each event holds a MIDI melody note, a MIDI bass note and a duration in ticks.
-# Zero means a rest. The phrases are original and use the composers' styles as cues.
-const MENU: Array[Vector3i] = [
-	Vector3i(72, 48, 2), Vector3i(76, 55, 1), Vector3i(79, 55, 1),
-	Vector3i(81, 45, 2), Vector3i(79, 52, 2), Vector3i(76, 41, 2),
-	Vector3i(74, 43, 1), Vector3i(71, 43, 1), Vector3i(72, 48, 3), Vector3i(0, 0, 1),
-]
-const MORNING: Array[Vector3i] = [
-	Vector3i(60, 48, 1), Vector3i(67, 48, 1), Vector3i(72, 52, 1), Vector3i(76, 52, 1),
-	Vector3i(67, 48, 1), Vector3i(72, 48, 1), Vector3i(76, 55, 1), Vector3i(79, 55, 1),
-	Vector3i(65, 45, 1), Vector3i(69, 45, 1), Vector3i(74, 50, 1), Vector3i(77, 50, 1),
-	Vector3i(69, 45, 1), Vector3i(74, 45, 1), Vector3i(77, 53, 1), Vector3i(81, 53, 1),
-	Vector3i(64, 48, 1), Vector3i(69, 48, 1), Vector3i(72, 45, 1), Vector3i(76, 45, 1),
-	Vector3i(65, 41, 1), Vector3i(72, 41, 1), Vector3i(77, 48, 1), Vector3i(81, 48, 1),
-	Vector3i(67, 43, 1), Vector3i(74, 43, 1), Vector3i(77, 47, 1), Vector3i(83, 47, 1),
-	Vector3i(79, 43, 1), Vector3i(77, 43, 1), Vector3i(74, 47, 1), Vector3i(71, 47, 1),
-]
-const NOCTURNE: Array[Vector3i] = [
-	Vector3i(76, 45, 3), Vector3i(81, 52, 2), Vector3i(83, 57, 1),
-	Vector3i(84, 41, 2), Vector3i(83, 48, 1), Vector3i(79, 53, 3),
-	Vector3i(77, 50, 3), Vector3i(76, 57, 2), Vector3i(74, 53, 1),
-	Vector3i(71, 40, 2), Vector3i(80, 47, 1), Vector3i(76, 56, 3),
-	Vector3i(81, 45, 4), Vector3i(79, 52, 1), Vector3i(76, 57, 1),
-	Vector3i(77, 41, 2), Vector3i(74, 48, 1), Vector3i(72, 53, 3),
-	Vector3i(71, 40, 2), Vector3i(74, 47, 1), Vector3i(76, 56, 2),
-	Vector3i(74, 47, 1), Vector3i(72, 45, 2), Vector3i(69, 52, 3), Vector3i(0, 45, 1),
-]
-const BOSS: Array[Vector3i] = [
-	Vector3i(71, 35, 2), Vector3i(78, 42, 1), Vector3i(79, 35, 1),
-	Vector3i(78, 42, 2), Vector3i(74, 35, 1), Vector3i(73, 42, 1),
-	Vector3i(71, 35, 1), Vector3i(71, 42, 1), Vector3i(74, 35, 1), Vector3i(78, 42, 1),
-	Vector3i(83, 31, 3), Vector3i(81, 38, 1), Vector3i(79, 31, 2), Vector3i(78, 38, 2),
-	Vector3i(76, 40, 1), Vector3i(74, 47, 1), Vector3i(76, 40, 1), Vector3i(79, 47, 1),
-	Vector3i(78, 30, 2), Vector3i(77, 42, 1), Vector3i(78, 30, 1),
-	Vector3i(85, 42, 2), Vector3i(82, 46, 1), Vector3i(78, 42, 1),
-]
-const BEETHOVEN: Array[Vector3i] = [
-	# Compasso 1 (8 ticks): motivo rítmico dramático em Dó menor
-	Vector3i(67, 48, 1), Vector3i(67, 48, 1), Vector3i(67, 48, 1),
-	Vector3i(63, 39, 3), Vector3i(0, 48, 1), Vector3i(65, 43, 1),
-	# Compasso 2 (8 ticks): resposta descendente
-	Vector3i(65, 43, 1), Vector3i(65, 43, 1), Vector3i(65, 43, 1),
-	Vector3i(62, 38, 3), Vector3i(0, 43, 1), Vector3i(67, 48, 1),
-	# Compasso 3 (8 ticks): arpejo urgente ascendente
-	Vector3i(72, 48, 1), Vector3i(75, 48, 1), Vector3i(79, 51, 1), Vector3i(75, 51, 1),
-	Vector3i(77, 50, 1), Vector3i(74, 50, 1), Vector3i(79, 43, 1), Vector3i(74, 43, 1),
-	# Compasso 4 (8 ticks): tensão e retorno
-	Vector3i(75, 48, 2), Vector3i(74, 43, 1), Vector3i(72, 48, 1),
-	Vector3i(71, 43, 2), Vector3i(72, 48, 1), Vector3i(0, 36, 1),
-]
-const HOPE: Array[Vector3i] = [
-	Vector3i(72, 48, 2), Vector3i(76, 52, 2), Vector3i(79, 55, 2), Vector3i(84, 52, 2),
-	Vector3i(81, 53, 2), Vector3i(79, 55, 2), Vector3i(76, 52, 3), Vector3i(0, 48, 1),
-	Vector3i(74, 50, 2), Vector3i(77, 53, 2), Vector3i(76, 52, 2), Vector3i(72, 48, 2),
-	Vector3i(74, 43, 2), Vector3i(71, 47, 2), Vector3i(72, 48, 3), Vector3i(0, 48, 1),
-]
-const NIGHT: Array[Vector3i] = [
-	Vector3i(69, 45, 2), Vector3i(72, 52, 2), Vector3i(76, 57, 2), Vector3i(74, 53, 2),
-	Vector3i(72, 48, 3), Vector3i(0, 48, 1), Vector3i(71, 43, 2), Vector3i(69, 45, 2),
-	Vector3i(67, 43, 2), Vector3i(72, 48, 2), Vector3i(74, 50, 2), Vector3i(76, 52, 2),
-	Vector3i(72, 45, 3), Vector3i(69, 45, 3), Vector3i(0, 40, 2),
-]
 const EFFECT_SCORES: Dictionary[StringName, Array] = {
 	&"voice_blip": [Vector3i(76, 0, 1)],
 	&"pickup": [Vector3i(72, 0, 1), Vector3i(84, 0, 2)],
@@ -85,11 +24,93 @@ const EFFECT_SCORES: Dictionary[StringName, Array] = {
 	&"habit_select": [Vector3i(74, 50, 1), Vector3i(79, 55, 2)],
 	&"alarm_beep": [Vector3i(88, 0, 1), Vector3i(0, 0, 1), Vector3i(88, 0, 1)],
 	&"console_boot": [Vector3i(60, 48, 1), Vector3i(67, 55, 1), Vector3i(72, 60, 1), Vector3i(84, 60, 3)],
-	&"victory": [Vector3i(72, 48, 2), Vector3i(76, 48, 2), Vector3i(79, 55, 2),
-		Vector3i(84, 48, 7)],
-	&"game_over": [Vector3i(71, 47, 2), Vector3i(67, 43, 2), Vector3i(63, 39, 3),
-		Vector3i(59, 35, 7)],
+	&"victory": [Vector3i(72, 48, 2), Vector3i(76, 48, 2), Vector3i(79, 55, 2), Vector3i(84, 48, 7)],
+	&"game_over": [Vector3i(71, 47, 2), Vector3i(67, 43, 2), Vector3i(63, 39, 3), Vector3i(59, 35, 7)],
 }
+
+const BOSSA_MENU: Array[Dictionary] = [
+	{"bass": Vector2i(45, 52), "chord": Vector3i(60, 64, 71), "melody": [Vector2i(76, 3), Vector2i(74, 1), Vector2i(72, 2), Vector2i(71, 2)]},
+	{"bass": Vector2i(38, 45), "chord": Vector3i(60, 64, 65), "melody": [Vector2i(72, 3), Vector2i(71, 1), Vector2i(69, 3), Vector2i(0, 1)]},
+	{"bass": Vector2i(43, 50), "chord": Vector3i(59, 64, 65), "melody": [Vector2i(71, 3), Vector2i(69, 1), Vector2i(67, 2), Vector2i(69, 2)]},
+	{"bass": Vector2i(48, 43), "chord": Vector3i(59, 62, 64), "melody": [Vector2i(74, 3), Vector2i(72, 1), Vector2i(71, 3), Vector2i(69, 1)]},
+	{"bass": Vector2i(41, 48), "chord": Vector3i(60, 64, 69), "melody": [Vector2i(76, 3), Vector2i(74, 1), Vector2i(72, 2), Vector2i(71, 2)]},
+	{"bass": Vector2i(47, 53), "chord": Vector3i(57, 62, 65), "melody": [Vector2i(74, 3), Vector2i(72, 1), Vector2i(71, 2), Vector2i(69, 2)]},
+	{"bass": Vector2i(40, 47), "chord": Vector3i(56, 62, 65), "melody": [Vector2i(77, 2), Vector2i(76, 2), Vector2i(74, 2), Vector2i(71, 2)]},
+	{"bass": Vector2i(45, 52), "chord": Vector3i(60, 66, 71), "melody": [Vector2i(72, 4), Vector2i(71, 2), Vector2i(0, 2)]},
+]
+
+const BOSSA_POEM: Array[Dictionary] = [
+	{"bass": Vector2i(50, 45), "chord": Vector3i(64, 65, 69), "melody": [Vector2i(77, 3), Vector2i(76, 1), Vector2i(74, 3), Vector2i(0, 1)]},
+	{"bass": Vector2i(43, 50), "chord": Vector3i(58, 62, 65), "melody": [Vector2i(79, 3), Vector2i(77, 1), Vector2i(74, 2), Vector2i(72, 2)]},
+	{"bass": Vector2i(48, 43), "chord": Vector3i(58, 62, 64), "melody": [Vector2i(76, 3), Vector2i(74, 1), Vector2i(72, 3), Vector2i(0, 1)]},
+	{"bass": Vector2i(41, 48), "chord": Vector3i(60, 64, 67), "melody": [Vector2i(74, 3), Vector2i(72, 1), Vector2i(69, 3), Vector2i(0, 1)]},
+	{"bass": Vector2i(46, 53), "chord": Vector3i(57, 62, 65), "melody": [Vector2i(74, 2), Vector2i(72, 2), Vector2i(70, 2), Vector2i(69, 2)]},
+	{"bass": Vector2i(40, 46), "chord": Vector3i(58, 62, 67), "melody": [Vector2i(76, 3), Vector2i(74, 1), Vector2i(70, 2), Vector2i(69, 2)]},
+	{"bass": Vector2i(45, 52), "chord": Vector3i(58, 61, 67), "melody": [Vector2i(73, 3), Vector2i(74, 1), Vector2i(76, 2), Vector2i(74, 2)]},
+	{"bass": Vector2i(50, 45), "chord": Vector3i(60, 64, 69), "melody": [Vector2i(72, 3), Vector2i(69, 3), Vector2i(0, 2)]},
+]
+
+const BOSSA_BEETHOVEN: Array[Dictionary] = [
+	{"bass": Vector2i(48, 43), "chord": Vector3i(60, 63, 67), "melody": [Vector2i(67, 1), Vector2i(67, 1), Vector2i(67, 1), Vector2i(63, 3), Vector2i(0, 1), Vector2i(65, 1)]},
+	{"bass": Vector2i(43, 50), "chord": Vector3i(59, 62, 65), "melody": [Vector2i(65, 1), Vector2i(65, 1), Vector2i(65, 1), Vector2i(62, 3), Vector2i(0, 1), Vector2i(67, 1)]},
+	{"bass": Vector2i(41, 43), "chord": Vector3i(60, 63, 68), "melody": [Vector2i(72, 1), Vector2i(75, 1), Vector2i(79, 1), Vector2i(75, 1), Vector2i(77, 1), Vector2i(74, 1), Vector2i(79, 1), Vector2i(74, 1)]},
+	{"bass": Vector2i(48, 43), "chord": Vector3i(59, 63, 67), "melody": [Vector2i(75, 2), Vector2i(74, 1), Vector2i(72, 1), Vector2i(71, 2), Vector2i(72, 1), Vector2i(0, 1)]},
+]
+
+const BOSSA_MORNING: Array[Dictionary] = [
+	{"bass": Vector2i(41, 48), "chord": Vector3i(60, 64, 67), "melody": [Vector2i(76, 3), Vector2i(74, 1), Vector2i(72, 2), Vector2i(69, 2)]},
+	{"bass": Vector2i(45, 52), "chord": Vector3i(58, 61, 67), "melody": [Vector2i(73, 3), Vector2i(74, 1), Vector2i(76, 3), Vector2i(0, 1)]},
+	{"bass": Vector2i(50, 45), "chord": Vector3i(60, 64, 65), "melody": [Vector2i(77, 3), Vector2i(76, 1), Vector2i(74, 2), Vector2i(72, 2)]},
+	{"bass": Vector2i(43, 50), "chord": Vector3i(59, 64, 65), "melody": [Vector2i(71, 3), Vector2i(74, 1), Vector2i(72, 2), Vector2i(69, 2)]},
+	{"bass": Vector2i(43, 50), "chord": Vector3i(58, 62, 65), "melody": [Vector2i(74, 3), Vector2i(72, 1), Vector2i(70, 2), Vector2i(69, 2)]},
+	{"bass": Vector2i(48, 43), "chord": Vector3i(58, 62, 64), "melody": [Vector2i(72, 3), Vector2i(70, 1), Vector2i(69, 2), Vector2i(67, 2)]},
+	{"bass": Vector2i(41, 48), "chord": Vector3i(57, 60, 64), "melody": [Vector2i(69, 3), Vector2i(72, 2), Vector2i(74, 2), Vector2i(72, 1)]},
+	{"bass": Vector2i(48, 43), "chord": Vector3i(58, 62, 67), "melody": [Vector2i(70, 3), Vector2i(69, 2), Vector2i(67, 2), Vector2i(0, 1)]},
+]
+
+const BOSSA_NOCTURNE: Array[Dictionary] = [
+	{"bass": Vector2i(40, 47), "chord": Vector3i(59, 62, 66), "melody": [Vector2i(74, 3), Vector2i(72, 1), Vector2i(71, 2), Vector2i(67, 2)]},
+	{"bass": Vector2i(45, 52), "chord": Vector3i(60, 64, 71), "melody": [Vector2i(71, 3), Vector2i(69, 1), Vector2i(67, 3), Vector2i(0, 1)]},
+	{"bass": Vector2i(50, 45), "chord": Vector3i(60, 64, 66), "melody": [Vector2i(72, 3), Vector2i(71, 1), Vector2i(69, 2), Vector2i(66, 2)]},
+	{"bass": Vector2i(43, 50), "chord": Vector3i(59, 62, 66), "melody": [Vector2i(71, 3), Vector2i(69, 1), Vector2i(67, 3), Vector2i(0, 1)]},
+	{"bass": Vector2i(48, 43), "chord": Vector3i(59, 62, 64), "melody": [Vector2i(76, 3), Vector2i(74, 1), Vector2i(72, 2), Vector2i(71, 2)]},
+	{"bass": Vector2i(42, 48), "chord": Vector3i(60, 64, 69), "melody": [Vector2i(72, 3), Vector2i(71, 1), Vector2i(69, 2), Vector2i(67, 2)]},
+	{"bass": Vector2i(47, 42), "chord": Vector3i(57, 60, 63), "melody": [Vector2i(75, 2), Vector2i(74, 2), Vector2i(72, 2), Vector2i(69, 2)]},
+	{"bass": Vector2i(40, 47), "chord": Vector3i(59, 62, 66), "melody": [Vector2i(71, 4), Vector2i(67, 2), Vector2i(0, 2)]},
+]
+
+const BOSSA_NIGHT: Array[Dictionary] = [
+	{"bass": Vector2i(48, 43), "chord": Vector3i(58, 62, 63), "melody": [Vector2i(74, 3), Vector2i(72, 1), Vector2i(70, 2), Vector2i(67, 2)]},
+	{"bass": Vector2i(41, 48), "chord": Vector3i(56, 60, 67), "melody": [Vector2i(75, 3), Vector2i(74, 1), Vector2i(72, 3), Vector2i(0, 1)]},
+	{"bass": Vector2i(46, 53), "chord": Vector3i(56, 62, 67), "melody": [Vector2i(74, 3), Vector2i(72, 1), Vector2i(70, 2), Vector2i(68, 2)]},
+	{"bass": Vector2i(39, 46), "chord": Vector3i(58, 62, 67), "melody": [Vector2i(70, 3), Vector2i(68, 1), Vector2i(67, 3), Vector2i(0, 1)]},
+	{"bass": Vector2i(44, 51), "chord": Vector3i(55, 60, 63), "melody": [Vector2i(72, 3), Vector2i(70, 1), Vector2i(68, 2), Vector2i(67, 2)]},
+	{"bass": Vector2i(50, 44), "chord": Vector3i(56, 60, 65), "melody": [Vector2i(72, 2), Vector2i(70, 2), Vector2i(68, 2), Vector2i(65, 2)]},
+	{"bass": Vector2i(43, 50), "chord": Vector3i(56, 59, 65), "melody": [Vector2i(74, 3), Vector2i(72, 1), Vector2i(71, 2), Vector2i(67, 2)]},
+	{"bass": Vector2i(48, 43), "chord": Vector3i(58, 62, 63), "melody": [Vector2i(72, 4), Vector2i(67, 2), Vector2i(0, 2)]},
+]
+
+const BOSSA_BOSS: Array[Dictionary] = [
+	{"bass": Vector2i(47, 42), "chord": Vector3i(57, 61, 62), "melody": [Vector2i(73, 2), Vector2i(74, 2), Vector2i(78, 2), Vector2i(74, 2)]},
+	{"bass": Vector2i(40, 47), "chord": Vector3i(55, 59, 66), "melody": [Vector2i(79, 3), Vector2i(78, 1), Vector2i(74, 2), Vector2i(73, 2)]},
+	{"bass": Vector2i(45, 52), "chord": Vector3i(55, 61, 66), "melody": [Vector2i(78, 2), Vector2i(76, 2), Vector2i(74, 2), Vector2i(73, 2)]},
+	{"bass": Vector2i(50, 45), "chord": Vector3i(61, 64, 66), "melody": [Vector2i(76, 3), Vector2i(74, 1), Vector2i(73, 2), Vector2i(71, 2)]},
+	{"bass": Vector2i(43, 50), "chord": Vector3i(59, 62, 66), "melody": [Vector2i(74, 2), Vector2i(78, 2), Vector2i(83, 2), Vector2i(81, 2)]},
+	{"bass": Vector2i(49, 43), "chord": Vector3i(59, 64, 67), "melody": [Vector2i(79, 2), Vector2i(78, 2), Vector2i(76, 2), Vector2i(74, 2)]},
+	{"bass": Vector2i(42, 49), "chord": Vector3i(58, 61, 67), "melody": [Vector2i(79, 3), Vector2i(78, 1), Vector2i(76, 2), Vector2i(73, 2)]},
+	{"bass": Vector2i(47, 42), "chord": Vector3i(57, 61, 66), "melody": [Vector2i(74, 3), Vector2i(71, 3), Vector2i(0, 2)]},
+]
+
+const BOSSA_HOPE: Array[Dictionary] = [
+	{"bass": Vector2i(48, 43), "chord": Vector3i(59, 62, 64), "melody": [Vector2i(76, 3), Vector2i(79, 2), Vector2i(83, 3)]},
+	{"bass": Vector2i(45, 52), "chord": Vector3i(60, 64, 71), "melody": [Vector2i(84, 3), Vector2i(83, 1), Vector2i(81, 2), Vector2i(79, 2)]},
+	{"bass": Vector2i(50, 45), "chord": Vector3i(60, 64, 65), "melody": [Vector2i(77, 3), Vector2i(76, 1), Vector2i(74, 2), Vector2i(72, 2)]},
+	{"bass": Vector2i(43, 50), "chord": Vector3i(59, 64, 65), "melody": [Vector2i(76, 3), Vector2i(74, 1), Vector2i(71, 3), Vector2i(0, 1)]},
+	{"bass": Vector2i(40, 47), "chord": Vector3i(59, 62, 67), "melody": [Vector2i(76, 2), Vector2i(74, 2), Vector2i(72, 2), Vector2i(71, 2)]},
+	{"bass": Vector2i(45, 52), "chord": Vector3i(58, 61, 67), "melody": [Vector2i(73, 3), Vector2i(74, 1), Vector2i(76, 2), Vector2i(72, 2)]},
+	{"bass": Vector2i(50, 45), "chord": Vector3i(60, 64, 65), "melody": [Vector2i(74, 3), Vector2i(72, 1), Vector2i(69, 2), Vector2i(71, 2)]},
+	{"bass": Vector2i(43, 48), "chord": Vector3i(59, 62, 64), "melody": [Vector2i(72, 5), Vector2i(0, 3)]},
+]
 
 var music_player: AudioStreamPlayer
 var sfx_players: Array[AudioStreamPlayer] = []
@@ -106,9 +127,12 @@ var _pending_volume: float = MUSIC_VOLUME_DB
 var _pending_pitch: float = 1.0
 var _synthesis_deadline: int = 0
 const ROOM_TRACKS: Array[StringName] = [&"morning", &"nocturne", &"night"]
-var _piano_wave: PackedFloat32Array = PackedFloat32Array()
-var _pad_wave: PackedFloat32Array = PackedFloat32Array()
-var _bell_wave: PackedFloat32Array = PackedFloat32Array()
+
+var _nylon_wave: PackedFloat32Array = PackedFloat32Array()
+var _rhodes_wave: PackedFloat32Array = PackedFloat32Array()
+var _flute_wave: PackedFloat32Array = PackedFloat32Array()
+var _bass_wave: PackedFloat32Array = PackedFloat32Array()
+var _shaker_wave: PackedFloat32Array = PackedFloat32Array()
 var _beat_phase: float = 1.0
 var _vibrato_time: float = 0.0
 var _breath_cue_frame: int = -1
@@ -347,7 +371,8 @@ func _on_clarity_ready_changed(is_ready: bool) -> void:
 
 
 func _on_habits_updated(sleep_rank: int, nutrition_rank: int, ally_count: int) -> void:
-	if GameManager.current_state == GameManager.GameState.HABIT_SELECT 			and sleep_rank + nutrition_rank + ally_count > 0:
+	if GameManager.current_state == GameManager.GameState.HABIT_SELECT \
+			and sleep_rank + nutrition_rank + ally_count > 0:
 		_play_effect(&"habit_select")
 
 
@@ -383,15 +408,31 @@ func _on_player_hit(_bpm_added: float) -> void:
 
 
 func _build_wavetables() -> void:
-	_piano_wave.resize(WAVE_SIZE)
-	_pad_wave.resize(WAVE_SIZE)
-	_bell_wave.resize(WAVE_SIZE)
+	_nylon_wave.resize(WAVE_SIZE)
+	_rhodes_wave.resize(WAVE_SIZE)
+	_flute_wave.resize(WAVE_SIZE)
+	_bass_wave.resize(WAVE_SIZE)
+	_shaker_wave.resize(SHAKER_SIZE)
 	for idx: int in range(WAVE_SIZE):
 		var a: float = TAU * float(idx) / float(WAVE_SIZE)
-		# Piano de feltro quente, cordas suaves e celesta sem ondas quadradas agressivas.
-		_piano_wave[idx] = (sin(a) + 0.34 * sin(a * 2.0) + 0.11 * sin(a * 3.0) + 0.03 * sin(a * 4.0)) / 1.38
-		_pad_wave[idx] = (sin(a) + 0.26 * sin(a * 2.0) + 0.16 * sin(a * 3.0) + 0.06 * sin(a * 5.0)) / 1.32
-		_bell_wave[idx] = (sin(a) + 0.18 * sin(a * 2.0) + 0.08 * sin(a * 3.0)) / 1.20
+		# Violão de nylon quente, Rhodes aveludado, flauta suave e baixo acústico de polegar.
+		_nylon_wave[idx] = (sin(a) + 0.44 * sin(a * 2.0 + 0.25) + 0.18 * sin(a * 3.0)
+				+ 0.065 * sin(a * 4.0 + 0.45) + 0.02 * sin(a * 5.0)) / 1.58
+		_rhodes_wave[idx] = (sin(a) + 0.28 * sin(a * 2.0) + 0.09 * sin(a * 3.0)
+				+ 0.03 * sin(a * 6.0)) / 1.32
+		_flute_wave[idx] = (sin(a) + 0.24 * sin(a * 2.0) + 0.11 * sin(a * 3.0)
+				+ 0.03 * sin(a * 4.0)) / 1.28
+		_bass_wave[idx] = (sin(a) + 0.36 * sin(a * 2.0) + 0.09 * sin(a * 3.0)) / 1.38
+
+	var lcg: int = 20260417
+	var prev: float = 0.0
+	for s_idx: int in range(SHAKER_SIZE):
+		lcg = (lcg * 1664525 + 1013904223) & 0x7fffffff
+		var white: float = (float(lcg) / 2147483647.0) * 2.0 - 1.0
+		# Suavização simples simulando vassourinha / ganzá quente sem estalo áspero.
+		var brushed: float = white * 0.55 - prev * 0.35
+		prev = white
+		_shaker_wave[s_idx] = clampf(brushed, -1.0, 1.0)
 
 
 func _generate_audio() -> void:
@@ -399,20 +440,22 @@ func _generate_audio() -> void:
 	for effect: StringName in EFFECT_SCORES:
 		var score: Array[Vector3i] = []
 		score.assign(EFFECT_SCORES[effect])
-		var sfx_timbre: StringName = &"pad" if effect == &"heartbeat" else (&"piano" if effect in [&"player_hit", &"core_hit", &"attack", &"dash"] else &"bell")
+		var sfx_timbre: StringName = &"pad" if effect == &"heartbeat" else (&"rhodes" if effect in [&"player_hit", &"core_hit", &"attack", &"dash"] else &"nylon")
 		_effects[effect] = await _render_score(score, 0.036, sfx_timbre, false)
 
-	await _generate_track(&"menu", MENU, 0.29, &"piano")
-	await _generate_track(&"beethoven", BEETHOVEN, 0.16, &"strings")
-	await _generate_track(&"morning", MORNING, 0.18, &"bell")
-	await _generate_track(&"nocturne", NOCTURNE, 0.24, &"piano")
-	await _generate_track(&"night", NIGHT, 0.26, &"piano")
-	await _generate_track(&"boss", BOSS, 0.155, &"strings")
-	await _generate_track(&"hope", HOPE, 0.31, &"bell")
+	await _generate_bossa_track(&"menu", BOSSA_MENU, 0.235, &"rhodes", &"bossa")
+	await _generate_bossa_track(&"beethoven", BOSSA_BEETHOVEN, 0.16, &"flute", &"urgent")
+	await _generate_bossa_track(&"poem", BOSSA_POEM, 0.285, &"flute", &"arpeggio")
+	await _generate_bossa_track(&"morning", BOSSA_MORNING, 0.21, &"rhodes", &"bossa")
+	await _generate_bossa_track(&"nocturne", BOSSA_NOCTURNE, 0.23, &"flute", &"bossa")
+	await _generate_bossa_track(&"night", BOSSA_NIGHT, 0.25, &"rhodes", &"bossa")
+	await _generate_bossa_track(&"boss", BOSSA_BOSS, 0.155, &"flute", &"urgent")
+	await _generate_bossa_track(&"hope", BOSSA_HOPE, 0.265, &"rhodes", &"bossa")
 
 
-func _generate_track(track: StringName, score: Array[Vector3i], tick: float, timbre: StringName) -> void:
-	_music[track] = await _render_score(score, tick, timbre, true)
+func _generate_bossa_track(track: StringName, bars: Array[Dictionary], step_seconds: float,
+		lead_style: StringName, groove_mode: StringName) -> void:
+	_music[track] = await _render_bossa_track(bars, step_seconds, lead_style, groove_mode)
 	if _pending_track == track:
 		if GameManager.current_state == GameManager.GameState.CUTSCENE:
 			play_track(track, _pending_volume, _pending_pitch)
@@ -427,8 +470,180 @@ func _sample_wave(table: PackedFloat32Array, phase: float) -> float:
 	return lerpf(table[i0], table[i1], pos - floorf(pos))
 
 
+func _yield_if_needed() -> void:
+	if Time.get_ticks_usec() >= _synthesis_deadline:
+		await get_tree().process_frame
+		_synthesis_deadline = Time.get_ticks_usec() + SYNTHESIS_BUDGET_US
+
+
+func _render_bossa_track(bars: Array[Dictionary], step_seconds: float, lead_style: StringName,
+		groove_mode: StringName) -> AudioStreamWAV:
+	var samples_per_step: int = roundi(step_seconds * float(SAMPLE_RATE))
+	var samples_per_bar: int = samples_per_step * 8
+	var total_samples: int = maxi(1, bars.size() * samples_per_bar)
+	var mix_buf: PackedFloat32Array = PackedFloat32Array()
+	mix_buf.resize(total_samples)
+
+	var lead_table: PackedFloat32Array = _flute_wave if lead_style == &"flute" else _rhodes_wave
+	var attack_samples: float = float(SAMPLE_RATE) * (0.026 if lead_style == &"flute" else 0.014)
+	var release_samples: float = float(SAMPLE_RATE) * 0.060
+	var chord_len: int = roundi(step_seconds * 2.4 * float(SAMPLE_RATE))
+	var pluck_atk: float = maxf(1.0, float(SAMPLE_RATE) * 0.008)
+	var inv_sr: float = 1.0 / float(SAMPLE_RATE)
+
+	for bar_idx: int in range(bars.size()):
+		await _yield_if_needed()
+		var bar: Dictionary = bars[bar_idx]
+		var bar_offset: int = bar_idx * samples_per_bar
+		var bass_pair: Vector2i = bar["bass"]
+		var chord: Vector3i = bar["chord"]
+
+		# 1. Violão de nylon (dedilhado arpejado para poema ou batida sincopada de Bossa Nova).
+		if groove_mode == &"arpeggio":
+			var root_arp: int = bass_pair.x + 12
+			var arp_notes: Array[int] = [
+				root_arp, chord.x, chord.y, chord.z,
+				chord.y, chord.x, chord.z, chord.y,
+			]
+			var arp_len: int = roundi(float(samples_per_step) * 2.2)
+			for step_idx: int in range(8):
+				var arp_step: float = _note_step(arp_notes[step_idx])
+				var arp_gain: float = 0.145 if step_idx == 0 else 0.115
+				var start_pos: int = bar_offset + step_idx * samples_per_step
+				for s: int in range(arp_len):
+					var env: float = (float(s) / pluck_atk) if float(s) < pluck_atk else exp(-3.6 * float(s) * inv_sr)
+					var dest: int = (start_pos + s) % total_samples
+					mix_buf[dest] += _sample_wave(_nylon_wave, float(s) * arp_step) * env * arp_gain
+		else:
+			var step_x: float = _note_step(chord.x)
+			var step_y: float = _note_step(chord.y)
+			var step_z: float = _note_step(chord.z)
+			var chord_pluck: PackedFloat32Array = PackedFloat32Array()
+			chord_pluck.resize(chord_len)
+			var rel_samples: float = float(SAMPLE_RATE) * 0.045
+			for s: int in range(chord_len):
+				var env: float = 1.0
+				if float(s) < pluck_atk:
+					env = float(s) / pluck_atk
+				elif chord_len - s < int(rel_samples):
+					env = float(chord_len - s) / rel_samples
+				var decay: float = exp(-4.8 * float(s) * inv_sr)
+				var v: float = (_sample_wave(_nylon_wave, float(s) * step_x)
+						+ _sample_wave(_nylon_wave, float(s) * step_y) * 0.94
+						+ _sample_wave(_nylon_wave, float(s) * step_z) * 0.90) * 0.34
+				chord_pluck[s] = v * env * decay
+
+			var strum_steps: Array[float] = []
+			var strum_gains: Array[float] = []
+			if groove_mode == &"urgent":
+				strum_steps = [0.0, 1.5, 3.0, 4.5, 6.0, 7.0]
+				strum_gains = [0.22, 0.16, 0.20, 0.16, 0.19, 0.15]
+			elif (bar_idx % 2) == 0:
+				# Clave clássica de Bossa Nova: compasso par sincopado sobre as colcheias/semicolcheias.
+				strum_steps = [0.0, 1.5, 3.0, 5.0, 6.0]
+				strum_gains = [0.24, 0.17, 0.22, 0.18, 0.20]
+			else:
+				strum_steps = [1.0, 2.0, 3.5, 5.0, 6.5]
+				strum_gains = [0.18, 0.19, 0.21, 0.17, 0.20]
+
+			for idx: int in range(strum_steps.size()):
+				var hit_pos: int = bar_offset + roundi(strum_steps[idx] * float(samples_per_step))
+				var hit_gain: float = strum_gains[idx]
+				for s: int in range(chord_len):
+					var dest: int = (hit_pos + s) % total_samples
+					mix_buf[dest] += chord_pluck[s] * hit_gain
+
+		# 2. Baixo acústico quente no tempo 1, tempo 3 e antecipação de Bossa.
+		var bass_hits: Array[Vector2] = [Vector2(0.0, 3.5), Vector2(4.0, 3.2)]
+		if groove_mode == &"bossa" and (bar_idx % 2) == 1:
+			bass_hits = [Vector2(0.0, 3.3), Vector2(4.0, 2.6), Vector2(7.0, 1.0)]
+		elif groove_mode == &"urgent":
+			bass_hits = [Vector2(0.0, 2.4), Vector2(3.0, 1.2), Vector2(4.0, 2.4), Vector2(7.0, 1.0)]
+		elif groove_mode == &"arpeggio":
+			bass_hits = [Vector2(0.0, 4.2), Vector2(4.0, 3.8)]
+		var bass_atk: float = maxf(1.0, float(SAMPLE_RATE) * 0.012)
+		for b_idx: int in range(bass_hits.size()):
+			var b_note: int = bass_pair.x if b_idx == 0 else bass_pair.y
+			var b_step: float = _note_step(b_note)
+			var b_start: int = bar_offset + roundi(bass_hits[b_idx].x * float(samples_per_step))
+			var b_len: int = roundi(bass_hits[b_idx].y * float(samples_per_step))
+			var b_gain: float = 0.24 if b_idx == 0 else 0.19
+			for s: int in range(b_len):
+				var env: float = (float(s) / bass_atk) if float(s) < bass_atk else minf(1.0, float(b_len - s) / (float(SAMPLE_RATE) * 0.04))
+				var decay: float = exp(-2.1 * float(s) * inv_sr)
+				var dest: int = (b_start + s) % total_samples
+				mix_buf[dest] += _sample_wave(_bass_wave, float(s) * b_step) * env * decay * b_gain
+
+		# 3. Vassourinha / ganzá sutil nas faixas com levada.
+		if groove_mode != &"arpeggio":
+			var brush_len: int = mini(roundi(0.032 * float(SAMPLE_RATE)), SHAKER_SIZE)
+			for half_step: int in range(16):
+				var accent: float = 0.026 if (half_step % 4 == 2) else (0.018 if (half_step % 2 == 0) else 0.011)
+				var sh_pos: int = bar_offset + roundi(float(half_step) * 0.5 * float(samples_per_step))
+				var seed_shift: int = (half_step * 173 + bar_idx * 97) % SHAKER_SIZE
+				for s: int in range(brush_len):
+					var sh_env: float = (1.0 - float(s) / float(brush_len)) * accent
+					var dest: int = (sh_pos + s) % total_samples
+					mix_buf[dest] += _shaker_wave[(s + seed_shift) % SHAKER_SIZE] * sh_env
+
+		# 4. Melodia cantabile em Rhodes ou Flauta com fraseado suave e vibrato sutil.
+		var melody_offset: int = bar_offset
+		var melody_events: Array = bar["melody"]
+		for ev: Vector2i in melody_events:
+			var length: int = ev.y * samples_per_step
+			if ev.x != 0:
+				var tail_len: int = roundi(float(length) * 0.24)
+				var render_len: int = length + tail_len
+				var note_step: float = _note_step(ev.x)
+				var lead_gain: float = 0.24 if lead_style == &"rhodes" else 0.22
+				var use_vibrato: bool = ev.y >= 3
+				for s: int in range(render_len):
+					var env: float = 1.0
+					if float(s) < attack_samples:
+						env = float(s) / attack_samples
+					elif s >= length:
+						env = maxf(0.0, 1.0 - float(s - length) / float(maxi(1, tail_len)))
+					elif float(render_len - 1 - s) < release_samples:
+						env = float(render_len - 1 - s) / release_samples
+					var decay: float = exp(-1.55 * float(s) * inv_sr) if lead_style == &"rhodes" else (1.0 - 0.22 * float(s) / float(render_len))
+					var vib: float = (1.0 + 0.0028 * sin(TAU * 4.8 * float(s) * inv_sr)) if use_vibrato else 1.0
+					var dest: int = (melody_offset + s) % total_samples
+					mix_buf[dest] += _sample_wave(lead_table, float(s) * note_step * vib) * env * decay * lead_gain
+			melody_offset += length
+
+	await _yield_if_needed()
+	# Eco acústico suave de sala íntima + suavização sutil de agudos.
+	var tap_a: int = mini(total_samples - 1, roundi(0.185 * float(SAMPLE_RATE)))
+	var tap_b: int = mini(total_samples - 1, roundi(0.310 * float(SAMPLE_RATE)))
+	var wet_buf: PackedFloat32Array = PackedFloat32Array()
+	wet_buf.resize(total_samples)
+	for idx: int in range(total_samples):
+		var a_idx: int = (idx - tap_a + total_samples) % total_samples
+		var b_idx: int = (idx - tap_b + total_samples) % total_samples
+		wet_buf[idx] = mix_buf[idx] + mix_buf[a_idx] * 0.19 + mix_buf[b_idx] * 0.09
+
+	var pcm: PackedByteArray = PackedByteArray()
+	pcm.resize(total_samples * 2)
+	var prev_sample: float = wet_buf[total_samples - 1]
+	for idx: int in range(total_samples):
+		var warm: float = wet_buf[idx] * 0.78 + prev_sample * 0.22
+		prev_sample = wet_buf[idx]
+		var shaped: float = clampf(warm * 0.88, -0.98, 0.98)
+		pcm.encode_s16(idx * 2, roundi(shaped * 32767.0))
+
+	var stream: AudioStreamWAV = AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = SAMPLE_RATE
+	stream.stereo = false
+	stream.data = pcm
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_begin = 0
+	stream.loop_end = total_samples
+	return stream
+
+
 func _render_score(score: Array[Vector3i], tick_seconds: float, timbre: StringName,
-		loop: bool) -> AudioStreamWAV:
+		_loop: bool) -> AudioStreamWAV:
 	var samples_per_tick: int = roundi(tick_seconds * SAMPLE_RATE)
 	var total_samples: int = 0
 	for event: Vector3i in score:
@@ -436,60 +651,34 @@ func _render_score(score: Array[Vector3i], tick_seconds: float, timbre: StringNa
 
 	var mix_buf: PackedFloat32Array = PackedFloat32Array()
 	mix_buf.resize(total_samples)
-	var lead_table: PackedFloat32Array = _piano_wave
-	var attack_sec: float = 0.018
-	if timbre == &"strings":
-		lead_table = _pad_wave
-		attack_sec = 0.042 if loop else 0.012
-	elif timbre == &"bell":
-		lead_table = _bell_wave
-		attack_sec = 0.010 if loop else 0.006
-	elif timbre == &"pad":
-		lead_table = _pad_wave
-		attack_sec = 0.014
-
+	var lead_table: PackedFloat32Array = _nylon_wave if timbre == &"nylon" else (_flute_wave if timbre == &"pad" else _rhodes_wave)
+	var attack_sec: float = 0.012 if timbre == &"pad" else 0.008
 	var attack_samples: float = maxf(1.0, float(SAMPLE_RATE) * attack_sec)
-	var release_samples: float = maxf(1.0, float(SAMPLE_RATE) * (0.045 if loop else 0.014))
+	var release_samples: float = maxf(1.0, float(SAMPLE_RATE) * 0.014)
 	var offset: int = 0
 	for event: Vector3i in score:
 		var length: int = event.z * samples_per_tick
-		var tail_len: int = roundi(float(length) * 0.28) if loop else 0
-		var render_len: int = length + tail_len
 		var lead_step: float = _note_step(event.x)
 		var bass_step: float = _note_step(event.y)
-		var lead_gain: float = (0.30 if loop else 0.48) if event.x != 0 else 0.0
-		var bass_gain: float = (0.24 if loop else 0.44) if event.y != 0 else 0.0
-		for block: int in range(0, render_len, SYNTHESIS_BLOCK_SIZE):
-			if Time.get_ticks_usec() >= _synthesis_deadline:
-				# Spread PCM synthesis across frames on single-threaded Web exports.
-				await get_tree().process_frame
-				_synthesis_deadline = Time.get_ticks_usec() + SYNTHESIS_BUDGET_US
-			var end: int = mini(block + SYNTHESIS_BLOCK_SIZE, render_len)
+		var lead_gain: float = 0.46 if event.x != 0 else 0.0
+		var bass_gain: float = 0.42 if event.y != 0 else 0.0
+		for block: int in range(0, length, SYNTHESIS_BLOCK_SIZE):
+			await _yield_if_needed()
+			var end: int = mini(block + SYNTHESIS_BLOCK_SIZE, length)
 			for sample: int in range(block, end):
 				var env: float = 1.0
 				if float(sample) < attack_samples:
 					env = float(sample) / attack_samples
-				elif sample >= length:
-					env = maxf(0.0, 1.0 - float(sample - length) / float(maxi(1, tail_len)))
 				else:
-					var dist_end: float = float(render_len - 1 - sample)
+					var dist_end: float = float(length - 1 - sample)
 					if dist_end < release_samples:
 						env = dist_end / release_samples
-				var decay: float = 1.0 - (0.36 if timbre == &"strings" else 0.56) * float(sample) / float(render_len)
+				var decay: float = 1.0 - 0.50 * float(sample) / float(maxi(1, length))
 				var lead_val: float = _sample_wave(lead_table, float(sample) * lead_step) if lead_gain > 0.0 else 0.0
-				var bass_val: float = _sample_wave(_pad_wave, float(sample) * bass_step) if bass_gain > 0.0 else 0.0
-				var dest: int = (offset + sample) % total_samples if loop else mini(total_samples - 1, offset + sample)
+				var bass_val: float = _sample_wave(_bass_wave, float(sample) * bass_step) if bass_gain > 0.0 else 0.0
+				var dest: int = mini(total_samples - 1, offset + sample)
 				mix_buf[dest] += (lead_val * lead_gain + bass_val * bass_gain) * env * decay
 		offset += length
-
-	if loop and total_samples > 0:
-		var delay_samples: int = mini(total_samples - 1, roundi(0.16 * SAMPLE_RATE))
-		var echoed: PackedFloat32Array = PackedFloat32Array()
-		echoed.resize(total_samples)
-		for idx: int in range(total_samples):
-			var tap: int = (idx - delay_samples + total_samples) % total_samples
-			echoed[idx] = mix_buf[idx] + mix_buf[tap] * 0.18
-		mix_buf = echoed
 
 	var pcm: PackedByteArray = PackedByteArray()
 	pcm.resize(total_samples * 2)
@@ -502,10 +691,6 @@ func _render_score(score: Array[Vector3i], tick_seconds: float, timbre: StringNa
 	stream.mix_rate = SAMPLE_RATE
 	stream.stereo = false
 	stream.data = pcm
-	if loop:
-		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		stream.loop_begin = 0
-		stream.loop_end = total_samples
 	return stream
 
 
