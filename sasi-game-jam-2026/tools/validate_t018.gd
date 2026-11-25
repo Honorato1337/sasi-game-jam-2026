@@ -132,7 +132,8 @@ func _check_intro_cutscene() -> void:
 
 
 func _check_morning() -> void:
-	_check_room(1, "room_1_morning", 3, 6)
+	_check_room(1, "room_1_morning", 4, 7)
+	_check(_arena._decor_obstacles.get_child_count() >= 6, "Pilastras e obstáculos presentes na Manhã")
 	_check(_arena._camera.limit_right == 960 and _arena._camera.limit_bottom == 540, "Câmera cobre mapa 960×540")
 	_check(GameManager.body == 35.0 and GameManager.get_attack_range() == 26.0
 			and GameManager.get_attack_damage() == 16 and GameManager.get_move_speed_multiplier() == 0.75,
@@ -193,7 +194,7 @@ func _check_morning() -> void:
 
 
 func _check_afternoon() -> void:
-	_check_room(2, "room_2_afternoon", 3, 7)
+	_check_room(2, "room_2_afternoon", 4, 8)
 	_check(_arena._stations.get_child_count() == 4, "Água, colega e duas bancadas físicas")
 	await _tap(KEY_ESCAPE)
 	_check(GameManager.current_state == GameManager.GameState.PLAYING, "Esc pula sem pausar")
@@ -218,7 +219,7 @@ func _check_afternoon() -> void:
 			and is_equal_approx(_arena._hud._vignette.get_shader_parameter(&"strength"), 0.58),
 			"Sobrecarga intensifica vinheta")
 	await _wait(0.08)
-	_check(absf(AudioManager.music_player.pitch_scale - 1.12) <= 0.009, "Vibrato em sobrecarga")
+	_check(absf(AudioManager.music_player.pitch_scale - 1.12) <= 0.009, "Pitch estável em sobrecarga")
 	GameManager.spend_rest(100.0)
 	_check(GameManager.is_exhausted and is_equal_approx(AudioManager.music_player.pitch_scale, 0.90),
 			"Exaustão tem prioridade no pitch")
@@ -237,7 +238,7 @@ func _check_afternoon() -> void:
 
 func _check_cycle_progression() -> void:
 	# Sala 3 (Noite Ciclo 1)
-	_check_room(3, "room_3_night", 4, 8)
+	_check_room(3, "room_3_night", 4, 9)
 	_check(AudioManager.music_player.stream == AudioManager._music.get(&"night"), "Trilha da Noite C1")
 	await _tap(KEY_ESCAPE)
 	await _clear_combat()
@@ -248,36 +249,41 @@ func _check_cycle_progression() -> void:
 	GameManager.modify_rest(100.0)
 	GameManager.modify_mind(100.0)
 	GameManager.modify_body(100.0)
-	await _walk_through_door(4)
+	await _walk_through_door(4, KEY_2)
+	_check(GameManager.max_hp == 125 and GameManager.nutrition_rank == 1, "Hábito 2 amplia HP máximo no Ciclo 2")
 
 	# Sala 4 (Manhã Ciclo 2)
-	_check_room(4, "room_4_c2_morning", 4, 8)
+	_check_room(4, "room_4_c2_morning", 4, 9)
 	await _tap(KEY_ESCAPE)
 	await _wait(0.08)
+	var water_c2: Station = _find_station(Station.StationType.WATER_SNACK)
+	_check(water_c2 != null and water_c2.locked_by_wave, "Estações da Sala 4 iniciam seladas na 1ª leva")
 	_check(is_equal_approx(_first_enemy()._fog_amount, 0.50), "Ciclo 2 revela parcialmente o jogador nos inimigos")
 	await _capture("ciclo2-manha")
 	await _clear_combat()
+	_check(water_c2 != null and not water_c2.locked_by_wave, "Estações liberam após a 1ª leva")
 	GameManager.modify_body(100.0)
 	await _walk_through_door(5)
 
 	# Sala 5 (Tarde Ciclo 2) e Sala 6 (Noite Ciclo 2)
-	_check_room(5, "room_5_c2_afternoon", 4, 9)
+	_check_room(5, "room_5_c2_afternoon", 5, 10)
 	await _tap(KEY_ESCAPE)
 	await _clear_combat()
 	GameManager.modify_body(100.0)
 	GameManager.modify_mind(100.0)
 	await _walk_through_door(6)
 
-	_check_room(6, "room_6_c2_night", 5, 10)
+	_check_room(6, "room_6_c2_night", 5, 11)
 	await _tap(KEY_ESCAPE)
 	await _clear_combat()
 	GameManager.modify_body(100.0)
 	GameManager.modify_mind(100.0)
 	GameManager.modify_rest(100.0)
-	await _walk_through_door(7)
+	await _walk_through_door(7, KEY_1)
+	_check(GameManager.sleep_rank == 1, "Hábito 1 aplica Descanso & Sono no Ciclo 3")
 
 	# Sala 7 (Manhã Ciclo 3) e Sala 8 (Tarde Ciclo 3)
-	_check_room(7, "room_7_c3_morning", 5, 10)
+	_check_room(7, "room_7_c3_morning", 5, 11)
 	await _tap(KEY_ESCAPE)
 	await _wait(0.08)
 	_check(is_equal_approx(_first_enemy()._fog_amount, 0.08), "Ciclo 3 quase dissipa névoa revelando o próprio rosto")
@@ -286,7 +292,7 @@ func _check_cycle_progression() -> void:
 	GameManager.modify_body(100.0)
 	await _walk_through_door(8)
 
-	_check_room(8, "room_8_c3_afternoon", 6, 12)
+	_check_room(8, "room_8_c3_afternoon", 6, 13)
 	await _tap(KEY_ESCAPE)
 	await _clear_combat()
 	GameManager.modify_body(100.0)
@@ -324,7 +330,7 @@ func _check_night() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	_check(get_tree().get_nodes_in_group(&"stress_projectiles").size() >= 8
-			and GameManager.mind < previous_mind - 16.0, "Fase 2 aumenta leque e drena Mente")
+			and GameManager.mind < previous_mind - 14.0, "Fase 2 aumenta leque e drena Mente")
 	await _wait(0.14)
 	await _capture("noite")
 	for projectile: Node in get_tree().get_nodes_in_group(&"stress_projectiles"):
@@ -386,7 +392,7 @@ func _check_endings() -> void:
 			and _screens._stats.text.begins_with("Ciclo 3/3 (Noite)"), "Resumo de vitória após poema")
 	await _capture("vitoria")
 	await _tap(KEY_ENTER)
-	_check_room(1, "room_1_morning", 3, 6)
+	_check_room(1, "room_1_morning", 4, 7)
 	_check(GameManager.hp == 100 and GameManager.score == 0 and not GameManager.ally_active, "Reinício limpa partida")
 	await _tap(KEY_ESCAPE)
 	GameManager.damage_player(100)
@@ -414,7 +420,7 @@ func _clear_combat() -> void:
 		await _wait(0.12)
 
 
-func _walk_through_door(next_room: int) -> void:
+func _walk_through_door(next_room: int, habit_key: int = 0) -> void:
 	_player.position = _arena._door.position + Vector2(0, 50)
 	await _wait(0.06)
 	_check(_arena._door_open and _arena._door_sign.text == "AVANÇAR ↑", "Porta abre após cumprir objetivos")
@@ -422,6 +428,12 @@ func _walk_through_door(next_room: int) -> void:
 	_key(KEY_W, true)
 	await _wait(0.45)
 	_key(KEY_W, false)
+	if habit_key != 0:
+		_check(GameManager.current_state == GameManager.GameState.HABIT_SELECT,
+				"Abre escolha de hábito antes da Sala %d" % next_room)
+		await _capture("habito-ciclo%d" % GameManager.get_cycle())
+		await _tap(habit_key)
+		await _wait(0.08)
 	_check(GameManager.room == next_room, "Cruza a Porta Norte andando até a Sala %d" % next_room)
 
 

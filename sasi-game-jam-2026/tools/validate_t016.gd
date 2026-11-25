@@ -6,7 +6,8 @@ const SPRITES := "res://assets/sprites/"
 const LAYOUTS := {
 	"student_sheet": Vector3i(32, 32, 8), "student_cutscene_sheet": Vector3i(32, 32, 4),
 	"classmate_sheet": Vector3i(32, 32, 2),
-	"stations_sheet": Vector3i(48, 48, 4), "enemy_procrastination_sheet": Vector3i(32, 32, 2),
+	"stations_sheet": Vector3i(48, 48, 4), "room_props_sheet": Vector3i(48, 48, 4),
+	"enemy_procrastination_sheet": Vector3i(32, 32, 2),
 	"enemy_deadline_sheet": Vector3i(32, 32, 2), "enemy_selfcriticism_sheet": Vector3i(34, 36, 2),
 	"boss_burnout_sheet": Vector3i(80, 80, 2),
 	"room_morning": Vector3i(960, 540, 1), "room_afternoon": Vector3i(960, 540, 1), "room_night": Vector3i(960, 540, 1),
@@ -108,6 +109,12 @@ func run() -> void:
 	gm.increment_combo()
 	gm.add_score(10)
 	check(gm.room == 9 and gm.get_cycle() == 3 and gm.get_turn() == 3 and gm.is_final_room() and gm.combo == 1 and gm.score == 10, "sala e placar")
+	gm.increment_combo()
+	gm.increment_combo()
+	check(is_equal_approx(gm.get_breathe_duration(), 1.13), "combo 3 acelera respiração")
+	gm.increment_combo()
+	gm.increment_combo()
+	check(gm.get_attack_damage() >= 30, "combo 5 aumenta dano")
 	gm.damage_player(40)
 	gm.heal_player(15)
 	check(gm.hp == 75 and gm.core_hp == gm.hp, "vida e compatibilidade")
@@ -115,5 +122,9 @@ func run() -> void:
 	check(gm.current_state == Manager.GameState.GAME_OVER, "derrota")
 	gm.reset_game()
 	check(gm.current_state == Manager.GameState.MENU and gm.combo == 0 and gm.score == 0 and not gm.ally_active and gm.room == 1, "reinício")
+	gm.start_new_run()
+	gm.apply_habit_choice("nutrition")
+	check(gm.max_hp == 125 and gm.nutrition_rank == 1, "hábito nutrição amplia HP máximo")
+	gm.reset_game()
 	print("T-016: ", failures, " falha(s).")
 	quit(1 if failures else 0)

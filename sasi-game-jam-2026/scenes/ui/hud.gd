@@ -123,7 +123,9 @@ func _on_mind_state_changed(state: GameManager.MindState) -> void:
 
 
 func _on_score_changed(score: int) -> void:
-	_score.text = "Score %d   •   Combo x%d" % [score, maxi(1, GameManager.combo)]
+	var focus_tag: String = " [FOCO+]" if GameManager.combo >= 3 else ""
+	_score.text = "Score %d   •   Combo x%d%s" % [score, maxi(1, GameManager.combo), focus_tag]
+	_score.add_theme_color_override(&"font_color", Retro.GOLD if GameManager.combo >= 3 else Retro.MUTED)
 
 
 func _on_combo_changed(_combo: int) -> void:

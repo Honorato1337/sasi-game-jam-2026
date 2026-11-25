@@ -31,6 +31,7 @@ func _initialize() -> void:
 	sheet("student_sheet", STUDENT)
 	sheet("classmate_sheet", CLASSMATE)
 	generate_stations_sheet()
+	generate_room_props_sheet()
 	generate_reflection_enemies()
 	generate_burnout_boss_sheet()
 	generate_student_cutscene_sheet()
@@ -1921,6 +1922,100 @@ func generate_stations_sheet() -> void:
 	rect(86, 36, 4, 5, INK)
 	rect(87, 37, 2, 3, "7b4d3b")
 	save("stations_sheet")
+
+
+func generate_room_props_sheet() -> void:
+	art = Image.create_empty(192, 48, false, Image.FORMAT_RGBA8)
+	var shadow := Color(0.08, 0.05, 0.12, 0.45)
+
+	# Quadro 0 (x = 0..47): Pilastra de pedra clara e carvalho (Manhã).
+	art.fill_rect(Rect2i(8, 39, 32, 6), shadow)
+	rect(11, 32, 26, 10, INK)
+	rect(12, 33, 24, 8, "736267")
+	rect(13, 33, 22, 3, "a8948e")
+	rect(14, 34, 18, 1, "cfc0b4")
+	rect(14, 10, 20, 23, INK)
+	rect(15, 11, 18, 21, "8e7b7e")
+	rect(16, 11, 6, 20, "b5a39c")
+	rect(17, 12, 3, 18, "d9cabe")
+	rect(28, 11, 5, 21, "66545c")
+	for band_y in [14, 24]:
+		rect(14, band_y, 20, 3, "472e26")
+		rect(15, band_y + 1, 18, 1, "c48c4f")
+	rect(10, 5, 28, 7, INK)
+	rect(11, 6, 26, 5, "9d8a87")
+	rect(12, 6, 22, 2, "dfd1c2")
+	rect(14, 7, 14, 1, "f5ebdb")
+
+	# Quadro 1 (x = 48..95): Pilastra de tijolos do campus com hera (Tarde).
+	var x1: int = 48
+	art.fill_rect(Rect2i(x1 + 8, 39, 32, 6), shadow)
+	rect(x1 + 11, 32, 26, 10, INK)
+	rect(x1 + 12, 33, 24, 8, "564659")
+	rect(x1 + 13, 33, 22, 3, "816e84")
+	rect(x1 + 14, 10, 20, 23, INK)
+	masonry(x1 + 15, 11, 18, 21, true)
+	rect(x1 + 19, 17, 10, 7, INK)
+	rect(x1 + 20, 18, 8, 5, "b87c3e")
+	rect(x1 + 21, 19, 5, 2, "f0be74")
+	rect(x1 + 10, 5, 28, 7, INK)
+	rect(x1 + 11, 6, 26, 5, "756478")
+	rect(x1 + 12, 6, 22, 2, "b3a0b2")
+	for vine in [Vector2i(14, 12), Vector2i(15, 18), Vector2i(13, 25), Vector2i(29, 13), Vector2i(31, 22)]:
+		rect(x1 + vine.x, vine.y, 4, 4, "2c664a")
+		rect(x1 + vine.x + 1, vine.y + 1, 2, 2, "5ebb7a")
+
+	# Quadro 2 (x = 96..143): Coluna escura com lanterna acesa e runa (Noite).
+	var x2: int = 96
+	art.fill_rect(Rect2i(x2 + 8, 39, 32, 6), shadow)
+	rect(x2 + 11, 32, 26, 10, INK)
+	rect(x2 + 12, 33, 24, 8, "2d243b")
+	rect(x2 + 13, 33, 22, 3, "4e4166")
+	rect(x2 + 14, 13, 20, 20, INK)
+	rect(x2 + 15, 14, 18, 18, "362c47")
+	rect(x2 + 16, 14, 6, 17, "4e4166")
+	rect(x2 + 27, 14, 6, 17, "241c32")
+	# Runa ciano suave esculpida no centro da coluna.
+	rect(x2 + 22, 19, 4, 8, "1e2e40")
+	rect(x2 + 23, 20, 2, 6, "56c9e8")
+	rect(x2 + 23, 22, 2, 2, "bdf9ff")
+	# Capitel e braseiro com chama quente acima da coluna.
+	rect(x2 + 11, 9, 26, 6, INK)
+	rect(x2 + 12, 10, 24, 4, "483c5e")
+	rect(x2 + 13, 10, 20, 1, "73638f")
+	rect(x2 + 17, 2, 14, 9, INK)
+	rect(x2 + 18, 3, 12, 7, "6b3b36")
+	rect(x2 + 19, 4, 10, 5, "ed9745")
+	rect(x2 + 21, 5, 6, 4, "ffd46b")
+	rect(x2 + 22, 5, 4, 2, "fff6cc")
+
+	# Quadro 3 (x = 144..191): Mesa de estudo maciça com livros e caneca.
+	var x3: int = 144
+	art.fill_rect(Rect2i(x3 + 4, 38, 40, 7), shadow)
+	for lx in [7, 36]:
+		rect(x3 + lx, 31, 5, 10, INK)
+		rect(x3 + lx + 1, 31, 3, 9, "59372b")
+		rect(x3 + lx + 1, 31, 1, 8, "8c5b43")
+	rect(x3 + 4, 15, 40, 18, INK)
+	timber(x3 + 5, 16, 38, 12)
+	rect(x3 + 5, 28, 38, 4, "4a2e25")
+	rect(x3 + 6, 28, 36, 1, "694436")
+	# Pilha de livros e caderno aberto.
+	rect(x3 + 9, 9, 13, 9, INK)
+	rect(x3 + 10, 10, 11, 4, "8f354b")
+	rect(x3 + 11, 10, 8, 2, "bd4d62")
+	rect(x3 + 10, 14, 11, 3, "386587")
+	rect(x3 + 11, 14, 8, 1, "5c93b5")
+	rect(x3 + 23, 17, 13, 8, INK)
+	rect(x3 + 24, 18, 11, 6, "ede1cc")
+	rect(x3 + 29, 18, 1, 6, "b09c84")
+	rect(x3 + 25, 20, 3, 1, "705f54")
+	rect(x3 + 31, 20, 3, 1, "705f54")
+	# Caneca de café/chá à direita.
+	rect(x3 + 35, 11, 6, 7, INK)
+	rect(x3 + 36, 12, 4, 5, "d9dfe8")
+	rect(x3 + 37, 12, 2, 1, "5e3a2d")
+	save("room_props_sheet")
 
 
 func _extract_clean_student_frame(src: Image, frame_idx: int) -> Image:

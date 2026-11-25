@@ -152,14 +152,22 @@ func apply_habit_choice(choice: String) -> void:
 		"sleep":
 			sleep_rank += 1
 			_exhaustion_remaining = 0.0
+			_set_exhausted(false)
 			modify_mind(MAX_PILLAR)
+			modify_rest(MAX_PILLAR)
 		"nutrition":
 			nutrition_rank += 1
-			heal_core(25)
+			max_hp += 25
+			hp_changed.emit(hp, max_hp)
+			core_hp_changed.emit(core_hp, max_core_hp)
+			heal_core(35)
+			modify_body(45.0)
 		"connection":
 			if ally_count >= MAX_ALLIES:
 				return
 			ally_count += 1
+			activate_ally()
+			modify_mind(25.0)
 		_:
 			return
 	habits_updated.emit(sleep_rank, nutrition_rank, ally_count)
@@ -191,13 +199,14 @@ func reset_game() -> void:
 
 
 func get_move_speed_multiplier() -> float:
+	var base: float = 1.0
 	if is_exhausted:
-		return 0.55
-	if body < 40.0:
-		return 0.75
-	if mind_state == MindState.OVERLOAD:
-		return 0.85
-	return 1.0
+		base = 0.55
+	elif body < 40.0:
+		base = 0.75
+	elif mind_state == MindState.OVERLOAD:
+		base = 0.85
+	return base * (1.0 + 0.08 * float(nutrition_rank))
 
 
 func get_attack_cooldown_multiplier() -> float:
@@ -213,10 +222,11 @@ func get_dash_cooldown_multiplier() -> float:
 
 
 func get_breathe_duration() -> float:
-	return 1.35
+	return maxf(0.65, 1.35 - 0.18 * float(sleep_rank) - (0.22 if combo >= 3 else 0.0))
 
 
 func _reset_run(new_state: GameState) -> void:
+	max_hp = 100
 	sleep_rank = 0
 	nutrition_rank = 0
 	ally_count = 0
@@ -248,11 +258,12 @@ func tick_pillars(delta: float, is_breathing: bool = false, near_ally: bool = fa
 	if current_state != GameState.PLAYING or delta <= 0.0:
 		return
 	var cycle: int = get_cycle()
-	modify_body(-(0.60 + 0.25 * float(cycle - 1)) * delta)
+	var body_drain: float = (0.60 + (0.40 * float(cycle - 1) if cycle > 1 else 0.0)) * pow(0.84, nutrition_rank)
+	modify_body(-body_drain * delta)
 	if ally_active and near_ally:
-		modify_mind(3.5 * delta)
+		modify_mind((3.5 + 1.25 * float(ally_count)) * delta)
 	elif cycle > 1 and not is_breathing:
-		modify_mind(-0.38 * float(cycle - 1) * delta)
+		modify_mind(-0.55 * float(cycle - 1) * delta)
 	var remaining: float = delta
 	if is_exhausted:
 		var spent: float = minf(remaining, _exhaustion_remaining)
@@ -264,7 +275,8 @@ func tick_pillars(delta: float, is_breathing: bool = false, near_ally: bool = fa
 	var delay: float = minf(remaining, _rest_delay)
 	_rest_delay -= delay
 	if remaining > delay:
-		modify_rest((remaining - delay) * (38.0 if is_breathing else REST_RECOVERY_RATE))
+		var rest_rate: float = (38.0 if is_breathing else REST_RECOVERY_RATE) * (1.0 + 0.15 * float(sleep_rank))
+		modify_rest((remaining - delay) * rest_rate)
 
 
 func modify_body(delta_val: float) -> void:
@@ -275,7 +287,8 @@ func modify_body(delta_val: float) -> void:
 
 
 func modify_mind(delta_val: float) -> void:
-	var next: float = clampf(mind + delta_val, 0.0, MAX_PILLAR)
+	var adjusted: float = delta_val * pow(0.82, sleep_rank) if delta_val < 0.0 and sleep_rank > 0 else delta_val
+	var next: float = clampf(mind + adjusted, 0.0, MAX_PILLAR)
 	if mind == next:
 		return
 	mind = next
@@ -338,9 +351,10 @@ func get_attack_range() -> float:
 
 
 func get_attack_damage() -> int:
+	var combo_bonus: int = 4 if combo >= 5 else 0
 	if clarity_ready:
-		return 70
-	return 16 if body < 40.0 else 26
+		return 70 + combo_bonus * 2
+	return (16 if body < 40.0 else 26) + combo_bonus
 
 
 func get_cycle() -> int:

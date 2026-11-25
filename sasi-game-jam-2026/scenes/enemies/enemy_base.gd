@@ -34,6 +34,7 @@ const DRAIN_VISUAL_DURATION: float = 0.65
 var player: Player
 var core_position: Vector2 = Vector2(320, 180)
 var hp: int
+var _max_hp: int = 1
 var _knockback: Vector2 = Vector2.ZERO
 var _slow_remaining: float = 0.0
 var _slow_factor: float = 1.0
@@ -58,7 +59,13 @@ var _fog_amount: float = 0.0
 
 
 func _ready() -> void:
-	hp = MAX_HP[enemy_type]
+	var cycle: int = GameManager.get_cycle()
+	if is_boss():
+		_max_hp = MAX_HP[enemy_type]
+	else:
+		var hp_mult: float = 1.0 if cycle == 1 else (1.32 if cycle == 2 else 1.58)
+		_max_hp = int(roundf(float(MAX_HP[enemy_type]) * hp_mult))
+	hp = _max_hp
 	_sprite.texture = SPRITES[enemy_type]
 	if player == null:
 		player = get_tree().get_first_node_in_group(&"player") as Player
@@ -118,8 +125,10 @@ func _physics_process(delta: float) -> void:
 func _move(delta: float, target: Vector2) -> void:
 	var distance: float = global_position.distance_to(target)
 	var direction: Vector2 = global_position.direction_to(target)
-	var cycle_mult: float = 1.0 if is_boss() else (1.0 + 0.06 * float(GameManager.get_cycle() - 1))
-	var speed: float = SPEEDS[enemy_type] * cycle_mult
+	var cycle: int = GameManager.get_cycle()
+	var cycle_mult: float = 1.0 if is_boss() else (1.0 + 0.16 * float(cycle - 1))
+	var base_speed: float = (44.0 if is_phase_two() else 36.0) if (is_boss() and GameManager.room == 9) else SPEEDS[enemy_type]
+	var speed: float = base_speed * cycle_mult
 	if enemy_type == EnemyType.SELF_CRITICISM and distance <= 115.0:
 		speed = -speed if distance < 85.0 else 0.0
 		if direction == Vector2.ZERO:
@@ -137,6 +146,22 @@ func _move(delta: float, target: Vector2) -> void:
 	global_position += travel * (1.0 - slowed_step / delta * (1.0 - _slow_factor))
 	global_position += _knockback * delta
 	_knockback = _knockback.move_toward(Vector2.ZERO, 850.0 * delta)
+	if not is_boss():
+		const ENEMY_RADIUS: float = 11.0
+		for obstacle: Node in get_tree().get_nodes_in_group(&"room_obstacles"):
+			var obs_node: Node2D = obstacle as Node2D
+			if obs_node == null or not is_instance_valid(obs_node):
+				continue
+			var half: Vector2 = obs_node.get_meta(&"half_extents", Vector2(18.0, 14.0))
+			var diff: Vector2 = global_position - obs_node.global_position
+			var pad: Vector2 = half + Vector2(ENEMY_RADIUS, ENEMY_RADIUS)
+			if absf(diff.x) < pad.x and absf(diff.y) < pad.y:
+				var push_x: float = pad.x - absf(diff.x)
+				var push_y: float = pad.y - absf(diff.y)
+				if push_x < push_y:
+					global_position.x += (-push_x if diff.x < 0.0 else push_x)
+				else:
+					global_position.y += (-push_y if diff.y < 0.0 else push_y)
 	_slow_remaining -= slowed_step
 	_charge_remaining -= charge_step
 
@@ -144,15 +169,22 @@ func _move(delta: float, target: Vector2) -> void:
 func _check_contact() -> void:
 	if global_position.distance_squared_to(player.global_position) > 13.0 * 13.0:
 		return
+	var bonus_dmg: int = maxi(0, GameManager.get_cycle() - 1) * 3
 	match enemy_type:
 		EnemyType.PROCRASTINATION:
-			player.apply_enemy_contact(global_position, 8, 0.0, 10.0, 8.0, 0.0)
+			player.apply_enemy_contact(global_position, 8 + bonus_dmg, 0.0, 10.0, 8.0, 0.0)
 		EnemyType.DEADLINE:
-			player.apply_enemy_contact(global_position, 9, 10.0, 0.0, 10.0, 1.4)
+			player.apply_enemy_contact(global_position, 9 + bonus_dmg, 10.0, 0.0, 10.0, 1.4)
 
 
 func _attack_interval() -> float:
-	return 3.0 if is_phase_two() else ATTACK_INTERVALS[enemy_type]
+	if is_boss():
+		if GameManager.room == 9:
+			return 2.35 if is_phase_two() else 3.5
+		return 3.0 if is_phase_two() else ATTACK_INTERVALS[enemy_type]
+	var cycle: int = GameManager.get_cycle()
+	var mult: float = 1.0 if cycle == 1 else (0.82 if cycle == 2 else 0.70)
+	return ATTACK_INTERVALS[enemy_type] * mult
 
 
 func is_phase_two() -> bool:
@@ -174,9 +206,10 @@ func _update_attack(delta: float, target: Vector2) -> void:
 			EnemyType.DEADLINE: _charge_remaining = 0.28
 			EnemyType.SELF_CRITICISM: _spawn_projectile(_aim)
 			EnemyType.BURNOUT_BOSS:
-				var half_count: int = 2 if is_phase_two() else 1
+				var half_count: int = (3 if GameManager.room == 9 else 2) if is_phase_two() else 1
+				var spread: float = 0.21 if half_count >= 3 else 0.25
 				for index: int in range(-half_count, half_count + 1):
-					_spawn_projectile(_aim.rotated(index * 0.25))
+					_spawn_projectile(_aim.rotated(index * spread))
 
 	if is_boss():
 		_drain_visual = maxf(0.0, _drain_visual - delta)
@@ -340,5 +373,5 @@ func _draw() -> void:
 	var width: float = 30.0 if boss else 16.0
 	var bar: Vector2 = _sprite.position + Vector2(-width * 0.5, -_sprite.get_rect().size.y * 0.5 - 4.0)
 	draw_rect(Rect2(bar, Vector2(width, 3)), Color("#211827"))
-	var fill: float = roundf((width - 2) * float(hp) / MAX_HP[enemy_type])
+	var fill: float = roundf((width - 2) * clampf(float(hp) / float(_max_hp), 0.0, 1.0))
 	draw_rect(Rect2(bar + Vector2.ONE, Vector2(fill, 1)), Color("#ffedca"))

@@ -7,9 +7,12 @@ const Station = preload("res://scenes/objects/care_station.gd")
 const HUD = preload("res://scenes/ui/hud.gd")
 const StoryDialog = preload("res://scenes/ui/story_dialog.gd")
 const CutscenePlayer = preload("res://scenes/ui/cutscene_player.gd")
+const HabitTerminal = preload("res://scenes/ui/habit_terminal.gd")
 const ENEMY_SCENE = preload("res://scenes/enemies/enemy_base.tscn")
 const ALLY_SCENE = preload("res://scenes/enemies/ally_support.tscn")
 const STATION_SCENE = preload("res://scenes/objects/care_station.tscn")
+const HABIT_SCENE = preload("res://scenes/ui/habit_terminal.tscn")
+const ROOM_PROPS_SHEET: Texture2D = preload("res://assets/sprites/room_props_sheet.png")
 const ROOM_ART: Array[Texture2D] = [
 	preload("res://assets/sprites/room_morning.png"),
 	preload("res://assets/sprites/room_afternoon.png"),
@@ -30,58 +33,77 @@ const ROOM_LIGHT: Array[Color] = [Color("#ffc370"), Color("#f1a875"), Color("#95
 const MORNING_C1: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.SELF_CRITICISM,
+	Enemy.EnemyType.DEADLINE,
 ]
 const AFTERNOON_C1: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.SELF_CRITICISM,
 	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE,
-	Enemy.EnemyType.PROCRASTINATION,
+	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.SELF_CRITICISM,
 ]
 const NIGHT_C1: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
-	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE,
+	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
 ]
 const MORNING_C2: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
-	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE,
+	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.SELF_CRITICISM,
 ]
 const AFTERNOON_C2: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.PROCRASTINATION,
+	Enemy.EnemyType.DEADLINE,
 ]
 const NIGHT_C2: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
-	Enemy.EnemyType.SELF_CRITICISM,
+	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE,
 ]
 const MORNING_C3: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.SELF_CRITICISM,
 	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.SELF_CRITICISM,
-	Enemy.EnemyType.DEADLINE,
+	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.SELF_CRITICISM,
 ]
 const AFTERNOON_C3: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.SELF_CRITICISM,
 	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
+	Enemy.EnemyType.SELF_CRITICISM,
 ]
 const SPAWN_POINTS: Array[Vector2] = [
-	Vector2(250, 345), Vector2(710, 350), Vector2(345, 225), Vector2(615, 225),
-	Vector2(480, 145), Vector2(210, 165), Vector2(750, 165), Vector2(820, 275),
-	Vector2(140, 275), Vector2(620, 430), Vector2(340, 430), Vector2(480, 460),
+	Vector2(290, 135), Vector2(670, 135), Vector2(480, 150), Vector2(145, 200),
+	Vector2(815, 200), Vector2(280, 445), Vector2(680, 445), Vector2(480, 460),
+	Vector2(140, 420), Vector2(820, 420), Vector2(420, 225), Vector2(540, 225),
 ]
 const ENTRY: Vector2 = Vector2(480, 310)
 
 
 class Drop:
 	var position: Vector2
+	var is_golden: bool = false
 
-	func _init(point: Vector2) -> void:
+	func _init(point: Vector2, golden: bool = false) -> void:
 		position = point
+		is_golden = golden
+
+
+class HazardZone:
+	var center: Vector2
+	var radius: float
+	var telegraph: float
+	var active_left: float
+	var tick_cooldown: float = 0.0
+
+	func _init(point: Vector2, rad: float, warn: float, duration: float) -> void:
+		center = point
+		radius = rad
+		telegraph = warn
+		active_left = duration
 
 
 class FloatingText:
@@ -106,7 +128,16 @@ var _second_wave: Array[Enemy.EnemyType] = []
 var _boss: Enemy
 var _ally: Ally
 var _decor_obstacles: Node2D
+var _habit_terminal: HabitTerminal
+var _pending_next_room: int = 0
+var _stations_sealed: bool = false
+var _last_hit_clarity: bool = false
+var _last_hit_point: Vector2 = Vector2.ZERO
 var _reinforcement_delay: float
+var _reinforcement_toggle: int = 0
+var _hazard_spawn_delay: float = 3.2
+var _hazards: Array[HazardZone] = []
+var _night_torch_points: PackedVector2Array = PackedVector2Array()
 var _hitstop: float
 var _hitstop_pending: bool
 var _shake_remaining: float
@@ -140,6 +171,9 @@ func _ready() -> void:
 	_decor_obstacles.name = "DecorObstacles"
 	add_child(_decor_obstacles)
 	move_child(_decor_obstacles, _stations.get_index())
+	_habit_terminal = HABIT_SCENE.instantiate() as HabitTerminal
+	add_child(_habit_terminal)
+	_habit_terminal.bind_arena(_on_habit_selected)
 	var dust_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	dust_rng.seed = 1212
 	for index: int in range(28):
@@ -161,6 +195,7 @@ func _ready() -> void:
 
 
 func _play_intro_cutscene() -> void:
+	_pending_next_room = 0
 	_clear_room()
 	_cutscene.play_intro(GameManager.start_new_run)
 
@@ -181,59 +216,69 @@ func _setup_room(room_index: int) -> void:
 	$NorthDoor/CollisionShape2D.set_deferred(&"disabled", is_final)
 	_door_open = false
 	_update_door_visual()
-	_reinforcement_delay = 10.0
+	_reinforcement_delay = 6.5
+	_stations_sealed = room_index in [4, 6, 7]
 	match room_index:
 		1:
 			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 250))
 			_add_station(Station.StationType.REST_SPOT, Vector2(680, 250))
 			_add_obstacle(Vector2(77, 67), Vector2(98, 58), Vector2.ZERO, _decor_obstacles)
 			_add_obstacle(Vector2(858, 67), Vector2(68, 18), Vector2.ZERO, _decor_obstacles)
-			_start_waves(MORNING_C1, 3)
+			_populate_turn_props(1)
+			_start_waves(MORNING_C1, 4)
 		2:
 			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 235))
 			var colleague: Station = _add_station(Station.StationType.CLASSMATE_NPC, Vector2(680, 300))
 			colleague.classmate_recruited.connect(_on_classmate_recruited.bind(colleague.position))
 			_add_obstacle(Vector2(98, 158), Vector2(68, 20), Vector2(0, 180))
 			_add_obstacle(Vector2(862, 158), Vector2(68, 20), Vector2(0, 180))
-			_start_waves(AFTERNOON_C1, 3)
+			_populate_turn_props(2)
+			_start_waves(AFTERNOON_C1, 4)
 		3:
 			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 250))
 			_add_station(Station.StationType.REST_SPOT, Vector2(680, 250))
 			_add_obstacle(Vector2(696, 63), Vector2(68, 18), Vector2.ZERO, _decor_obstacles)
+			_populate_turn_props(3)
 			_start_waves(NIGHT_C1, 4)
 		4:
 			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 250))
 			_add_station(Station.StationType.REST_SPOT, Vector2(680, 250))
 			_add_obstacle(Vector2(77, 67), Vector2(98, 58), Vector2.ZERO, _decor_obstacles)
 			_add_obstacle(Vector2(858, 67), Vector2(68, 18), Vector2.ZERO, _decor_obstacles)
+			_populate_turn_props(1)
 			_start_waves(MORNING_C2, 4)
 		5:
 			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 235))
 			_add_station(Station.StationType.REST_SPOT, Vector2(680, 300))
 			_add_obstacle(Vector2(98, 158), Vector2(68, 20), Vector2(0, 180))
 			_add_obstacle(Vector2(862, 158), Vector2(68, 20), Vector2(0, 180))
-			_start_waves(AFTERNOON_C2, 4)
+			_populate_turn_props(2)
+			_start_waves(AFTERNOON_C2, 5)
 		6:
 			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 250))
 			_add_station(Station.StationType.REST_SPOT, Vector2(680, 250))
 			_add_obstacle(Vector2(696, 63), Vector2(68, 18), Vector2.ZERO, _decor_obstacles)
+			_populate_turn_props(3)
 			_start_waves(NIGHT_C2, 5)
 		7:
 			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 250))
 			_add_station(Station.StationType.REST_SPOT, Vector2(680, 250))
 			_add_obstacle(Vector2(77, 67), Vector2(98, 58), Vector2.ZERO, _decor_obstacles)
 			_add_obstacle(Vector2(858, 67), Vector2(68, 18), Vector2.ZERO, _decor_obstacles)
+			_populate_turn_props(1)
 			_start_waves(MORNING_C3, 5)
 		8:
 			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 235))
 			_add_station(Station.StationType.REST_SPOT, Vector2(680, 300))
 			_add_obstacle(Vector2(98, 158), Vector2(68, 20), Vector2(0, 180))
 			_add_obstacle(Vector2(862, 158), Vector2(68, 20), Vector2(0, 180))
+			_populate_turn_props(2)
 			_start_waves(AFTERNOON_C3, 6)
 		9:
 			_add_station(Station.StationType.ROOM_PILLAR, Vector2(480, 145), "MENTE")
 			_add_station(Station.StationType.ROOM_PILLAR, Vector2(265, 375), "CORPO")
 			_add_station(Station.StationType.ROOM_PILLAR, Vector2(695, 375), "DESCANSO")
+			_populate_boss_props()
 			_remaining = 1
 			_boss = _spawn_enemy(Enemy.EnemyType.BURNOUT_BOSS, Vector2(480, 255))
 			_boss.pillar_drained.connect(_on_pillar_drained)
@@ -242,6 +287,56 @@ func _setup_room(room_index: int) -> void:
 		_spawn_ally(_player.position)
 	_refresh_objective()
 	_story.play_sequence(ROOM_DIALOGUES[room_index - 1])
+
+
+func _populate_turn_props(turn: int) -> void:
+	match turn:
+		1:
+			for pt: Vector2 in [Vector2(360, 175), Vector2(600, 175), Vector2(360, 385), Vector2(600, 385)]:
+				_add_prop_pillar(pt, 0)
+			for pt: Vector2 in [Vector2(175, 290), Vector2(785, 290)]:
+				_add_prop_pillar(pt, 3)
+		2:
+			for pt: Vector2 in [Vector2(365, 165), Vector2(595, 165), Vector2(355, 405), Vector2(605, 405)]:
+				_add_prop_pillar(pt, 1)
+			for pt: Vector2 in [Vector2(205, 345), Vector2(755, 215)]:
+				_add_prop_pillar(pt, 3)
+		3:
+			for pt: Vector2 in [Vector2(355, 175), Vector2(605, 175), Vector2(355, 395), Vector2(605, 395)]:
+				_add_prop_pillar(pt, 2)
+			for pt: Vector2 in [Vector2(185, 285), Vector2(775, 285)]:
+				_add_prop_pillar(pt, 3)
+
+
+func _populate_boss_props() -> void:
+	for pt: Vector2 in [
+		Vector2(215, 185), Vector2(745, 185),
+		Vector2(185, 305), Vector2(775, 305),
+		Vector2(355, 430), Vector2(605, 430),
+	]:
+		_add_prop_pillar(pt, 2)
+
+
+func _add_prop_pillar(point: Vector2, frame_idx: int) -> void:
+	var body: StaticBody2D = StaticBody2D.new()
+	body.position = point
+	body.add_to_group(&"room_obstacles")
+	var hitbox: Vector2 = Vector2(38, 20) if frame_idx == 3 else Vector2(26, 18)
+	body.set_meta(&"half_extents", hitbox * 0.5)
+	var rectangle: RectangleShape2D = RectangleShape2D.new()
+	rectangle.size = hitbox
+	var collider: CollisionShape2D = CollisionShape2D.new()
+	collider.shape = rectangle
+	body.add_child(collider)
+	var sprite: Sprite2D = Sprite2D.new()
+	sprite.texture = ROOM_PROPS_SHEET
+	sprite.hframes = 4
+	sprite.frame = frame_idx
+	sprite.position = Vector2(0, -8 if frame_idx == 3 else -13)
+	body.add_child(sprite)
+	_decor_obstacles.add_child(body)
+	if frame_idx == 2:
+		_night_torch_points.append(point + Vector2(0, -31))
 
 
 func _clear_room() -> void:
@@ -256,6 +351,12 @@ func _clear_room() -> void:
 	_ally = null
 	_remaining = 0
 	_first_wave_count = 0
+	_stations_sealed = false
+	_last_hit_clarity = false
+	_reinforcement_toggle = 0
+	_hazard_spawn_delay = 3.2
+	_hazards.clear()
+	_night_torch_points.clear()
 	_second_wave.clear()
 	_drops.clear()
 	_messages.clear()
@@ -268,7 +369,7 @@ func _start_waves(types: Array[Enemy.EnemyType], first_wave_size: int) -> void:
 	_remaining = types.size()
 	_first_wave_count = first_wave_size
 	_second_wave.assign(types.slice(first_wave_size))
-	_second_wave_delay = 5.0
+	_second_wave_delay = 3.6 if GameManager.get_cycle() == 1 else 3.0
 	for index: int in range(first_wave_size):
 		_spawn_enemy(types[index], SPAWN_POINTS[index % SPAWN_POINTS.size()])
 
@@ -278,6 +379,8 @@ func _add_station(type: Station.StationType, point: Vector2, pillar: String = "C
 	station.station_type = type
 	station.pillar_name = pillar
 	station.position = point
+	if _stations_sealed and (type == Station.StationType.WATER_SNACK or type == Station.StationType.REST_SPOT):
+		station.set_wave_locked(true)
 	_stations.add_child(station)
 	if type == Station.StationType.ROOM_PILLAR:
 		_add_obstacle(point + Vector2(0, 2), Vector2(20, 12))
@@ -291,6 +394,17 @@ func _add_station(type: Station.StationType, point: Vector2, pillar: String = "C
 		caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		station.add_child(caption)
 	return station
+
+
+func _unlock_stations() -> void:
+	if not _stations_sealed:
+		return
+	_stations_sealed = false
+	for node: Node in _stations.get_children():
+		var station: Station = node as Station
+		if station != null:
+			station.set_wave_locked(false)
+	_float_text(_player.position + Vector2(0, -24), "ESTAÇÕES LIBERADAS!", Color("#80f1a8"))
 
 
 func _add_obstacle(point: Vector2, dimensions: Vector2, second_offset: Vector2 = Vector2.ZERO,
@@ -322,17 +436,23 @@ func _spawn_enemy(type: Enemy.EnemyType, point: Vector2) -> Enemy:
 
 func _on_enemy_defeated(enemy: Enemy) -> void:
 	_remaining -= 1
+	if _remaining <= _second_wave.size() and _stations_sealed:
+		_unlock_stations()
 	GameManager.increment_combo()
 	GameManager.add_score(100 * GameManager.combo)
 	_burst(enemy.position, Enemy.COLORS[enemy.enemy_type], 13)
 	if enemy.is_boss():
 		_finish_boss.call_deferred()
 	else:
-		_drops.append(Drop.new(enemy.position))
+		var golden: bool = (_last_hit_clarity and enemy.position.distance_squared_to(_last_hit_point) <= 64.0) \
+				or GameManager.combo >= 4
+		_last_hit_clarity = false
+		_drops.append(Drop.new(enemy.position, golden))
 
 
 func _finish_boss() -> void:
 	if GameManager.current_state == GameManager.GameState.PLAYING and GameManager.hp > 0:
+		_hazards.clear()
 		for node: Node in _enemy_container.get_children():
 			if not node.is_queued_for_deletion():
 				node.queue_free()
@@ -353,10 +473,19 @@ func _win() -> void:
 
 func _on_state_changed(state: GameManager.GameState) -> void:
 	if state in [GameManager.GameState.MENU, GameManager.GameState.VICTORY, GameManager.GameState.GAME_OVER]:
+		_pending_next_room = 0
 		_clear_room()
 		if state == GameManager.GameState.MENU:
 			_courtyard.texture = ROOM_ART[0]
 			_door.hide()
+
+
+func _on_habit_selected(choice: String) -> void:
+	var next_room: int = _pending_next_room if _pending_next_room > 0 else GameManager.room + 1
+	_pending_next_room = 0
+	GameManager.apply_habit_choice(choice)
+	GameManager.set_state(GameManager.GameState.PLAYING)
+	_setup_room(next_room)
 
 
 func _on_classmate_recruited(point: Vector2) -> void:
@@ -381,12 +510,44 @@ func _physics_process(delta: float) -> void:
 		if enemy != null:
 			enemy.position = enemy.position.clamp(Vector2(30, 56), Vector2(930, 512))
 	_update_drops(delta)
+	_update_hazards(delta)
 	if not GameManager.is_final_room():
 		_update_waves(delta)
 		_update_door()
 	else:
 		_update_reinforcements(delta)
 	_refresh_objective()
+
+
+func _update_hazards(delta: float) -> void:
+	var active_combat: bool = _remaining > 0 and (
+			GameManager.room in [5, 6, 7, 8]
+			or (GameManager.is_final_room() and is_instance_valid(_boss) and _boss.is_phase_two())
+	)
+	if active_combat:
+		_hazard_spawn_delay -= delta
+		if _hazard_spawn_delay <= 0.0:
+			var interval: float = 3.6 if (GameManager.get_cycle() >= 3 or GameManager.is_final_room()) else 4.6
+			_hazard_spawn_delay = interval
+			if _hazards.size() < 2:
+				var offset: Vector2 = Vector2.from_angle(_effects_rng.randf_range(0.0, TAU)) * _effects_rng.randf_range(0.0, 26.0)
+				var target: Vector2 = (_player.position + offset).clamp(Vector2(96, 130), Vector2(864, 460))
+				var rad: float = 38.0 if GameManager.is_final_room() else 32.0
+				_hazards.append(HazardZone.new(target, rad, 1.25, 2.2))
+	for index: int in range(_hazards.size() - 1, -1, -1):
+		var hz: HazardZone = _hazards[index]
+		if hz.telegraph > 0.0:
+			hz.telegraph = maxf(0.0, hz.telegraph - delta)
+			continue
+		hz.active_left -= delta
+		if hz.active_left <= 0.0:
+			_hazards.remove_at(index)
+			continue
+		hz.tick_cooldown = maxf(0.0, hz.tick_cooldown - delta)
+		if hz.tick_cooldown <= 0.0 and _player.position.distance_squared_to(hz.center) <= hz.radius * hz.radius:
+			var dmg: int = 10 if (GameManager.get_cycle() >= 3 or GameManager.is_final_room()) else 7
+			if _player.apply_enemy_contact(hz.center, dmg, 11.0, 6.0, 0.0):
+				hz.tick_cooldown = 0.60
 
 
 func _update_waves(delta: float) -> void:
@@ -399,16 +560,19 @@ func _update_waves(delta: float) -> void:
 			_spawn_enemy(type, SPAWN_POINTS[(_first_wave_count + index) % SPAWN_POINTS.size()])
 			index += 1
 		_second_wave.clear()
+		_unlock_stations()
 
 
 func _update_reinforcements(delta: float) -> void:
 	if not is_instance_valid(_boss) or _boss.is_queued_for_deletion() or not _boss.is_phase_two():
 		return
 	_reinforcement_delay = maxf(0.0, _reinforcement_delay - delta)
-	if _reinforcement_delay == 0.0 and _remaining < 3:
+	if _reinforcement_delay == 0.0 and _remaining < 4:
 		_remaining += 1
-		_spawn_enemy(Enemy.EnemyType.PROCRASTINATION, SPAWN_POINTS[0])
-		_reinforcement_delay = 12.0
+		var spawn_type: Enemy.EnemyType = Enemy.EnemyType.DEADLINE if (_reinforcement_toggle % 2 == 1) else Enemy.EnemyType.PROCRASTINATION
+		_spawn_enemy(spawn_type, SPAWN_POINTS[_reinforcement_toggle % 2])
+		_reinforcement_toggle += 1
+		_reinforcement_delay = 6.5
 
 
 func _update_door() -> void:
@@ -425,7 +589,11 @@ func _update_door() -> void:
 			_float_text(_door.position + Vector2(0, 66), "PORTA ABERTA!", Color("#afff9d"))
 			AudioManager.play_door_open()
 	if _door_open and _player.position.distance_squared_to(_door.position) <= 26.0 * 26.0:
-		_setup_room(GameManager.room + 1)
+		if GameManager.room in [3, 6]:
+			_pending_next_room = GameManager.room + 1
+			GameManager.set_state(GameManager.GameState.HABIT_SELECT)
+		else:
+			_setup_room(GameManager.room + 1)
 
 
 func _update_door_visual() -> void:
@@ -452,7 +620,8 @@ func _refresh_objective() -> void:
 		if turn == 3 and GameManager.rest < 45.0:
 			need_parts.append("Descanso [E]")
 		var need: String = " + ".join(need_parts)
-		_hud.set_objective("Inimigos: %d%s" % [_remaining, "  •  " + need if not need.is_empty() else ""])
+		var seal_note: String = "  •  Selado" if _stations_sealed else ""
+		_hud.set_objective("Inimigos: %d%s%s" % [_remaining, "  •  " + need if not need.is_empty() else "", seal_note])
 
 
 func _update_drops(delta: float) -> void:
@@ -463,14 +632,24 @@ func _update_drops(delta: float) -> void:
 		drop.position = drop.position.move_toward(_player.position, 185.0 * delta)
 		if drop.position.distance_squared_to(_player.position) <= 8.0 * 8.0:
 			_drops.remove_at(index)
-			GameManager.modify_body(14.0)
-			GameManager.heal_player(3)
-			GameManager.add_score(25)
 			AudioManager.play_pickup()
-			_float_text(_player.position + Vector2(0, -16), "+14 CORPO · +3 HP", Color("#8de5ff"))
+			if drop.is_golden:
+				GameManager.modify_body(18.0)
+				GameManager.modify_mind(12.0)
+				GameManager.modify_rest(16.0)
+				GameManager.heal_player(6)
+				GameManager.add_score(60)
+				_float_text(_player.position + Vector2(0, -16), "+18 CORPO · +12 MENTE · +6 HP", Color("#ffd978"))
+			else:
+				GameManager.modify_body(14.0)
+				GameManager.heal_player(3)
+				GameManager.add_score(25)
+				_float_text(_player.position + Vector2(0, -16), "+14 CORPO · +3 HP", Color("#8de5ff"))
 
 
 func _on_enemy_hit(point: Vector2, damage: int, clarity: bool, _is_boss: bool) -> void:
+	_last_hit_clarity = clarity
+	_last_hit_point = point
 	_float_text(point + Vector2(0, -15), ("FOCO! " if clarity else "") + ("-%d" % damage),
 			Color("#89ffe0") if clarity else Color("#fff2ce"))
 	_burst(point, Color("#89ffe0") if clarity else Color("#f4ba72"), 8)
@@ -603,6 +782,9 @@ func _draw_atmosphere() -> void:
 				_draw_halo(screen_pos, 36.0, screen_tint, 0.028 + shimmer * 0.012)
 		3:
 			_draw_halo(Vector2(648, 30), 42.0, Color("#f8c170"), 0.038 + 0.015 * sin(_ambient_time * 5.0))
+			for idx: int in range(_night_torch_points.size()):
+				var flicker_col: float = 0.035 + 0.015 * sin(_ambient_time * 6.5 + float(idx) * 1.3)
+				_draw_halo(_night_torch_points[idx], 34.0, Color("#ffbe6b"), flicker_col)
 			if GameManager.is_final_room():
 				for step: int in range(7):
 					var frac: float = float(step) / 7.0
@@ -673,14 +855,31 @@ func _draw_halo(point: Vector2, radius: float, color: Color, opacity: float) -> 
 
 
 func _draw_effects() -> void:
+	for hz: HazardZone in _hazards:
+		if hz.telegraph > 0.0:
+			var frac: float = clampf(1.0 - hz.telegraph / 1.25, 0.0, 1.0)
+			_effects.draw_circle(hz.center, hz.radius, Color(0.95, 0.32, 0.48, 0.08 + 0.10 * frac))
+			_effects.draw_arc(hz.center, hz.radius * (1.0 - 0.15 * frac), 0.0, TAU, 28, Color("#ff6f84", 0.72), 1.5)
+		else:
+			var pulse: float = 0.5 + 0.5 * sin(_ambient_time * 10.0)
+			_effects.draw_circle(hz.center, hz.radius, Color(0.92, 0.18, 0.42, 0.16 + 0.10 * pulse))
+			_effects.draw_arc(hz.center, hz.radius, 0.0, TAU, 32, Color("#ff456b", 0.85), 2.0)
 	for drop: Drop in _drops:
 		var point: Vector2 = drop.position.round()
-		_effects.draw_circle(point, 8.0, Color(0.43, 0.83, 1.0, 0.18))
-		_effects.draw_colored_polygon(PackedVector2Array([
-			point + Vector2(0, -5), point + Vector2(3, 0), point + Vector2(2, 3),
-			point + Vector2(-2, 3), point + Vector2(-3, 0),
-		]), Color("#8de5ff"))
-		_effects.draw_rect(Rect2(point + Vector2(-1, -1), Vector2.ONE), Color.WHITE)
+		if drop.is_golden:
+			_effects.draw_circle(point, 10.0, Color(1.0, 0.85, 0.42, 0.25))
+			_effects.draw_colored_polygon(PackedVector2Array([
+				point + Vector2(0, -6), point + Vector2(5, 0),
+				point + Vector2(0, 6), point + Vector2(-5, 0),
+			]), Color("#ffd978"))
+			_effects.draw_rect(Rect2(point + Vector2(-1, -2), Vector2(2, 2)), Color.WHITE)
+		else:
+			_effects.draw_circle(point, 8.0, Color(0.43, 0.83, 1.0, 0.18))
+			_effects.draw_colored_polygon(PackedVector2Array([
+				point + Vector2(0, -5), point + Vector2(3, 0), point + Vector2(2, 3),
+				point + Vector2(-2, 3), point + Vector2(-3, 0),
+			]), Color("#8de5ff"))
+			_effects.draw_rect(Rect2(point + Vector2(-1, -1), Vector2.ONE), Color.WHITE)
 	for spark: Spark in _sparks:
 		var color: Color = Color(spark.color, minf(1.0, spark.remaining / 0.12))
 		_effects.draw_rect(Rect2(spark.point.round(), Vector2(2, 2)), color)

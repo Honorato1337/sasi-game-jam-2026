@@ -30,7 +30,9 @@ func _physics_process(delta: float) -> void:
 	_pulse_age += delta
 	_pulse_remaining -= delta
 	if _pulse_remaining <= 0.0:
-		_pulse_remaining += PULSE_INTERVAL
+		var pulse_interval: float = PULSE_INTERVAL * pow(0.82, GameManager.ally_count)
+		var pulse_damage: int = 18 + 10 * GameManager.ally_count
+		_pulse_remaining += pulse_interval
 		_pulse_age = 0.0
 		_pulse_origin = global_position
 		for member: Node in get_tree().get_nodes_in_group(&"enemies"):
@@ -38,7 +40,7 @@ func _physics_process(delta: float) -> void:
 			if enemy == null or enemy.is_queued_for_deletion():
 				continue
 			if _pulse_origin.distance_squared_to(enemy.global_position) <= PULSE_RADIUS * PULSE_RADIUS:
-				enemy.take_damage(18)
+				enemy.take_damage(pulse_damage)
 				enemy.apply_slow(1.2, 0.55)
 	queue_redraw()
 

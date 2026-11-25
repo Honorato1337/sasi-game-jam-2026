@@ -166,9 +166,6 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if GameManager.current_state != GameManager.GameState.PLAYING:
 		return
-	if GameManager.mind_state == GameManager.MindState.OVERLOAD and not GameManager.is_exhausted:
-		_vibrato_time = fmod(_vibrato_time + delta, 1.0)
-		music_player.pitch_scale = 1.12 + 0.008 * sin(TAU * 4.0 * _vibrato_time)
 	if GameManager.mind_state != GameManager.MindState.CALM or GameManager.is_exhausted:
 		_beat_phase += delta * GameManager.bpm / 60.0
 		if _beat_phase >= 1.0:
@@ -586,7 +583,7 @@ func _render_bossa_track(bars: Array[Dictionary], step_seconds: float, lead_styl
 					var dest: int = (sh_pos + s) % total_samples
 					mix_buf[dest] += _shaker_wave[(s + seed_shift) % SHAKER_SIZE] * sh_env
 
-		# 4. Melodia cantabile em Rhodes ou Flauta com fraseado suave e vibrato sutil.
+		# 4. Melodia cantabile em Rhodes ou Flauta com fraseado suave.
 		var melody_offset: int = bar_offset
 		var melody_events: Array = bar["melody"]
 		for ev: Vector2i in melody_events:
@@ -596,7 +593,6 @@ func _render_bossa_track(bars: Array[Dictionary], step_seconds: float, lead_styl
 				var render_len: int = length + tail_len
 				var note_step: float = _note_step(ev.x)
 				var lead_gain: float = 0.24 if lead_style == &"rhodes" else 0.22
-				var use_vibrato: bool = ev.y >= 3
 				for s: int in range(render_len):
 					var env: float = 1.0
 					if float(s) < attack_samples:
@@ -606,9 +602,8 @@ func _render_bossa_track(bars: Array[Dictionary], step_seconds: float, lead_styl
 					elif float(render_len - 1 - s) < release_samples:
 						env = float(render_len - 1 - s) / release_samples
 					var decay: float = exp(-1.55 * float(s) * inv_sr) if lead_style == &"rhodes" else (1.0 - 0.22 * float(s) / float(render_len))
-					var vib: float = (1.0 + 0.0028 * sin(TAU * 4.8 * float(s) * inv_sr)) if use_vibrato else 1.0
 					var dest: int = (melody_offset + s) % total_samples
-					mix_buf[dest] += _sample_wave(lead_table, float(s) * note_step * vib) * env * decay * lead_gain
+					mix_buf[dest] += _sample_wave(lead_table, float(s) * note_step) * env * decay * lead_gain
 			melody_offset += length
 
 	await _yield_if_needed()

@@ -12,6 +12,7 @@ const CLASSMATE_SHEET = preload("res://assets/sprites/classmate_sheet.png")
 
 var _cooldown: float = 0.0
 var _time: float = 0.0
+var locked_by_wave: bool = false
 
 @onready var _sprite: Sprite2D = $Sprite2D
 @onready var _badge: Node2D = $Badge
@@ -29,6 +30,14 @@ func _ready() -> void:
 	_badge.draw.connect(_draw_badge)
 
 
+func set_wave_locked(locked: bool) -> void:
+	if locked_by_wave != locked:
+		locked_by_wave = locked
+		if is_instance_valid(_sprite):
+			_sprite.modulate = Color(0.56, 0.60, 0.74, 0.88) if locked_by_wave else Color.WHITE
+		queue_redraw()
+
+
 func _physics_process(delta: float) -> void:
 	if GameManager.current_state == GameManager.GameState.PLAYING:
 		_cooldown = maxf(0.0, _cooldown - delta)
@@ -43,7 +52,7 @@ func _physics_process(delta: float) -> void:
 
 
 func can_interact() -> bool:
-	return GameManager.current_state == GameManager.GameState.PLAYING and _cooldown <= 0.0 and (
+	return GameManager.current_state == GameManager.GameState.PLAYING and not locked_by_wave and _cooldown <= 0.0 and (
 			station_type != StationType.CLASSMATE_NPC or not GameManager.ally_active)
 
 
@@ -96,18 +105,21 @@ func _draw_badge() -> void:
 		StationType.REST_SPOT: prompt = "[E] Descansar"
 		StationType.CLASSMATE_NPC: prompt = "[E] Pedir Apoio"
 		StationType.ROOM_PILLAR: prompt = "[E] Reacender " + pillar_name
-	if _cooldown > 0.0:
+	if locked_by_wave:
+		prompt = "SELADO • Vença a 1ª leva"
+	elif _cooldown > 0.0:
 		prompt = "Aguarde %ds" % ceili(_cooldown)
 	var font: Font = ThemeDB.fallback_font
 	var width: float = ceilf(font.get_string_size(prompt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x)
 	var origin := Vector2(-ceilf(width / 2.0), -38)
 	var box := Rect2(origin - Vector2(5, 12), Vector2(width + 10, 17))
+	var border_col: Color = Color("#e8758a") if locked_by_wave else Color("#e8b875")
 	_badge.draw_rect(Rect2(box.position + Vector2(1, 0), box.size - Vector2(2, 0)), Color("#181322"))
 	_badge.draw_rect(Rect2(box.position + Vector2(0, 1), box.size - Vector2(0, 2)), Color("#181322"))
-	_badge.draw_rect(Rect2(box.position + Vector2(2, 1), Vector2(box.size.x - 4, 1)), Color("#e8b875"))
-	_badge.draw_rect(Rect2(box.position + Vector2(2, box.size.y - 2), Vector2(box.size.x - 4, 1)), Color("#e8b875"))
-	_badge.draw_rect(Rect2(box.position + Vector2(1, 2), Vector2(1, box.size.y - 4)), Color("#e8b875"))
-	_badge.draw_rect(Rect2(box.position + Vector2(box.size.x - 2, 2), Vector2(1, box.size.y - 4)), Color("#e8b875"))
+	_badge.draw_rect(Rect2(box.position + Vector2(2, 1), Vector2(box.size.x - 4, 1)), border_col)
+	_badge.draw_rect(Rect2(box.position + Vector2(2, box.size.y - 2), Vector2(box.size.x - 4, 1)), border_col)
+	_badge.draw_rect(Rect2(box.position + Vector2(1, 2), Vector2(1, box.size.y - 4)), border_col)
+	_badge.draw_rect(Rect2(box.position + Vector2(box.size.x - 2, 2), Vector2(1, box.size.y - 4)), border_col)
 	_badge.draw_string(font, origin, prompt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#fff2ce"))
 
 
@@ -154,6 +166,19 @@ func _draw() -> void:
 		StationType.CLASSMATE_NPC:
 			base_color = Color("#81e6c0")
 			tag_text = "COLEGA"
+
+	if locked_by_wave:
+		draw_arc(Vector2(0, 10), 19.0 + pulse * 2.0, 0.0, TAU, 26, Color("#ff6f84", 0.55 + 0.30 * pulse), 2.0)
+		if not _badge.visible:
+			var font_lock: Font = ThemeDB.fallback_font
+			var lock_txt: String = "SELADO"
+			var ltw: float = ceilf(font_lock.get_string_size(lock_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x)
+			var lpos := Vector2(-ceilf(ltw * 0.5), 22)
+			var lpill := Rect2(lpos - Vector2(4, 9), Vector2(ltw + 8, 12))
+			draw_rect(lpill, Color(0.14, 0.07, 0.14, 0.88))
+			draw_rect(Rect2(lpill.position, Vector2(lpill.size.x, 1)), Color("#ff6f84", 0.85))
+			draw_string(font_lock, lpos, lock_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("#ff98a8"))
+		return
 
 	var aura_alpha: float = (0.34 if urgent else 0.18) + pulse * (0.28 if urgent else 0.14)
 	draw_arc(Vector2(0, 10), 17.0 + pulse * 2.0, 0.0, TAU, 28, Color(base_color, aura_alpha), 1.5)
