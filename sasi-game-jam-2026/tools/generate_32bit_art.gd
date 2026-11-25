@@ -22,24 +22,32 @@ func _initialize() -> void:
 		quit(1 if failed else 0)
 		return
 	if "--rooms-only" in OS.get_cmdline_user_args():
-		for shift in 3:
-			draw_room(shift)
-			save(["room_morning", "room_afternoon", "room_night"][shift])
+		for cycle in range(1, 4):
+			for shift in 3:
+				draw_room(shift, cycle)
+				save(room_filename(shift, cycle))
 		quit(1 if failed else 0)
 		return
 	sheet("student_sheet", STUDENT)
 	sheet("classmate_sheet", CLASSMATE)
-	sheet("stations_sheet", STATIONS)
-	sheet("enemy_procrastination_sheet", ENEMY_PROCRASTINATION)
-	sheet("enemy_deadline_sheet", ENEMY_DEADLINE)
-	sheet("enemy_selfcriticism_sheet", ENEMY_SELFCRITICISM)
-	sheet("boss_burnout_sheet", BOSS_BURNOUT)
-	for shift in 3:
-		draw_room(shift)
-		save(["room_morning", "room_afternoon", "room_night"][shift])
+	generate_stations_sheet()
+	generate_reflection_enemies()
+	generate_burnout_boss_sheet()
+	for cycle in range(1, 4):
+		for shift in 3:
+			draw_room(shift, cycle)
+			save(room_filename(shift, cycle))
 	draw_title_screen()
 	save("title_bg")
+	generate_cutscene_assets()
 	quit(1 if failed else 0)
+
+
+func room_filename(shift: int, cycle: int) -> String:
+	var names: Array[String] = ["morning", "afternoon", "night"]
+	if cycle <= 1:
+		return "room_" + names[shift]
+	return "room_c%d_%s" % [cycle, names[shift]]
 
 func save(asset: String) -> void:
 	var path := DEST + asset + ".png"
@@ -68,7 +76,7 @@ func sheet(asset: String, data: Array) -> void:
 	save(asset)
 
 func rect(x: int, y: int, w: int, h: int, color: String) -> void:
-	var area := Rect2i(x,y,w,h).intersection(Rect2i(0,0,640,360))
+	var area := Rect2i(x, y, w, h).intersection(Rect2i(0, 0, art.get_width(), art.get_height()))
 	if area.has_area():
 		art.fill_rect(area, Color(color))
 
@@ -486,7 +494,7 @@ func rug(x: int, y: int, w: int, h: int) -> void:
 		rect(x+w/2+i,y+h/2-dy,1,1,"81e6c0" if absi(i)%6 == 0 else "e3b584")
 
 func blend_pixel_tint(x: int, y: int, target: Color, amount: float) -> void:
-	if x < 0 or x >= 640 or y < 0 or y >= 360:
+	if x < 0 or x >= art.get_width() or y < 0 or y >= art.get_height():
 		return
 	var current: Color = art.get_pixel(x, y)
 	var out: Color = current.lerp(target, amount)
@@ -494,7 +502,7 @@ func blend_pixel_tint(x: int, y: int, target: Color, amount: float) -> void:
 	art.set_pixel(x, y, out)
 
 func blend_rect_tint(x: int, y: int, w: int, h: int, target: Color, amount: float) -> void:
-	var area := Rect2i(x, y, w, h).intersection(Rect2i(0, 0, 640, 360))
+	var area := Rect2i(x, y, w, h).intersection(Rect2i(0, 0, art.get_width(), art.get_height()))
 	for py in range(area.position.y, area.end.y):
 		for px in range(area.position.x, area.end.x):
 			var out: Color = art.get_pixel(px, py).lerp(target, amount)
@@ -503,8 +511,8 @@ func blend_rect_tint(x: int, y: int, w: int, h: int, target: Color, amount: floa
 
 func blend_radial_tint(cx: int, cy: int, radius: float, target: Color, max_amount: float) -> void:
 	var r := ceili(radius)
-	for py in range(maxi(0, cy - r), mini(360, cy + r + 1)):
-		for px in range(maxi(0, cx - r), mini(640, cx + r + 1)):
+	for py in range(maxi(0, cy - r), mini(art.get_height(), cy + r + 1)):
+		for px in range(maxi(0, cx - r), mini(art.get_width(), cx + r + 1)):
 			var d := sqrt(float((px - cx) * (px - cx) + (py - cy) * (py - cy)))
 			if d <= radius:
 				var q := floorf((1.0 - d / radius) * 4.0) / 4.0
@@ -653,29 +661,29 @@ func ley_line(p1: Vector2i, p2: Vector2i, mid_hex: String, edge_hex: String) -> 
 		rect(px - 1, py - 1, 3, 3, edge_hex)
 		rect(px, py, 1, 1, mid_hex if (i % 6 != 0) else "6b6588")
 
-func room_perimeter_walls(shift: int) -> void:
+func room_perimeter_walls(shift: int, cycle: int = 1) -> void:
 	# Sombras suaves nas bordas internas para dar profundidade ao cômodo.
-	blend_rect_tint(12, 43, 616, 8, Color("100b19"), 0.24)
-	blend_rect_tint(12, 338, 616, 10, Color("100b19"), 0.26)
+	blend_rect_tint(12, 43, 616, 8, Color("100b19"), 0.24 + float(cycle - 1) * 0.04)
+	blend_rect_tint(12, 338, 616, 10, Color("100b19"), 0.26 + float(cycle - 1) * 0.04)
 	blend_rect_tint(12, 43, 8, 297, Color("100b19"), 0.20)
 	blend_rect_tint(620, 43, 8, 297, Color("100b19"), 0.20)
 	for wx in [0, 628]:
 		if shift == 0:
 			rect(wx, 40, 12, 308, INK)
-			rect(wx + 1, 41, 10, 306, "5a3b31")
-			rect(wx + (8 if wx == 0 else 2), 41, 2, 306, "755140")
+			rect(wx + 1, 41, 10, 306, "5a3b31" if cycle == 1 else ("4a3235" if cycle == 2 else "3d2b3c"))
+			rect(wx + (8 if wx == 0 else 2), 41, 2, 306, "755140" if cycle == 1 else "60454a")
 			for py in range(48, 344, 18):
 				rect(wx + 2, py, 8, 1, "382524")
 		elif shift == 1:
 			rect(wx, 40, 12, 308, INK)
 			masonry(wx + 1, 41, 10, 306, false)
-			rect(wx + (8 if wx == 0 else 2), 41, 2, 306, "4d7280")
+			rect(wx + (8 if wx == 0 else 2), 41, 2, 306, "4d7280" if cycle < 3 else "695185")
 		else:
 			rect(wx, 40, 12, 308, INK)
 			rect(wx + 1, 41, 10, 306, "1d1d33")
 			for py in range(44, 344, 16):
-				rect(wx + 2, py, 8, 12, "292a46")
-				rect(wx + 3, py, 6, 1, "3b3d60")
+				rect(wx + 2, py, 8, 12, "292a46" if cycle < 3 else "322548")
+				rect(wx + 3, py, 6, 1, "3b3d60" if cycle < 3 else "533d73")
 	rect(0, 348, 640, 12, INK)
 	if shift == 0:
 		timber(2, 349, 636, 10)
@@ -690,43 +698,66 @@ func room_perimeter_walls(shift: int) -> void:
 			rect(sx, 350, 28, 8, "24263d")
 			rect(sx + 1, 350, 26, 1, "353858")
 
-func draw_room(shift: int) -> void:
-	art = Image.create_empty(640,360,false,Image.FORMAT_RGBA8)
-	art.fill(Color(["46343a","33313e","212338"][shift]))
-	var tile_palette := ["454452","4a4851","514950","49434b"]
+
+func draw_station_pad(cx: int, cy: int, tint: Color, rim_hex: String) -> void:
+	blend_radial_tint(cx, cy, 24.0, tint, 0.22)
+	rect(cx - 22, cy - 11, 44, 24, "1d192c")
+	rect(cx - 21, cy - 10, 42, 22, rim_hex)
+	rect(cx - 19, cy - 8, 38, 18, "2d263b")
+	blend_rect_tint(cx - 19, cy - 8, 38, 18, tint, 0.26)
+
+
+func draw_room(shift: int, cycle: int = 1) -> void:
+	var has_north_door := not (shift == 2 and cycle == 3)
+	art = Image.create_empty(640, 360, false, Image.FORMAT_RGBA8)
+	var base_colors := [
+		["46343a", "33313e", "212338"],
+		["3d2e3a", "2b2c3b", "1b1c30"],
+		["31273b", "272238", "18162c"],
+	]
+	art.fill(Color((base_colors[cycle - 1] as Array)[shift]))
+	var tile_palette := ["454452", "4a4851", "514950", "49434b"]
 	if shift == 2:
-		tile_palette = ["2c304b","292d46","30324d","272c43"]
-	for y in range(40,360,12 if shift == 0 else 22):
+		tile_palette = ["2c304b", "292d46", "30324d", "272c43"] if cycle < 3 else ["282644", "24223d", "2d284a", "211f38"]
+	elif cycle == 3:
+		tile_palette = ["3b374d", "413b52", "473f56", "3a3548"]
+
+	for y in range(40, 360, 12 if shift == 0 else 22):
 		var step := 86 if shift == 0 else 32
-		for x in range(-step,640,step):
-			var tx := x + ((y/(12 if shift == 0 else 22))%2)*step/2
+		for x in range(-step, 640, step):
+			var tx := x + ((y / (12 if shift == 0 else 22)) % 2) * step / 2
 			if shift == 0:
-				timber(tx,y,85,11)
+				timber(tx, y, 85, 11)
 			else:
-				rect(tx,y,31,21,tile_palette[rng.randi_range(0,3)])
-				rect(tx+1,y,29,1,"56505a" if shift == 1 else "373a54")
+				rect(tx, y, 31, 21, tile_palette[rng.randi_range(0, 3)])
+				rect(tx + 1, y, 29, 1, "56505a" if shift == 1 else "373a54")
 				for n in 5:
-					rect(tx+rng.randi_range(1,26),y+rng.randi_range(3,18),2,1,tile_palette[n%4])
-	masonry(0,0,640,40,true)
+					rect(tx + rng.randi_range(1, 26), y + rng.randi_range(3, 18), 2, 1, tile_palette[n % 4])
+	if shift == 0 and cycle > 1:
+		blend_rect_tint(0, 40, 640, 320, Color("29233d") if cycle == 2 else Color("342546"), 0.16 if cycle == 2 else 0.28)
+	elif shift == 1 and cycle > 1:
+		blend_rect_tint(0, 40, 640, 320, Color("242840") if cycle == 2 else Color("332345"), 0.12 if cycle == 2 else 0.22)
+
+	masonry(0, 0, 640, 40, true)
 	if shift == 2:
 		for y in 40:
 			for x in 640:
-				var c := art.get_pixel(x,y)
-				art.set_pixel(x,y,Color(c.b*0.61,c.g*0.72,c.r*0.83))
-	rect(0,39,640,4,INK)
-	for x in range(0,640,64):
-		timber(x,42,64,4)
+				var c := art.get_pixel(x, y)
+				art.set_pixel(x, y, Color(c.b * 0.61, c.g * 0.72, c.r * 0.83))
+	rect(0, 39, 640, 4, INK)
+	for x in range(0, 640, 64):
+		timber(x, 42, 64, 4)
 
-	if shift < 2:
-		# Moldura da porta norte para Manhã e Tarde.
-		rect(296,0,48,44,INK)
-		for side in [291,344]:
-			for y in range(2,40,7):
-				rect(side,y,6,6,"837076")
-				rect(side+1,y,4,1,"aa9191")
-		rect(292,0,57,4,"987d72")
+	if has_north_door:
+		# Moldura da porta norte para todas as salas de transição (1 a 8).
+		rect(296, 0, 48, 44, INK)
+		for side in [291, 344]:
+			for y in range(2, 40, 7):
+				rect(side, y, 6, 6, "837076")
+				rect(side + 1, y, 4, 1, "aa9191")
+		rect(292, 0, 57, 4, "987d72")
 	else:
-		# Na Noite a porta norte não existe: vira janela gótica do dormitório sob o luar.
+		# Sala 9 (Noite do Ciclo 3): janela gótica do dormitório sob o luar.
 		rect(295, 2, 50, 38, INK)
 		rect(298, 5, 44, 32, "191d36")
 		for sx in [304, 312, 326, 334]:
@@ -740,21 +771,32 @@ func draw_room(shift: int) -> void:
 		rect(298, 19, 44, 2, "4a4464")
 		rect(293, 37, 54, 4, "6d6487")
 
-	room_perimeter_walls(shift)
+	room_perimeter_walls(shift, cycle)
 
 	if shift == 0:
 		window(166)
 		window(442)
-		# Cortinas leves nas duas janelas matinais.
 		for wx in [166, 442]:
 			rect(wx - 4, 8, 6, 24, INK)
 			rect(wx + 38, 8, 6, 24, INK)
-			rect(wx - 3, 9, 4, 21, "a4565a")
-			rect(wx + 39, 9, 4, 21, "a4565a")
+			var curtain := "a4565a" if cycle == 1 else ("7e4756" if cycle == 2 else "5c3857")
+			rect(wx - 3, 9, 4, 21, curtain)
+			rect(wx + 39, 9, 4, 21, curtain)
+			if cycle >= 2:
+				# Janela nublada/arroxeada nos ciclos avançados.
+				blend_rect_tint(wx + 1, 11, 38, 16, Color("495070") if cycle == 2 else Color("68427a"), 0.65)
 		corkboard(228, 9)
+		if cycle >= 2:
+			# Post-its urgentes extras no mural.
+			rect(236, 15, 7, 6, "e35b6a")
+			rect(249, 17, 8, 6, "e35b6a")
 		rpg_poster(368, 8)
+		if cycle == 3:
+			blend_rect_tint(371, 11, 22, 22, Color("2b1b3d"), 0.45)
 		rug(208, 144, 224, 84)
-		# Tapete acolhedor próximo à entrada sul.
+		# Bases nítidas sob Água e Descanso da Manhã.
+		draw_station_pad(133, 131, Color("56d9f0"), "467e91")
+		draw_station_pad(520, 150, Color("f4ba72"), "8e6c4b")
 		rect(284, 320, 72, 20, INK)
 		rect(286, 322, 68, 16, "7d4f4d")
 		rect(289, 325, 62, 10, "a66e63")
@@ -765,57 +807,78 @@ func draw_room(shift: int) -> void:
 		rect(28, 24, 80, 49, "384456")
 		rect(31, 25, 74, 14, "cfc0b2")
 		rect(32, 26, 72, 3, "efe0c9")
-		rect(28, 40, 80, 32, "45636a")
+		rect(28, 40, 80, 32, "45636a" if cycle == 1 else "384b59")
 		for y in range(42, 71, 6):
-			rect(30, y, 76, 2, "65858a")
+			rect(30, y, 76, 2, "65858a" if cycle == 1 else "4e606e")
 		rect(114, 40, 22, 20, INK)
 		timber(115, 41, 20, 18)
-		rect(118, 35, 8, 7, "b54854")
+		rect(118, 35, 8, 7, "d44252" if cycle >= 2 else "b54854")
 		rect(120, 37, 4, 3, "faf0dd")
 		rect(128, 37, 5, 5, "81e6c0")
 		rect(117, 74, 5, 8, "5e4457")
 		rect(124, 75, 5, 8, "5e4457")
-		desk(526, 38, false)
+		desk(526, 38, cycle == 3, "7e629c")
 		book_stack(566, 94)
-		paper_scatter(468, 282, 1, false)
-		paper_scatter(204, 294, 2, false)
+		paper_scatter(468, 282, 1, cycle == 3)
+		paper_scatter(204, 294, 2, cycle >= 2)
+		if cycle >= 2:
+			book_stack(48, 232)
+			paper_scatter(128, 292, 5, true)
+		if cycle == 3:
+			book_stack(568, 226)
+			paper_scatter(398, 292, 6, true)
 		potted_plant(20, 286, false)
 		potted_plant(594, 288, true)
 	elif shift == 1:
 		for x in [18, 94, 378, 456, 538]:
 			bookcase(x, 9)
 		window(176)
+		if cycle >= 2:
+			blend_rect_tint(177, 11, 38, 16, Color("484969") if cycle == 2 else Color("5e366b"), 0.65)
 		whiteboard(228, 8)
-		wall_clock(354, 12, 2, 1)
-		# Brasão discreto do laboratório e trilha central em pedra polida.
+		if cycle >= 2:
+			# Curva de prazos sobe mais crítica nos ciclos 2 e 3.
+			for step in 8:
+				rect(258 + step * 2, 25 - step, 2, 2, "e33e54")
+		wall_clock(354, 12, 2 + cycle - 1, 1)
 		for y in range(44, 130, 22):
 			blend_rect_tint(292, y, 56, 18, Color("6c7694"), 0.14)
 		blend_radial_tint(320, 194, 42.0, Color("5a6684"), 0.16)
 		for tick in 12:
 			var a := TAU * tick / 12.0
 			rect(320 + roundi(cos(a) * 32.0), 194 + roundi(sin(a) * 24.0), 2, 2, "525673")
-		# Cabos de rede/energia ligando as bancadas dos cantos.
+		draw_station_pad(143, 127, Color("56d9f0"), "467e91")
+		if cycle == 1:
+			draw_station_pad(502, 210, Color("81e6c0"), "497d6d")
+		else:
+			draw_station_pad(502, 210, Color("f4ba72"), "8e6c4b")
 		for cy in [109, 196]:
 			rect(76, cy + 4, 18, 2, "1e1e30")
 			rect(92, cy + 2, 4, 4, "3d4059")
-			rect(93, cy + 3, 2, 2, "81e6c0")
+			rect(93, cy + 3, 2, 2, "81e6c0" if cycle == 1 else "ff7285")
 			rect(546, cy + 4, 18, 2, "1e1e30")
 			rect(544, cy + 2, 4, 4, "3d4059")
-			rect(545, cy + 3, 2, 2, "81e6c0")
+			rect(545, cy + 3, 2, 2, "81e6c0" if cycle == 1 else "ff7285")
+		var left_glow := "76dce8" if cycle == 1 else ("ffa354" if cycle == 2 else "ff5a76")
+		var right_glow := "f4ba72" if cycle == 1 else ("ff6f69" if cycle == 2 else "b978ff")
 		for y in [91, 178]:
-			desk(10, y, true, "76dce8")
-			desk(562, y, true, "f4ba72")
-			blend_radial_tint(44, y + 10, 28.0, Color("5cd5e8"), 0.12)
-			blend_radial_tint(596, y + 10, 28.0, Color("f4ba72"), 0.12)
-		paper_scatter(236, 288, 3, false)
-		paper_scatter(414, 124, 4, false)
+			desk(10, y, true, left_glow)
+			desk(562, y, true, right_glow)
+			blend_radial_tint(44, y + 10, 28.0, Color(left_glow), 0.14)
+			blend_radial_tint(596, y + 10, 28.0, Color(right_glow), 0.14)
+		paper_scatter(236, 288, 3, cycle == 3)
+		paper_scatter(414, 124, 4, cycle >= 2)
 		book_stack(404, 46)
+		if cycle >= 2:
+			book_stack(242, 64)
+			paper_scatter(162, 260, 7, true)
 		potted_plant(22, 288, true)
 		potted_plant(592, 290, false)
 	else:
-		# Janela noturna com lua + cortinas e relógio marcando 03h.
+		# Noite: nos ciclos 1 e 2 é o apartamento/estudo noturno com Porta Norte (para avançar ao próximo ciclo).
+		# No ciclo 3 (Sala 9) vira o santuário do Boss Final!
 		rect(78, 5, 76, 32, INK)
-		rect(80, 7, 72, 27, "1f213b")
+		rect(80, 7, 72, 27, "1f213b" if cycle < 3 else "17152e")
 		for i in 24:
 			rect(rng.randi_range(82, 149), rng.randi_range(8, 31), 1, 1, "c4bfce")
 		for y in range(-7, 8):
@@ -825,45 +888,56 @@ func draw_room(shift: int) -> void:
 			var half := roundi(sqrt(25 - y * y))
 			rect(131 - half, 16 + y, 2 * half + 1, 1, "1f213b")
 		rect(115, 6, 2, 29, "574858")
-		wall_clock(224, 12, 3, 0)
+		wall_clock(224, 12, cycle, 0)
 		book_stack(376, 36)
 		book_stack(396, 38)
-		desk(490, 36, true, "988cff")
+		desk(490, 36, true, "988cff" if cycle == 1 else "ff6f8b")
 		rect(475, 22, 3, 18, "967453")
 		for y in 10:
 			rect(470 - y / 3, 14 + y, 12 + 2 * (y / 3), 1, "d69b66" if y < 8 else "f3c583")
 		blend_radial_tint(476, 24, 38.0, Color("f4ba72"), 0.22)
-		# Base rúnica para os 3 Pilares e conexões até o selo central do Burnout.
-		ley_line(Vector2i(320, 175), Vector2i(320, 116), "547994", "2a314c")
-		ley_line(Vector2i(320, 175), Vector2i(158, 270), "4f7c66", "283344")
-		ley_line(Vector2i(320, 175), Vector2i(482, 270), "8b724d", "362c3d")
-		pillar_dais(320, 116, Color("5ec8e8"), "5b84a6")
-		pillar_dais(158, 270, Color("6bd994"), "548a6b")
-		pillar_dais(482, 270, Color("f4ba72"), "997b52")
-		# Selo rúnico central onde o Burnout surge.
-		blend_radial_tint(320, 178, 56.0, Color("141024"), 0.25)
-		for ring in [54, 63, 65, 72]:
-			for degree in 720:
-				var a := deg_to_rad(degree * 0.5)
-				rect(320 + roundi(cos(a) * ring), 178 + roundi(sin(a) * ring * 0.64),
-						1, 1, "70678c" if ring == 65 else "454160")
-		for i in 12:
-			var a := TAU * i / 12.0
-			var x := 320 + roundi(cos(a) * 57)
-			var y := 178 + roundi(sin(a) * 35)
-			rect(x, y, 1, 5, "9683a3")
-			rect(x + 1, y + 1, 2, 1, "786988")
-			rect(x + 3, y - 1, 1, 3, "786988")
-		# Velas e papéis amassados da madrugada.
-		for candle_pos: Vector2i in [
-			Vector2i(24, 298), Vector2i(596, 298), Vector2i(24, 98), Vector2i(596, 102),
-		]:
-			candle_sconce(candle_pos.x, candle_pos.y)
-		paper_scatter(110, 298, 5, true)
-		paper_scatter(526, 296, 6, true)
+		if cycle < 3:
+			# Salas 3 e 6: estações de Água e Descanso claras + escrivaninha de estudos tardios.
+			rug(206, 152, 228, 80)
+			draw_station_pad(138, 138, Color("56d9f0"), "467e91")
+			draw_station_pad(502, 146, Color("f4ba72"), "8e6c4b")
+			book_stack(46, 84)
+			book_stack(578, 224)
+			paper_scatter(128, 286, 4, cycle == 2)
+			paper_scatter(496, 284, 5, true)
+			candle_sconce(24, 298)
+			candle_sconce(596, 298)
+		else:
+			# Sala 9 (Boss Final): Base rúnica para os 3 Pilares e selo central.
+			ley_line(Vector2i(320, 175), Vector2i(320, 116), "547994", "2a314c")
+			ley_line(Vector2i(320, 175), Vector2i(158, 270), "4f7c66", "283344")
+			ley_line(Vector2i(320, 175), Vector2i(482, 270), "8b724d", "362c3d")
+			pillar_dais(320, 116, Color("5ec8e8"), "5b84a6")
+			pillar_dais(158, 270, Color("6bd994"), "548a6b")
+			pillar_dais(482, 270, Color("f4ba72"), "997b52")
+			blend_radial_tint(320, 178, 56.0, Color("141024"), 0.25)
+			for ring in [54, 63, 65, 72]:
+				for degree in 720:
+					var a := deg_to_rad(degree * 0.5)
+					rect(320 + roundi(cos(a) * ring), 178 + roundi(sin(a) * ring * 0.64),
+							1, 1, "70678c" if ring == 65 else "454160")
+			for i in 12:
+				var a := TAU * i / 12.0
+				var x := 320 + roundi(cos(a) * 57)
+				var y := 178 + roundi(sin(a) * 35)
+				rect(x, y, 1, 5, "9683a3")
+				rect(x + 1, y + 1, 2, 1, "786988")
+				rect(x + 3, y - 1, 1, 3, "786988")
+			for candle_pos: Vector2i in [
+				Vector2i(24, 298), Vector2i(596, 298), Vector2i(24, 98), Vector2i(596, 102),
+			]:
+				candle_sconce(candle_pos.x, candle_pos.y)
+			paper_scatter(110, 298, 5, true)
+			paper_scatter(526, 296, 6, true)
 
 	# Feixes de luz das janelas com mistura 100% opaca.
 	if shift < 2:
+		var beam_color := Color("f2ba77") if cycle == 1 else (Color("b89cb0") if cycle == 2 else Color("b48cff"))
 		var origins: Array = [168, 444] if shift == 0 else [178]
 		for origin: int in origins:
 			for y in range(46, 118):
@@ -872,9 +946,8 @@ func draw_room(shift: int) -> void:
 					if (x - origin - depth / 2) % 19 < 2 or depth in [20, 21]:
 						continue
 					var amount := (1.0 - float(depth) / 72.0) * (0.14 if shift == 0 else 0.11)
-					blend_pixel_tint(x, y, Color("f2ba77"), amount)
-	else:
-		# Luar descendo pela janela norte até o Pilar Mente.
+					blend_pixel_tint(x, y, beam_color, amount)
+	elif not has_north_door:
 		for y in range(44, 114):
 			var depth := y - 44
 			for x in range(300 - depth / 6, 340 + depth / 6):
@@ -1626,3 +1699,638 @@ const ENEMY_BOSS_SHEET = [
 ................................................................................................................................................
 ................................................................................................................................................"""
 ]
+
+
+# --- T-027: Estações Nítidas, Reflexos do Estudante, Boss Exausto e Arte 32-bit das Cutscenes ---
+
+func _paint_outlined_circle(img: Image, cx: int, cy: int, rx: float, ry: float, fill: Color, shade: Color, hi: Color) -> void:
+	for py in range(cy - ceili(ry) - 1, cy + ceili(ry) + 2):
+		for px in range(cx - ceili(rx) - 1, cx + ceili(rx) + 2):
+			if px < 0 or px >= img.get_width() or py < 0 or py >= img.get_height():
+				continue
+			var dx := float(px - cx) / rx
+			var dy := float(py - cy) / ry
+			var d := dx * dx + dy * dy
+			if d <= 1.25 and d > 0.96:
+				img.set_pixel(px, py, Color(INK))
+			elif d <= 0.96:
+				if dx + dy < -0.55:
+					img.set_pixel(px, py, hi)
+				elif dx + dy > 0.48:
+					img.set_pixel(px, py, shade)
+				else:
+					img.set_pixel(px, py, fill)
+
+
+func generate_stations_sheet() -> void:
+	art = stamp(STATIONS)
+	# Quadro 0 (x = 0..47): Mesa com garrafão de água ciano luminoso, copo cheio e frutas.
+	art.fill_rect(Rect2i(0, 0, 48, 48), Color(0, 0, 0, 0))
+	# Sombra no chão e pernas da mesa.
+	rect(4, 39, 40, 6, "1a1426")
+	for lx in [7, 36]:
+		rect(lx, 32, 5, 11, INK)
+		rect(lx + 1, 32, 3, 9, "7b4d3b")
+		rect(lx + 1, 32, 1, 8, "a86d50")
+	# Tampo da mesa com toalha clara contrastada no meio.
+	rect(3, 21, 42, 13, INK)
+	timber(4, 22, 40, 11)
+	rect(8, 22, 32, 8, "dfd0bc")
+	rect(9, 23, 30, 6, "faf0dd")
+	# Garrafão / garrafa térmica de água ciano brilhante e bem visível!
+	rect(10, 4, 13, 22, INK)
+	rect(13, 2, 7, 4, INK)
+	rect(14, 3, 5, 2, "489eb8")
+	rect(11, 6, 11, 18, "2492ad")
+	rect(12, 7, 9, 16, "46d6eb")
+	rect(13, 8, 4, 13, "9bf6ff")
+	rect(14, 9, 2, 9, "ffffff")
+	rect(11, 13, 11, 4, "ffffff")
+	rect(12, 14, 9, 2, "59d1e8")
+	# Copo cheio de água ao lado da garrafa.
+	rect(24, 15, 7, 10, INK)
+	rect(25, 16, 5, 8, "a9f6ff")
+	rect(25, 18, 5, 6, "46d6eb")
+	rect(26, 17, 1, 5, "ffffff")
+	# Lanche colorido (maçã vermelha e pão dourado) na direita da mesa.
+	_paint_outlined_circle(art, 36, 21, 4.0, 3.6, Color("e64e5a"), Color("a83242"), Color("ff9fa4"))
+	rect(35, 16, 2, 2, "6ca85b")
+	rect(31, 22, 9, 6, INK)
+	rect(32, 23, 7, 4, "f4ba72")
+	rect(33, 23, 4, 2, "ffe6a8")
+
+	# Quadro 1 (x = 48..95): Poltrona confortável acolhedora + luminária quente acesa!
+	art.fill_rect(Rect2i(48, 0, 48, 48), Color(0, 0, 0, 0))
+	rect(52, 39, 40, 6, "1a1426")
+	# Abajur aconchegante à esquerda da poltrona.
+	rect(51, 22, 9, 18, INK)
+	rect(54, 24, 3, 14, "6d5148")
+	rect(49, 11, 13, 11, INK)
+	rect(50, 12, 11, 9, "e89c4d")
+	rect(51, 13, 9, 7, "ffcf75")
+	rect(53, 14, 5, 4, "fff4c7")
+	# Encosto curvo da poltrona acolchoada em terracota/vinho quente.
+	rect(61, 8, 28, 20, INK)
+	rect(63, 6, 24, 4, INK)
+	rect(62, 9, 26, 17, "a64c5d")
+	rect(64, 10, 22, 13, "d16e75")
+	rect(66, 11, 16, 4, "eb9892")
+	# Almofada macia clara no centro.
+	rect(67, 18, 16, 10, INK)
+	rect(68, 19, 14, 8, "edd1b4")
+	rect(70, 20, 10, 4, "fff3db")
+	# Braços arredondados e assento grande.
+	rect(57, 20, 7, 17, INK)
+	rect(58, 21, 5, 14, "944354")
+	rect(59, 21, 3, 4, "cf7079")
+	rect(86, 20, 7, 17, INK)
+	rect(87, 21, 5, 14, "944354")
+	rect(87, 21, 3, 4, "cf7079")
+	rect(62, 26, 26, 11, INK)
+	rect(63, 27, 24, 8, "b85665")
+	rect(65, 28, 20, 3, "e38989")
+	# Pés de madeira.
+	rect(60, 36, 4, 5, INK)
+	rect(61, 37, 2, 3, "7b4d3b")
+	rect(86, 36, 4, 5, INK)
+	rect(87, 37, 2, 3, "7b4d3b")
+	save("stations_sheet")
+
+
+func _extract_clean_student_frame(src: Image, frame_idx: int) -> Image:
+	var frame := src.get_region(Rect2i(frame_idx * 32, 0, 32, 32))
+	var sword_colors: Array[Color] = [
+		Color("#8fa8ba"), Color("#e8f4ed"), Color("#8fbaca"), Color("#e4ffff"), Color("#88c1c3"),
+	]
+	var guard_col := Color("#cb975e")
+	for y in 32:
+		for x in 32:
+			var px := frame.get_pixel(x, y)
+			if px.a < 0.1:
+				continue
+			for sc in sword_colors:
+				if px.is_equal_approx(sc):
+					frame.set_pixel(x, y, Color(0, 0, 0, 0))
+					break
+			if x >= 21 and y <= 22:
+				frame.set_pixel(x, y, Color(0, 0, 0, 0))
+			elif px.is_equal_approx(guard_col):
+				frame.set_pixel(x, y, Color("#282833"))
+	# Remove somente contornos órfãos do punho da espada no lado direito da mão (x >= 20, y <= 22).
+	var outline := Color(INK)
+	for y in range(6, 23):
+		for x in range(20, 32):
+			if frame.get_pixel(x, y).is_equal_approx(outline):
+				var has_left := frame.get_pixel(x - 1, y).a > 0.5 and not frame.get_pixel(x - 1, y).is_equal_approx(outline)
+				var has_up := y > 0 and frame.get_pixel(x, y - 1).a > 0.5 and not frame.get_pixel(x, y - 1).is_equal_approx(outline)
+				var has_down := y < 31 and frame.get_pixel(x, y + 1).a > 0.5 and not frame.get_pixel(x, y + 1).is_equal_approx(outline)
+				if not (has_left or has_up or has_down):
+					frame.set_pixel(x, y, Color(0, 0, 0, 0))
+	return frame
+
+
+func _apply_tired_student_look(frame: Image, aura: Color) -> void:
+	var skin1 := Color("#e4a078")
+	var skin2 := Color("#ffd3a1")
+	for y in 32:
+		for x in 32:
+			var px := frame.get_pixel(x, y)
+			if px.a < 0.1:
+				continue
+			if px.is_equal_approx(skin1):
+				frame.set_pixel(x, y, px.lerp(Color("#cca396"), 0.55))
+			elif px.is_equal_approx(skin2):
+				frame.set_pixel(x, y, px.lerp(Color("#e8c3b2"), 0.55))
+	# Pequenas olheiras sob a linha dos olhos do sprite.
+	for eye_pos in [Vector2i(10, 10), Vector2i(13, 10), Vector2i(11, 11), Vector2i(14, 11)]:
+		var cur := frame.get_pixelv(eye_pos)
+		if cur.a > 0.5 and cur.r > 0.5:
+			frame.set_pixelv(eye_pos, Color("#6b4a78"))
+	frame.set_pixel(11, 27, aura)
+	frame.set_pixel(16, 27, aura)
+
+
+func generate_reflection_enemies() -> void:
+	var student := stamp(STUDENT)
+	var f0 := _extract_clean_student_frame(student, 0)
+	var f1 := _extract_clean_student_frame(student, 1)
+	var f2 := _extract_clean_student_frame(student, 2)
+	var f3 := _extract_clean_student_frame(student, 3)
+
+	# 1. Procrastinação (mesmo sprite parado/curvado + leves olheiras)
+	art = Image.create_empty(64, 32, false, Image.FORMAT_RGBA8)
+	var p0 := f0.duplicate() as Image
+	var p1 := f1.duplicate() as Image
+	_apply_tired_student_look(p0, Color("#8f6fb8"))
+	_apply_tired_student_look(p1, Color("#b38ee0"))
+	art.blit_rect(p0, Rect2i(0, 0, 32, 32), Vector2i(0, 0))
+	art.blit_rect(p1, Rect2i(0, 0, 32, 32), Vector2i(32, 1))
+	save("enemy_procrastination_sheet")
+
+	# 2. Prazo (mesmo sprite correndo/apressado + tons âmbar sutis)
+	art = Image.create_empty(64, 32, false, Image.FORMAT_RGBA8)
+	var d0 := f2.duplicate() as Image
+	var d1 := f3.duplicate() as Image
+	_apply_tired_student_look(d0, Color("#ffa354"))
+	_apply_tired_student_look(d1, Color("#ffd58a"))
+	art.blit_rect(d0, Rect2i(0, 0, 32, 32), Vector2i(0, 0))
+	art.blit_rect(d1, Rect2i(0, 0, 32, 32), Vector2i(32, 0))
+	save("enemy_deadline_sheet")
+
+	# 3. Autocobrança (mesmo sprite flutuando tenso centralizado em 34×36)
+	art = Image.create_empty(68, 36, false, Image.FORMAT_RGBA8)
+	var s0 := f0.duplicate() as Image
+	var s1 := f1.duplicate() as Image
+	_apply_tired_student_look(s0, Color("#ca83ff"))
+	_apply_tired_student_look(s1, Color("#e8b8ff"))
+	art.blit_rect(s0, Rect2i(0, 0, 32, 32), Vector2i(1, 1))
+	art.blit_rect(s1, Rect2i(0, 0, 32, 32), Vector2i(35, 3))
+	art.set_pixel(7, 10, Color("#ca83ff"))
+	art.set_pixel(57, 11, Color("#e8b8ff"))
+	save("enemy_selfcriticism_sheet")
+
+
+func generate_burnout_boss_sheet() -> void:
+	art = Image.create_empty(160, 80, false, Image.FORMAT_RGBA8)
+	for frame_idx in 2:
+		var ox := frame_idx * 80
+		var droop := frame_idx * 2
+
+		# Pernas pesadas e sombras esvoaçantes do moletom na base (sem trapézio reto!).
+		for lx in [27, 45]:
+			rect(ox + lx, 58 + droop, 9, 15, INK)
+			rect(ox + lx + 1, 59 + droop, 7, 12, "232433")
+			rect(ox + lx - 1, 70 + droop, 10, 5, INK)
+			rect(ox + lx, 71 + droop, 8, 3, "3c3d52")
+		# Fiapos / névoa escura saindo da barra do moletom e pés.
+		for wisp_x: int in [21, 31, 38, 49, 55]:
+			var wh: int = 10 + ((wisp_x + frame_idx * 5) % 8)
+			rect(ox + wisp_x, 56 + droop, 4, wh, INK)
+			rect(ox + wisp_x + 1, 57 + droop, 2, wh - 2, "3a2547" if (wisp_x % 2 == 0) else "593054")
+
+		# Mochila pesada aparecendo nos ombros + tronco do moletom preto com zíper.
+		rect(ox + 19, 41 + droop, 42, 22, INK)
+		rect(ox + 21, 42 + droop, 38, 19, "262532")
+		rect(ox + 24, 44 + droop, 32, 16, "36374a")
+		# Alças marrons pesadas da mochila e zíper metálico claro.
+		for sx in [26, 48]:
+			rect(ox + sx, 40 + droop, 6, 20, INK)
+			rect(ox + sx + 1, 41 + droop, 4, 18, "6b4843")
+			rect(ox + sx + 2, 41 + droop, 2, 16, "9c6c50")
+		rect(ox + 38, 42 + droop, 4, 18, "7c8294")
+		rect(ox + 39, 43 + droop, 2, 16, "cfd6e3")
+
+		# Braços caídos exaustos ao lado do corpo (com contorno arredondado nos ombros).
+		for side in [-1, 1]:
+			var ax := ox + (14 if side < 0 else 58)
+			rect(ax, 44 + droop, 8, 22, INK)
+			rect(ax + 1, 45 + droop, 6, 17, "2b2938")
+			rect(ax + 2, 45 + droop, 2, 14, "46485e")
+			rect(ax + 2, 62 + droop, 4, 3, "cfa393")
+
+		# Cabeça arredondada + pescoço pálido inclinado para frente.
+		rect(ox + 35, 36 + droop, 10, 7, INK)
+		rect(ox + 36, 37 + droop, 8, 5, "b08275")
+		rect(ox + 24, 17 + droop, 32, 22, INK)
+		rect(ox + 26, 37 + droop, 28, 3, INK)
+		rect(ox + 26, 19 + droop, 28, 18, "d6aa9a")
+		rect(ox + 27, 35 + droop, 26, 3, "b5857a")
+		rect(ox + 27, 23 + droop, 26, 4, "bfa19e")
+
+		# Cabelo ruivo desgrenhado assimétrico com raízes pretas icônicas e pontas rebeldes!
+		rect(ox + 22, 11 + droop, 36, 10, INK)
+		rect(ox + 26, 8 + droop, 28, 6, INK)
+		rect(ox + 29, 5 + droop, 11, 5, INK)
+		rect(ox + 43, 6 + droop, 10, 4, INK)
+		rect(ox + 23, 12 + droop, 34, 8, "9a273e")
+		rect(ox + 27, 9 + droop, 26, 4, "181224")
+		rect(ox + 30, 7 + droop, 8, 3, "9a273e")
+		rect(ox + 44, 8 + droop, 7, 2, "9a273e")
+		rect(ox + 25, 13 + droop, 30, 6, "c9403e")
+		rect(ox + 27, 13 + droop, 11, 4, "ec5346")
+		rect(ox + 42, 13 + droop, 9, 4, "ec5346")
+		# Pontas laterais espetadas estilo Stark.
+		rect(ox + 17, 16 + droop, 6, 4, INK)
+		rect(ox + 18, 17 + droop, 4, 2, "9a273e")
+		rect(ox + 57, 16 + droop, 6, 4, INK)
+		rect(ox + 58, 17 + droop, 4, 2, "9a273e")
+		# Mechas laterais e franja irregular sobre os olhos cansados.
+		rect(ox + 21, 18 + droop, 5, 14, INK)
+		rect(ox + 22, 19 + droop, 3, 12, "9a273e")
+		rect(ox + 54, 18 + droop, 5, 14, INK)
+		rect(ox + 55, 19 + droop, 3, 12, "9a273e")
+		for spike in [26, 33, 41, 49]:
+			rect(ox + spike, 17 + droop, 5, 7, "9a273e")
+			rect(ox + spike + 1, 17 + droop, 3, 4, "ec5346")
+
+		# Olheiras fundas arroxeadas e olhos cansados de insônia!
+		for ex in [29, 44]:
+			rect(ox + ex - 1, 25 + droop, 8, 7, "4e325c")
+			rect(ox + ex, 26 + droop, 6, 4, "181224")
+			rect(ox + ex, 29 + droop, 6, 3, "694478")
+			rect(ox + ex + 1, 27 + droop, 4, 2, "ffe091" if frame_idx == 0 else "ff7b8e")
+			rect(ox + ex + 2, 27 + droop, 2, 1, "ffffff" if frame_idx == 0 else "ffd3a1")
+		rect(ox + 36, 35 + droop, 8, 2, "6b3b49")
+		rect(ox + 35, 36 + droop, 2, 2, "6b3b49")
+		rect(ox + 43, 36 + droop, 2, 2, "6b3b49")
+
+		# Faíscas de esgotamento ao redor do corpo.
+		var spark_col := "ff8c9e" if frame_idx == 0 else "ffd58a"
+		rect(ox + 12, 26 - frame_idx * 2, 2, 2, spark_col)
+		rect(ox + 66, 30 + frame_idx * 2, 2, 2, spark_col)
+		rect(ox + 16, 54 + frame_idx, 2, 3, "8de5ff")
+		rect(ox + 62, 52 - frame_idx, 2, 3, "ca83ff")
+	save("boss_burnout_sheet")
+
+
+func _paint_bayer_sky(w: int, h: int, stops: Array[Color]) -> void:
+	var bayer: Array[float] = [0.0, 0.5, 0.75, 0.25]
+	for y in h:
+		var scaled := float(y) / float(maxi(1, h - 1)) * float(stops.size() - 1)
+		var band := mini(stops.size() - 2, int(floorf(scaled)))
+		var frac := scaled - float(band)
+		var c1 := stops[band]
+		var c2 := stops[band + 1]
+		for x in w:
+			var thresh := bayer[((x & 1) * 2) + (y & 1)]
+			art.set_pixel(x, y, c2 if frac > thresh else c1)
+
+
+func _draw_32bit_commuter(cx: int, top_y: int, coat_dark: String, coat_lit: String, hair: String, night: bool) -> void:
+	# Proporção RPG ~32px compatível com student_sheet.png!
+	var skin := "cca494" if night else "e4a078"
+	var skin_shade := "9d7a72" if night else "b3785a"
+	# Pernas até o piso do ônibus.
+	rect(cx - 5, top_y + 24, 4, 8, INK)
+	rect(cx + 1, top_y + 24, 4, 8, INK)
+	rect(cx - 4, top_y + 24, 2, 6, "242536")
+	rect(cx + 2, top_y + 24, 2, 6, "242536")
+	# Tronco + mochila discreta nas costas.
+	rect(cx - 8, top_y + 13, 16, 13, INK)
+	rect(cx - 7, top_y + 14, 14, 11, coat_dark)
+	rect(cx - 6, top_y + 14, 5, 10, coat_lit)
+	rect(cx - 10, top_y + 15, 3, 9, "593f38")
+	# Cabeça contornada com cabelo estilizado.
+	rect(cx - 6, top_y + 3, 12, 11, INK)
+	rect(cx - 5, top_y + 4, 10, 9, skin)
+	rect(cx - 5, top_y + 11, 10, 2, skin_shade)
+	rect(cx - 7, top_y, 14, 6, INK)
+	rect(cx - 6, top_y + 1, 12, 4, hair)
+	rect(cx - 3, top_y + 7, 2, 2, INK)
+	rect(cx + 1, top_y + 7, 2, 2, INK)
+
+
+func _stamp_clean_student(student_src: Image, frame_idx: int, dest_x: int, dest_y: int) -> void:
+	var clean := _extract_clean_student_frame(student_src, frame_idx)
+	art.blend_rect(clean, Rect2i(0, 0, 32, 32), Vector2i(dest_x, dest_y))
+
+
+func generate_cutscene_assets() -> void:
+	var student := stamp(STUDENT)
+	var classmate := stamp(CLASSMATE)
+
+	# 1. cutscene_wake.png (208x103)
+	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
+	art.fill(Color("453240"))
+	masonry(0, 0, 208, 56, false)
+	for y in range(58, 103, 10):
+		for x in range(-20, 208, 48):
+			timber(x + ((y / 10) % 2) * 24, y, 47, 9)
+	rect(0, 55, 208, 4, INK)
+	timber(0, 57, 208, 4)
+	# Janela matinal com céu Bayer e cortinas.
+	rect(134, 8, 52, 38, INK)
+	var prev_art := art
+	var win_sky := Image.create_empty(46, 32, false, Image.FORMAT_RGBA8)
+	art = win_sky
+	_paint_bayer_sky(46, 32, [Color("49567d"), Color("9d6770"), Color("f1ae6e"), Color("ffe29c")])
+	art = prev_art
+	art.blit_rect(win_sky, Rect2i(0, 0, 46, 32), Vector2i(137, 11))
+	rect(159, 11, 2, 32, INK)
+	rect(137, 26, 46, 2, INK)
+	rect(132, 7, 8, 40, INK)
+	rect(180, 7, 8, 40, INK)
+	rect(133, 8, 6, 38, "a4565a")
+	rect(181, 8, 6, 38, "a4565a")
+	blend_radial_tint(160, 27, 46.0, Color("f4ba72"), 0.20)
+	# Cama detalhada à esquerda.
+	rect(14, 42, 92, 42, INK)
+	timber(16, 36, 8, 50)
+	rect(24, 52, 80, 28, "3b495c")
+	rect(26, 46, 22, 12, INK)
+	rect(27, 47, 20, 10, "e2d4cc")
+	rect(42, 54, 62, 22, "45636a")
+	for row_y in range(56, 75, 6):
+		rect(44, row_y, 58, 2, "65858a")
+	_stamp_clean_student(student, 0, 42, 38)
+	# Criado-mudo em timber() para o despertador animado no overlay.
+	rect(112, 54, 24, 24, INK)
+	timber(113, 55, 22, 22)
+	save("cutscene_wake")
+
+	# 2. cutscene_bus_day.png (208x103)
+	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
+	art.fill(Color("342d40"))
+	var bus_sky := Image.create_empty(208, 48, false, Image.FORMAT_RGBA8)
+	art = bus_sky
+	_paint_bayer_sky(208, 48, [Color("4b6896"), Color("7ba9cc"), Color("c4dced")])
+	var real_bus := Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
+	real_bus.fill(Color("272133"))
+	real_bus.blit_rect(bus_sky, Rect2i(0, 0, 208, 48), Vector2i(0, 16))
+	art = real_bus
+	rect(0, 0, 208, 17, "352c44")
+	rect(0, 62, 208, 41, "231d2e")
+	rect(0, 91, 208, 12, "191422")
+	for px in [0, 66, 134, 200]:
+		rect(px, 16, 8, 48, INK)
+		rect(px + 1, 16, 6, 46, "463a57")
+	rect(0, 60, 208, 4, "594b6e")
+	rect(0, 11, 208, 4, INK)
+	rect(0, 12, 208, 2, "e8b243")
+	_draw_32bit_commuter(24, 59, "425070", "5b6c94", "2c2436", false)
+	_draw_32bit_commuter(52, 57, "63425c", "875d79", "4d3228", false)
+	_draw_32bit_commuter(76, 60, "395c5e", "52807e", "24202e", false)
+	_draw_32bit_commuter(132, 59, "63513e", "877057", "262028", false)
+	_draw_32bit_commuter(160, 57, "4e4269", "6c5d8f", "66382c", false)
+	_draw_32bit_commuter(186, 60, "364657", "4d6378", "1e1a26", false)
+	rect(101, 12, 5, 86, INK)
+	rect(102, 12, 3, 86, "e5ae3e")
+	_stamp_clean_student(student, 0, 82, 56)
+	save("cutscene_bus_day")
+
+	# 3. cutscene_class.png (208x103)
+	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
+	art.fill(Color("52435e"))
+	masonry(0, 0, 208, 64, false)
+	for y in range(64, 103, 10):
+		for x in range(-20, 208, 52):
+			timber(x + ((y / 10) % 2) * 26, y, 51, 9)
+	rect(0, 62, 208, 3, INK)
+	# Quadro verde escolar com moldura de madeira.
+	rect(22, 8, 164, 48, INK)
+	timber(23, 9, 162, 46)
+	rect(27, 13, 154, 38, "244738")
+	rect(27, 13, 154, 2, "34634e")
+	for row in 3:
+		for col in 5:
+			var span := 12 + ((row + col) * 5) % 12
+			rect(34 + col * 28, 19 + row * 9, span, 2, "ff8090" if col == 3 else "dce8de")
+	# Colega e Estudante visíveis atrás das carteiras.
+	art.blend_rect(classmate, Rect2i(0, 0, 32, 32), Vector2i(26, 44))
+	_stamp_clean_student(student, 0, 82, 42)
+	desk(10, 66, false)
+	desk(74, 68, true, "76dce8")
+	blend_radial_tint(108, 66, 24.0, Color("76dce8"), 0.14)
+	desk(140, 66, false)
+	save("cutscene_class")
+
+	# 4. cutscene_lunch.png (208x103)
+	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
+	art.fill(Color("454354"))
+	masonry(0, 0, 208, 62, false)
+	for y in range(62, 103, 12):
+		for x in range(-16, 208, 28):
+			rect(x + ((y / 12) % 2) * 14, y, 27, 11, "4c4a5c" if ((x + y) % 3) else "403e50")
+			rect(x + ((y / 12) % 2) * 14, y, 26, 1, "5c596e")
+	rect(14, 10, 56, 36, INK)
+	rect(16, 12, 52, 32, "7ba9d4")
+	rect(41, 12, 2, 32, INK)
+	rect(16, 27, 52, 2, INK)
+	wall_clock(168, 12, 3, 1)
+	_stamp_clean_student(student, 0, 88, 42)
+	rect(52, 62, 104, 14, INK)
+	timber(53, 63, 102, 12)
+	rect(58, 76, 8, 22, INK)
+	rect(142, 76, 8, 22, INK)
+	rect(59, 76, 6, 20, "6b4837")
+	rect(143, 76, 6, 20, "6b4837")
+	# Bandeja do RU com arroz, feijão e copo ciano luminoso.
+	rect(76, 56, 40, 12, INK)
+	rect(77, 57, 38, 10, "bcc6d4")
+	rect(80, 59, 13, 6, "faf0dd")
+	rect(96, 59, 11, 6, "6b4839")
+	rect(118, 52, 8, 13, INK)
+	rect(119, 53, 6, 11, "59e2f5")
+	rect(120, 54, 2, 6, "ffffff")
+	save("cutscene_lunch")
+
+	# 5. cutscene_bus_night.png (208x103)
+	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
+	var bus_night_sky := Image.create_empty(208, 48, false, Image.FORMAT_RGBA8)
+	art = bus_night_sky
+	_paint_bayer_sky(208, 48, [Color("0f0e1c"), Color("1b1c38"), Color("2f2b52")])
+	var night_bus := Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
+	night_bus.fill(Color("1c1829"))
+	night_bus.blit_rect(bus_night_sky, Rect2i(0, 0, 208, 48), Vector2i(0, 16))
+	art = night_bus
+	rect(0, 0, 208, 17, "282038")
+	rect(0, 62, 208, 41, "191524")
+	rect(0, 91, 208, 12, "120e1a")
+	for px in [0, 66, 134, 200]:
+		rect(px, 16, 8, 48, INK)
+		rect(px + 1, 16, 6, 46, "342a45")
+	rect(0, 60, 208, 4, "423654")
+	rect(0, 11, 208, 4, INK)
+	rect(0, 12, 208, 2, "c28c36")
+	_draw_32bit_commuter(24, 59, "2d354c", "3e4966", "1d1726", true)
+	_draw_32bit_commuter(52, 57, "453042", "5e4057", "33221c", true)
+	_draw_32bit_commuter(76, 60, "263c40", "355457", "191622", true)
+	_draw_32bit_commuter(132, 59, "42372c", "594b3b", "1b161f", true)
+	_draw_32bit_commuter(160, 57, "372e4a", "4b3e63", "472822", true)
+	_draw_32bit_commuter(186, 60, "252f3d", "344254", "15121c", true)
+	rect(101, 12, 5, 86, INK)
+	rect(102, 12, 3, 86, "c99238")
+	_stamp_clean_student(student, 0, 82, 56)
+	save("cutscene_bus_night")
+
+	# 6. cutscene_sleep.png (208x103)
+	art = Image.create_empty(208, 103, false, Image.FORMAT_RGBA8)
+	art.fill(Color("171324"))
+	masonry(0, 0, 208, 64, false)
+	blend_rect_tint(0, 0, 208, 64, Color("141024"), 0.52)
+	rect(0, 64, 208, 39, "22192b")
+	rect(134, 8, 48, 36, INK)
+	rect(136, 10, 44, 32, "1d2142")
+	for sx in [142, 152, 174]:
+		rect(sx, 14 + (sx % 7), 1, 1, "faf0dd")
+	rect(164, 15, 7, 7, "f6e09a")
+	rect(166, 15, 5, 5, "1d2142")
+	desk(126, 52, true, "6ec2de")
+	blend_radial_tint(160, 50, 32.0, Color("6ec2de"), 0.22)
+	rect(14, 46, 92, 40, INK)
+	timber(16, 40, 8, 46)
+	rect(24, 52, 22, 11, "cfc3cc")
+	rect(38, 56, 66, 24, "283654")
+	rect(28, 44, 16, 13, INK)
+	rect(29, 45, 14, 11, "cca496")
+	rect(27, 42, 18, 6, "9a273e")
+	rect(27, 41, 13, 3, INK)
+	save("cutscene_sleep")
+
+	# 7. cutscene_console.png (282x116)
+	art = Image.create_empty(282, 116, false, Image.FORMAT_RGBA8)
+	art.fill(Color("141020"))
+	masonry(0, 0, 282, 82, false)
+	blend_rect_tint(0, 0, 282, 82, Color("110d1c"), 0.56)
+	rect(0, 82, 282, 34, "241c32")
+	# Janela noturna à esquerda.
+	rect(18, 12, 52, 38, INK)
+	rect(20, 14, 48, 34, "1d2042")
+	for sx in [26, 36, 44, 60]:
+		rect(sx, 18 + (sx % 9), 1, 1, "dcd6ea")
+	rect(52, 19, 7, 7, "ffe29b")
+	rect(54, 19, 5, 5, "1d2042")
+	# Estante da TV em timber() + Gabinete CRT + Console retro.
+	rect(166, 64, 92, 34, INK)
+	timber(168, 66, 88, 10)
+	rect(170, 76, 84, 20, "3d2824")
+	rect(176, 18, 62, 48, INK)
+	rect(178, 20, 58, 44, "352e45")
+	rect(180, 22, 54, 40, "463d57")
+	rect(184, 26, 42, 32, INK)
+	rect(185, 27, 40, 30, "151a26")
+	# Console ao lado direito.
+	rect(237, 55, 16, 11, INK)
+	rect(238, 56, 14, 9, "2b2638")
+	rect(240, 53, 10, 4, "8f96a6")
+	# Tapete e cabo do controle.
+	rect(52, 84, 52, 16, INK)
+	rect(54, 86, 48, 12, "364561")
+	rect(56, 88, 44, 8, "4a5d7d")
+	rect(98, 90, 142, 2, INK)
+	save("cutscene_console")
+
+	# 8. cutscene_dawn.png (320x180)
+	art = Image.create_empty(320, 180, false, Image.FORMAT_RGBA8)
+	_paint_bayer_sky(320, 180, [
+		Color("16122b"), Color("2a2048"), Color("4a2e5c"),
+		Color("824364"), Color("c46966"), Color("eda46d"), Color("f7d68d"),
+	])
+	for sx in [22, 58, 96, 148, 198, 236, 288]:
+		rect(sx, 12 + (sx % 27), 1, 1, "e8e2f0")
+	for puff in [Vector4i(190, 62, 36, 7), Vector4i(248, 44, 42, 7)]:
+		rect(puff.x, puff.y, puff.z, puff.w, "573866")
+		rect(puff.x + 4, puff.y + puff.w - 2, puff.z - 8, 2, "c2756b")
+	for x in 320:
+		var ridge1 := 132 + roundi(10.0 * sin(x * 0.015 + 0.5) + 4.0 * cos(x * 0.035))
+		rect(x, ridge1, 1, 180 - ridge1, "291e3d")
+		var ridge2 := 148 + roundi(8.0 * sin(x * 0.02 + 2.4))
+		rect(x, ridge2, 1, 180 - ridge2, "191326")
+	rect(244, 85, 76, 6, INK)
+	timber(245, 86, 75, 4)
+	rect(258, 82, 16, 4, INK)
+	timber(259, 83, 14, 2)
+	rect(252, 82, 8, 3, "4a6e54")
+	rect(288, 82, 10, 3, "4a6e54")
+	save("cutscene_dawn")
+
+	# 9. cutscene_portraits.png (108x36 = 3 quadros 36x36, transparente RGBA8)
+	art = Image.create_empty(108, 36, false, Image.FORMAT_RGBA8)
+	var portraits_rng := RandomNumberGenerator.new()
+	portraits_rng.seed = 4242
+	for cycle in 3:
+		var ox := cycle * 36
+		var droop := cycle
+		var skin := Color("#f0bf9e") if cycle == 0 else (Color("#ddb098") if cycle == 1 else Color("#c99e94"))
+		var skin_shade := skin.darkened(0.16)
+		# Ombros / moletom preto + zíper + alças da mochila.
+		rect(ox + 4, 24 + droop, 28, 12 - droop, INK)
+		rect(ox + 5, 25 + droop, 26, 11 - droop, "262532")
+		rect(ox + 7, 26 + droop, 22, 10 - droop, "38394c")
+		rect(ox + 9, 25 + droop, 4, 11 - droop, "70514d")
+		rect(ox + 10, 26 + droop, 2, 10 - droop, "ae7953")
+		rect(ox + 23, 25 + droop, 4, 11 - droop, "70514d")
+		rect(ox + 24, 26 + droop, 2, 10 - droop, "ae7953")
+		rect(ox + 17, 26 + droop, 2, 10 - droop, "cfd6e3")
+		# Cabeça + Rosto com cantos arredondados e cabelo espetado estilo Stark.
+		rect(ox + 14, 21 + droop, 8, 5, INK)
+		rect(ox + 15, 22 + droop, 6, 4, skin_shade.to_html(false))
+		rect(ox + 9, 8 + droop, 18, 15, INK)
+		rect(ox + 11, 22 + droop, 14, 2, INK)
+		rect(ox + 10, 9 + droop, 16, 13, skin.to_html(false))
+		rect(ox + 11, 21 + droop, 14, 2, skin_shade.to_html(false))
+		# Cabelo ruivo assimétrico com raízes pretas e pontas laterais.
+		rect(ox + 7, 3 + droop, 22, 7, INK)
+		rect(ox + 11, 1 + droop, 7, 3, INK)
+		rect(ox + 20, 2 + droop, 6, 3, INK)
+		rect(ox + 8, 4 + droop, 20, 5, "9a273e")
+		rect(ox + 12, 2 + droop, 5, 3, "9a273e")
+		rect(ox + 21, 3 + droop, 4, 2, "9a273e")
+		rect(ox + 10, 2 + droop, 16, 3, INK)
+		rect(ox + 10, 5 + droop, 16, 3, "ec5346")
+		rect(ox + 5, 6 + droop, 3, 2, INK)
+		rect(ox + 28, 6 + droop, 3, 2, INK)
+		rect(ox + 7, 9 + droop, 4, 8, INK)
+		rect(ox + 8, 9 + droop, 2, 7, "9a273e")
+		rect(ox + 25, 9 + droop, 4, 8, INK)
+		rect(ox + 26, 9 + droop, 2, 7, "9a273e")
+		for bang in [11, 17, 22]:
+			rect(ox + bang, 8 + droop, 3, 4, "9a273e")
+			rect(ox + bang + 1, 8 + droop, 2, 3, "ec5346")
+		# Olhos e olheiras progressivas (0 -> 1 -> 2).
+		var ey := 14 + droop
+		if cycle == 0:
+			rect(ox + 13, ey, 3, 3, INK)
+			rect(ox + 20, ey, 3, 3, INK)
+			rect(ox + 13, ey, 1, 1, "faf0dd")
+			rect(ox + 20, ey, 1, 1, "faf0dd")
+		elif cycle == 1:
+			rect(ox + 12, ey + 3, 5, 1, "785280")
+			rect(ox + 19, ey + 3, 5, 1, "785280")
+			rect(ox + 13, ey + 1, 3, 2, INK)
+			rect(ox + 20, ey + 1, 3, 2, INK)
+			rect(ox + 13, ey, 3, 1, "38293d")
+			rect(ox + 20, ey, 3, 1, "38293d")
+		else:
+			rect(ox + 12, ey + 2, 5, 3, "563766")
+			rect(ox + 19, ey + 2, 5, 3, "563766")
+			rect(ox + 13, ey + 1, 3, 2, INK)
+			rect(ox + 20, ey + 1, 3, 2, INK)
+			rect(ox + 12, ey, 4, 1, INK)
+			rect(ox + 20, ey, 4, 1, INK)
+		# Boca.
+		rect(ox + 16, 20 + droop, 4, 1, "7a484c" if cycle == 0 else "5c353d")
+		if cycle == 2:
+			rect(ox + 15, 21 + droop, 1, 1, "5c353d")
+			rect(ox + 20, 21 + droop, 1, 1, "5c353d")
+	save("cutscene_portraits")

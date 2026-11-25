@@ -2,8 +2,18 @@ extends CanvasLayer
 
 const Retro = preload("res://scenes/ui/retro_window.gd")
 const STUDENT_SHEET: Texture2D = preload("res://assets/sprites/student_sheet.png")
-const CLASSMATE_SHEET: Texture2D = preload("res://assets/sprites/classmate_sheet.png")
 const ROOM_MORNING_TEX: Texture2D = preload("res://assets/sprites/room_morning.png")
+const PORTRAITS_TEX: Texture2D = preload("res://assets/sprites/cutscene_portraits.png")
+const CONSOLE_TEX: Texture2D = preload("res://assets/sprites/cutscene_console.png")
+const DAWN_TEX: Texture2D = preload("res://assets/sprites/cutscene_dawn.png")
+const SCENE_TEXTURES: Array[Texture2D] = [
+	preload("res://assets/sprites/cutscene_wake.png"),
+	preload("res://assets/sprites/cutscene_bus_day.png"),
+	preload("res://assets/sprites/cutscene_class.png"),
+	preload("res://assets/sprites/cutscene_lunch.png"),
+	preload("res://assets/sprites/cutscene_bus_night.png"),
+	preload("res://assets/sprites/cutscene_sleep.png"),
+]
 
 enum Phase { NONE, MONTAGE, INTRO_POEM, CONSOLE_ENTRY, ENDING_POEM }
 
@@ -128,7 +138,6 @@ var _ending_poem_labels: Array[Label] = []
 var _ending_poem_author: Label
 var _ending_poem_prompt: Label
 
-var _dawn_bg: ImageTexture
 var _feather_seeds: Array[Vector3] = []
 
 
@@ -139,7 +148,6 @@ func _ready() -> void:
 			fmod(float(index) * 19.3 + 12.0, 170.0),
 			float(index) * 0.85
 		))
-	_dawn_bg = _build_dawn_texture()
 
 	_backdrop = Retro.block(self, Rect2(0, 0, 640, 360), Color("#050408"))
 	_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -341,7 +349,7 @@ func _enter_phase(next_phase: Phase) -> void:
 			_beat_elapsed = 0.0
 			_pause_before_poem = false
 			_pause_elapsed = 0.0
-			AudioManager.play_track(&"beethoven", -9.0, CYCLE_PITCHES[0])
+			AudioManager.play_track(&"beethoven", -7.5, CYCLE_PITCHES[0])
 			AudioManager.play_alarm_beep()
 			_refresh_montage_labels()
 		Phase.INTRO_POEM:
@@ -357,7 +365,7 @@ func _enter_phase(next_phase: Phase) -> void:
 			_console_elapsed = 0.0
 			_console_caption.text = CONSOLE_CAPTIONS[0]
 		Phase.ENDING_POEM:
-			AudioManager.play_track(&"hope", -8.0, 1.0)
+			AudioManager.play_track(&"hope", -7.5, 1.0)
 			_poem_elapsed = 0.0
 			_poem_reveal_count = 0
 			for lbl: Label in _ending_poem_labels:
@@ -521,385 +529,113 @@ func _on_state_changed(state: GameManager.GameState) -> void:
 		hide()
 
 
-# --- Desenho procedural em pixel art (escala 2x exata em palco 208x103) ---
+# --- Renderização com assets 32-bit do jogo e animação ao vivo sincronizada ---
 
 func _draw_montage_scene() -> void:
 	const W: float = 208.0
 	const H: float = 103.0
 	var beat: float = sin(_elapsed * TAU * (2.6 + float(_cycle) * 0.6))
 	var jitter_y: float = roundf(beat) if _scene_idx in [1, 4] else 0.0
+	_montage_stage.draw_texture_rect(SCENE_TEXTURES[_scene_idx], Rect2(0.0, jitter_y, W, H), false)
+
 	match _scene_idx:
-		0: _draw_scene_wake(W, H, beat)
-		1: _draw_scene_bus(W, H, jitter_y, false)
-		2: _draw_scene_class(W, H)
-		3: _draw_scene_lunch(W, H)
-		4: _draw_scene_bus(W, H, jitter_y, true)
-		5: _draw_scene_sleep(W, H)
+		0:
+			# Despertador vibrando sobre o criado-mudo em pixel art.
+			var shake_x: float = roundf(beat * 1.4)
+			_montage_stage.draw_rect(Rect2(117 + shake_x, 45, 14, 11), Retro.INK)
+			_montage_stage.draw_rect(Rect2(118 + shake_x, 46, 12, 9), Color("#d64256"))
+			_montage_stage.draw_rect(Rect2(120 + shake_x, 48, 8, 5), Color("#181322"))
+			_montage_stage.draw_rect(Rect2(121 + shake_x, 49, 6, 3),
+					Color("#ff98a4" if beat > 0.0 else "#ffe091"))
+			if beat > 0.15:
+				_montage_stage.draw_rect(Rect2(113, 42, 3, 2), Color("#ffd38a"))
+				_montage_stage.draw_rect(Rect2(132, 42, 3, 2), Color("#ffd38a"))
+		1, 4:
+			var is_night: bool = _scene_idx == 4
+			var speed: float = 95.0 if is_night else 75.0
+			var scroll: float = fmod(_elapsed * speed, 240.0)
+			for idx: int in range(6):
+				var px: float = fposmod(float(idx) * 44.0 - scroll, 240.0) - 16.0
+				if is_night:
+					_montage_stage.draw_rect(Rect2(roundf(px), 22, 4, 2), Color("#ffd275"))
+					_montage_stage.draw_rect(Rect2(roundf(px) - 8, 42, 12, 2), Color(1.0, 0.42, 0.42, 0.55))
+				else:
+					_montage_stage.draw_rect(Rect2(roundf(px), 24, 14, 18), Color(0.28, 0.36, 0.52, 0.42))
+			if is_night and _cycle >= 1:
+				for drop: int in range(14):
+					var rx: float = fmod(float(drop) * 19.0 + _elapsed * 48.0, W)
+					var ry: float = fmod(float(drop) * 11.0 + _elapsed * 68.0, 42.0) + 18.0
+					_montage_stage.draw_rect(Rect2(roundf(rx), roundf(ry), 1, 3), Color(0.62, 0.78, 0.98, 0.55))
+			# Alças amarelas do ônibus balançando na batida.
+			for strap_x: int in range(28, 190, 32):
+				var sway: float = roundf(sin(_elapsed * 5.0 + float(strap_x)) * 2.0)
+				_montage_stage.draw_rect(Rect2(strap_x, 14 + jitter_y, 2, 7), Color("#c48f31"))
+				_montage_stage.draw_rect(Rect2(strap_x - 2 + sway, 21 + jitter_y, 6, 5), Color("#f4cf6e"))
+		2:
+			# Pilha crescente de tarefas nos ciclos 1 e 2 sobre a carteira direita.
+			var paper_count: int = 1 + _cycle * 4
+			for paper: int in range(paper_count):
+				_montage_stage.draw_rect(Rect2(148, 66 - paper * 2, 18, 2),
+						Color("#faf0dd") if paper % 2 == 0 else Color("#d2c4b4"))
+		3:
+			# Celular piscando com notificações urgentes na mesa do RU.
+			_montage_stage.draw_rect(Rect2(132, 57, 10, 6), Retro.INK)
+			_montage_stage.draw_rect(Rect2(133, 58, 8, 4), Color("#26293d"))
+			if _cycle > 0 and fmod(_elapsed, 0.5) < 0.25:
+				_montage_stage.draw_rect(Rect2(134, 54, 6, 3), Color("#ff6e84"))
+		5:
+			# Olhos abertos na escuridão / insônia nos ciclos 1 e 2.
+			if _cycle >= 1:
+				_montage_stage.draw_rect(Rect2(32, 49, 2, 2), Retro.INK)
+				_montage_stage.draw_rect(Rect2(37, 49, 2, 2), Retro.INK)
+			if _cycle == 2:
+				_montage_stage.draw_rect(Rect2(31, 51, 8, 1), Color("#6e497a"))
 
-	# Escurece e dessatura sutilmente conforme os ciclos acumulam cansaço.
 	if _cycle > 0:
-		var shade_alpha: float = 0.14 if _cycle == 1 else 0.30
+		var shade_alpha: float = 0.14 if _cycle == 1 else 0.28
 		_montage_stage.draw_rect(Rect2(0, 0, W, H), Color(0.06, 0.04, 0.12, shade_alpha))
-		var pulse_border: float = 0.25 if _cycle == 2 and beat > 0.2 else 0.0
-		if pulse_border > 0.0:
-			_montage_stage.draw_rect(Rect2(0, 0, W, 3), Color(0.75, 0.22, 0.32, pulse_border))
-			_montage_stage.draw_rect(Rect2(0, H - 3, W, 3), Color(0.75, 0.22, 0.32, pulse_border))
-
-
-func _draw_scene_wake(w: float, h: float, beat: float) -> void:
-	var wall: Color = Color("#4c3a56") if _cycle < 2 else Color("#362b42")
-	_montage_stage.draw_rect(Rect2(0, 0, w, 64), wall)
-	_montage_stage.draw_rect(Rect2(0, 64, w, h - 64), Color("#634230"))
-	_montage_stage.draw_rect(Rect2(0, 62, w, 2), Color("#2c1d28"))
-
-	# Janela com luz do amanhecer.
-	var sky: Color = Color("#ffbf78") if _cycle == 0 else (Color("#b88fa0") if _cycle == 1 else Color("#5e6485"))
-	_montage_stage.draw_rect(Rect2(138, 12, 46, 36), Color("#181322"))
-	_montage_stage.draw_rect(Rect2(140, 14, 42, 32), sky)
-	_montage_stage.draw_rect(Rect2(160, 14, 2, 32), Color("#36273f"))
-	_montage_stage.draw_rect(Rect2(140, 29, 42, 2), Color("#36273f"))
-	_montage_stage.draw_rect(Rect2(136, 10, 8, 40), Color("#7a4e68"))
-	_montage_stage.draw_rect(Rect2(178, 10, 8, 40), Color("#7a4e68"))
-
-	# Cama à esquerda e cobertor.
-	_montage_stage.draw_rect(Rect2(16, 48, 88, 36), Color("#291c33"))
-	_montage_stage.draw_rect(Rect2(18, 38, 8, 48), Color("#593a2b"))
-	_montage_stage.draw_rect(Rect2(26, 56, 76, 22), Color("#faf0dd"))
-	_montage_stage.draw_rect(Rect2(28, 52, 20, 9), Color("#e2d4cc"))
-	_montage_stage.draw_rect(Rect2(44, 58, 58, 18), Color("#3b4c73"))
-
-	# Estudante sentando na cama (curvado conforme o ciclo).
-	var droop: float = float(_cycle) * 2.0
-	_draw_tiny_student(_montage_stage, Vector2(54, 44 + droop), true, _cycle)
-
-	# Criado-mudo e despertador tocando na batida.
-	_montage_stage.draw_rect(Rect2(114, 56, 22, 24), Color("#4a3026"))
-	_montage_stage.draw_rect(Rect2(116, 58, 18, 2), Color("#704b38"))
-	var shake_x: float = roundf(beat * 1.5)
-	_montage_stage.draw_rect(Rect2(119 + shake_x, 46, 12, 10), Color("#d64256"))
-	_montage_stage.draw_rect(Rect2(121 + shake_x, 48, 8, 6), Color("#181322"))
-	_montage_stage.draw_rect(Rect2(122 + shake_x, 49, 6, 4), Color("#ff8f9e" if beat > 0.0 else "#ffe091"))
-	if beat > 0.1:
-		_montage_stage.draw_rect(Rect2(114, 42, 3, 2), Color("#ffd38a"))
-		_montage_stage.draw_rect(Rect2(133, 42, 3, 2), Color("#ffd38a"))
-
-
-func _draw_scene_bus(w: float, h: float, jitter_y: float, is_night: bool) -> void:
-	# Interior do ônibus e paisagem passando nas janelas.
-	var sky: Color = Color("#161529") if is_night else (Color("#9ec4e8") if _cycle == 0 else Color("#8a8ca8"))
-	_montage_stage.draw_rect(Rect2(0, 0, w, 18), Color("#372d44"))
-	_montage_stage.draw_rect(Rect2(0, 18, w, 46), sky)
-	_montage_stage.draw_rect(Rect2(0, 64, w, h - 64), Color("#252033"))
-
-	# Paisagem em movimento fora das janelas.
-	var speed: float = 95.0 if is_night else 75.0
-	var scroll: float = fmod(_elapsed * speed, 240.0)
-	for idx: int in range(6):
-		var px: float = fposmod(float(idx) * 44.0 - scroll, 240.0) - 20.0
-		if is_night:
-			_montage_stage.draw_rect(Rect2(px, 24, 2, 36), Color("#2b2844"))
-			_montage_stage.draw_rect(Rect2(px - 2, 22, 6, 3), Color("#ffd275"))
-			_montage_stage.draw_rect(Rect2(px - 10, 50, 14, 2), Color(1.0, 0.42, 0.42, 0.7))
-		else:
-			var bh: float = 16.0 + float((idx * 7) % 18)
-			_montage_stage.draw_rect(Rect2(px, 62.0 - bh, 22, bh), Color("#4f5d78"))
-			_montage_stage.draw_rect(Rect2(px + 4, 65.0 - bh, 3, 3), Color("#fff1b8"))
-			_montage_stage.draw_rect(Rect2(px + 12, 65.0 - bh, 3, 3), Color("#fff1b8"))
-
-	if is_night and _cycle >= 1:
-		for drop: int in range(14):
-			var rx: float = fmod(float(drop) * 19.0 + _elapsed * 45.0, w)
-			var ry: float = fmod(float(drop) * 11.0 + _elapsed * 65.0, 44.0) + 18.0
-			_montage_stage.draw_rect(Rect2(roundf(rx), roundf(ry), 1, 3), Color(0.62, 0.78, 0.98, 0.55))
-
-	# Montantes das janelas do ônibus.
-	for post_x: float in [0.0, 66.0, 134.0, 200.0]:
-		_montage_stage.draw_rect(Rect2(post_x, 16, 8, 52), Color("#3d334c"))
-	_montage_stage.draw_rect(Rect2(0, 60, w, 4), Color("#4e4261"))
-
-	# Barras amarelas superiores e alças balançando.
-	_montage_stage.draw_rect(Rect2(0, 12 + jitter_y, w, 3), Color("#e5ae3e"))
-	for strap_x: int in range(28, 190, 32):
-		var sway: float = roundf(sin(_elapsed * 5.0 + float(strap_x)) * 2.0)
-		_montage_stage.draw_rect(Rect2(strap_x, 15 + jitter_y, 2, 7), Color("#c48f31"))
-		_montage_stage.draw_rect(Rect2(strap_x - 2 + sway, 22 + jitter_y, 6, 5), Color("#f4cf6e"))
-
-	# Barra vertical + passageiros espremidos dos dois lados sobre o piso do ônibus.
-	_montage_stage.draw_rect(Rect2(0, 92, w, h - 92), Color("#1b1726"))
-	_montage_stage.draw_rect(Rect2(102, 12, 3, h - 14), Color("#d9a236"))
-	var crowd: Array[Array] = [
-		[18, Color("#495575"), Color("#33293e")],
-		[44, Color("#6e4b64"), Color("#4f3427")],
-		[70, Color("#3e6466"), Color("#292334")],
-		[130, Color("#6b5944"), Color("#28222e")],
-		[156, Color("#51456e"), Color("#6b4032")],
-		[182, Color("#3c4b5c"), Color("#1e1a26")],
-	]
-	for p_data: Array in crowd:
-		var px: float = float(p_data[0])
-		var coat: Color = p_data[1] as Color
-		var hair: Color = p_data[2] as Color
-		_montage_stage.draw_rect(Rect2(px, 54 + jitter_y, 20, 40), coat)
-		_montage_stage.draw_rect(Rect2(px + 3, 38 + jitter_y, 14, 15), Color("#dcb49a"))
-		_montage_stage.draw_rect(Rect2(px + 2, 36 + jitter_y, 16, 7), hair)
-		_montage_stage.draw_rect(Rect2(px - 2, 54 + jitter_y, 2, 40), Color("#140f1d"))
-
-	# Nosso estudante espremido no centro segurando a barra/mochila, apoiado no piso.
-	var student_y: float = 54.0 + float(_cycle) * 2.0 + jitter_y
-	_draw_tiny_student(_montage_stage, Vector2(96, student_y), false, _cycle)
-	_montage_stage.draw_rect(Rect2(92, student_y + 12, 10, 12), Color("#8a5c3a"))
-	_montage_stage.draw_rect(Rect2(101, student_y + 12, 4, 4), Color("#f0c2a3"))
-
-
-func _draw_scene_class(w: float, h: float) -> void:
-	_montage_stage.draw_rect(Rect2(0, 0, w, 68), Color("#584a66"))
-	_montage_stage.draw_rect(Rect2(0, 68, w, h - 68), Color("#6e533d"))
-
-	# Quadro verde grande cheio de prazos/anotações.
-	_montage_stage.draw_rect(Rect2(24, 10, 160, 46), Color("#7b5134"))
-	_montage_stage.draw_rect(Rect2(27, 13, 154, 40), Color("#254a3b"))
-	for row: int in range(3):
-		for dash: int in range(6):
-			var span: float = 10.0 + float(((row + dash) * 5) % 10)
-			var gx: float = 34.0 + float(dash) * 23.0
-			var gy: float = 19.0 + float(row) * 10.0
-			var chalk: Color = Color("#ff8d99") if (_cycle >= 1 and dash == 4) else Color("#dce8de")
-			_montage_stage.draw_rect(Rect2(gx, gy, span, 2), chalk)
-
-	# Carteira da esquerda (colega) e carteira central (estudante).
-	_montage_stage.draw_rect(Rect2(22, 62, 40, 26), Color("#7d5336"))
-	_montage_stage.draw_rect(Rect2(26, 48, 22, 16), Color("#5b4a7a"))
-	_montage_stage.draw_rect(Rect2(30, 36, 12, 12), Color("#f2c7a5"))
-	_montage_stage.draw_rect(Rect2(29, 34, 14, 6), Color("#292b47"))
-
-	_draw_tiny_student(_montage_stage, Vector2(94, 42 + float(_cycle) * 2.0), false, _cycle)
-	# Mesa do estudante + caderno + pilha crescente de tarefas!
-	_montage_stage.draw_rect(Rect2(76, 62, 64, 10), Color("#91603f"))
-	_montage_stage.draw_rect(Rect2(80, 72, 6, 22), Color("#543524"))
-	_montage_stage.draw_rect(Rect2(130, 72, 6, 22), Color("#543524"))
-	_montage_stage.draw_rect(Rect2(86, 54, 16, 8), Color("#3c4966"))
-	_montage_stage.draw_rect(Rect2(88, 55, 12, 5), Color("#9ff4ff"))
-
-	# Pilha de papéis crescendo nos ciclos 1 e 2.
-	var paper_count: int = 2 + _cycle * 4
-	for paper: int in range(paper_count):
-		_montage_stage.draw_rect(Rect2(116, 60 - paper * 2, 18, 2),
-				Color("#faf0dd") if paper % 2 == 0 else Color("#d2c4b4"))
-
-
-func _draw_scene_lunch(w: float, h: float) -> void:
-	_montage_stage.draw_rect(Rect2(0, 0, w, 62), Color("#5a647a"))
-	_montage_stage.draw_rect(Rect2(0, 62, w, h - 62), Color("#464254"))
-
-	# Relógio na parede do refeitório.
-	_montage_stage.draw_rect(Rect2(160, 12, 22, 22), Color("#181322"))
-	_montage_stage.draw_rect(Rect2(162, 14, 18, 18), Color("#faf0dd"))
-	_montage_stage.draw_rect(Rect2(170, 16, 2, 8), Color("#d64256"))
-	_montage_stage.draw_rect(Rect2(170, 22, 6 + _cycle, 2), Color("#181322"))
-
-	# Janela do RU.
-	_montage_stage.draw_rect(Rect2(18, 12, 54, 34), Color("#739dc4"))
-	_montage_stage.draw_rect(Rect2(44, 12, 2, 34), Color("#3d354c"))
-
-	# Estudante atrás da mesa com bandeja.
-	_draw_tiny_student(_montage_stage, Vector2(92, 42 + float(_cycle) * 2.0), false, _cycle)
-	_montage_stage.draw_rect(Rect2(54, 62, 100, 12), Color("#b39674"))
-	_montage_stage.draw_rect(Rect2(60, 74, 8, 22), Color("#59473a"))
-	_montage_stage.draw_rect(Rect2(140, 74, 8, 22), Color("#59473a"))
-
-	# Bandeja metálica + comida + copo d'água + celular piscando.
-	_montage_stage.draw_rect(Rect2(78, 56, 36, 10), Color("#b0bac7"))
-	_montage_stage.draw_rect(Rect2(81, 58, 12, 6), Color("#faf0dd"))
-	_montage_stage.draw_rect(Rect2(96, 58, 9, 6), Color("#664638"))
-	_montage_stage.draw_rect(Rect2(118, 53, 7, 10), Color("#7bd9f5"))
-	_montage_stage.draw_rect(Rect2(130, 58, 10, 5), Color("#26293d"))
-	if _cycle > 0 and fmod(_elapsed, 0.5) < 0.25:
-		_montage_stage.draw_rect(Rect2(132, 55, 6, 3), Color("#ff6e84"))
-
-
-func _draw_scene_sleep(w: float, h: float) -> void:
-	_montage_stage.draw_rect(Rect2(0, 0, w, 66), Color("#181326"))
-	_montage_stage.draw_rect(Rect2(0, 66, w, h - 66), Color("#241b30"))
-
-	# Janela noturna com lua.
-	_montage_stage.draw_rect(Rect2(136, 10, 44, 34), Color("#0d0b18"))
-	_montage_stage.draw_rect(Rect2(138, 12, 40, 30), Color("#222547"))
-	_montage_stage.draw_rect(Rect2(164, 16, 7, 7), Color("#f6e09a"))
-	_montage_stage.draw_rect(Rect2(166, 16, 5, 5), Color("#222547"))
-
-	# Monitor ainda aceso no canto da escrivaninha.
-	_montage_stage.draw_rect(Rect2(126, 48, 30, 24), Color("#2b2136"))
-	_montage_stage.draw_rect(Rect2(132, 34, 18, 12), Color("#141926"))
-	_montage_stage.draw_rect(Rect2(134, 36, 14, 8), Color("#46759c") if _cycle == 0 else Color("#71b8d4"))
-
-	# Cama + estudante deitado debaixo do cobertor.
-	_montage_stage.draw_rect(Rect2(18, 48, 86, 36), Color("#1f1629"))
-	_montage_stage.draw_rect(Rect2(20, 40, 8, 44), Color("#3d2824"))
-	_montage_stage.draw_rect(Rect2(28, 52, 18, 8), Color("#cfc3cc"))
-	_montage_stage.draw_rect(Rect2(40, 56, 60, 18), Color("#2a3757"))
-	# Cabeça no travesseiro olhando pro teto.
-	_montage_stage.draw_rect(Rect2(30, 46, 14, 12), Color("#e2b89b" if _cycle < 2 else "#cab0a2"))
-	_montage_stage.draw_rect(Rect2(28, 44, 16, 6), Color("#a83232"))
-	_montage_stage.draw_rect(Rect2(28, 42, 12, 3), Color("#1d1724"))
-	if _cycle >= 1:
-		# Olhos abertos na escuridão / insônia.
-		_montage_stage.draw_rect(Rect2(34, 51, 3, 2), Color("#181322"))
-		_montage_stage.draw_rect(Rect2(39, 51, 3, 2), Color("#181322"))
-	if _cycle == 2:
-		_montage_stage.draw_rect(Rect2(34, 53, 8, 1), Color("#7b538a"))
-
-
-func _draw_tiny_student(canvas: CanvasItem, pos: Vector2, sitting: bool, cycle: int) -> void:
-	var x: float = roundf(pos.x)
-	var y: float = roundf(pos.y)
-	var skin: Color = Color("#f0c2a3") if cycle == 0 else (Color("#e0b69d") if cycle == 1 else Color("#cca79b"))
-	# Corpo com moletom preto e zíper claro.
-	canvas.draw_rect(Rect2(x - 8, y + 10, 16, 14 if sitting else 18), Color("#24222c"))
-	canvas.draw_rect(Rect2(x - 1, y + 11, 2, 12 if sitting else 16), Color("#7d8594"))
-	if not sitting:
-		canvas.draw_rect(Rect2(x - 6, y + 28, 5, 8), Color("#1e2336"))
-		canvas.draw_rect(Rect2(x + 1, y + 28, 5, 8), Color("#1e2336"))
-	# Cabeça e cabelo ruivo com raízes pretas.
-	canvas.draw_rect(Rect2(x - 7, y - 4, 14, 14), skin)
-	canvas.draw_rect(Rect2(x - 8, y - 8, 16, 7), Color("#b33934"))
-	canvas.draw_rect(Rect2(x - 6, y - 9, 12, 3), Color("#1e1824"))
-	canvas.draw_rect(Rect2(x - 8, y - 2, 3, 4), Color("#c4463b"))
-	canvas.draw_rect(Rect2(x + 5, y - 2, 3, 4), Color("#c4463b"))
-	# Olhos e olheiras.
-	canvas.draw_rect(Rect2(x - 4, y + 2, 2, 3 if cycle < 2 else 2), Color("#181322"))
-	canvas.draw_rect(Rect2(x + 2, y + 2, 2, 3 if cycle < 2 else 2), Color("#181322"))
-	if cycle >= 1:
-		var circle_color: Color = Color("#7d5b82") if cycle == 1 else Color("#573b66")
-		canvas.draw_rect(Rect2(x - 5, y + 5, 4, 1 if cycle == 1 else 2), circle_color)
-		canvas.draw_rect(Rect2(x + 1, y + 5, 4, 1 if cycle == 1 else 2), circle_color)
+		if _cycle == 2 and beat > 0.2:
+			_montage_stage.draw_rect(Rect2(0, 0, W, 3), Color(0.75, 0.22, 0.32, 0.28))
+			_montage_stage.draw_rect(Rect2(0, H - 3, W, 3), Color(0.75, 0.22, 0.32, 0.28))
 
 
 func _draw_portrait_face() -> void:
-	# Palco lógico 36x36 ampliado 3x -> 108x108 mostrando o rosto cansar a cada ciclo!
-	const S: float = 36.0
-	var skin: Color = Color("#f2c4a2") if _cycle == 0 else (Color("#e0b69d") if _cycle == 1 else Color("#c9a598"))
-	var skin_shade: Color = skin.darkened(0.14)
-	var droop: float = float(_cycle) * 1.5
-	var blink: bool = fmod(_elapsed, 3.1) > 2.94
 	var tremor_x: float = roundf(sin(_elapsed * 26.0)) if _cycle == 2 else 0.0
-
-	# Ombros / moletom preto + alças da mochila.
-	_portrait_stage.draw_rect(Rect2(5, 25 + droop, 26, 11), Color("#1d1a24"))
-	_portrait_stage.draw_rect(Rect2(7, 26 + droop, 22, 10), Color("#2b2736"))
-	_portrait_stage.draw_rect(Rect2(10, 26 + droop, 3, 10), Color("#8a5c3a"))
-	_portrait_stage.draw_rect(Rect2(23, 26 + droop, 3, 10), Color("#8a5c3a"))
-	_portrait_stage.draw_rect(Rect2(17, 27 + droop, 2, 9), Color("#9aa3b2"))
-
-	# Pescoço.
-	_portrait_stage.draw_rect(Rect2(15, 22 + droop, 6, 5), skin_shade)
-
-	# Rosto.
-	var fx: float = 10.0 + tremor_x
-	var fy: float = 8.0 + droop
-	_portrait_stage.draw_rect(Rect2(fx - 1, fy - 1, 18, 17), Color("#181322"))
-	_portrait_stage.draw_rect(Rect2(fx, fy, 16, 15), skin)
-	_portrait_stage.draw_rect(Rect2(fx, fy + 13, 16, 2), skin_shade)
-
-	# Cabelo ruivo com raízes pretas.
-	_portrait_stage.draw_rect(Rect2(fx - 2, fy - 5, 20, 7), Color("#b53733"))
-	_portrait_stage.draw_rect(Rect2(fx + 1, fy - 6, 14, 3), Color("#1d1724"))
-	_portrait_stage.draw_rect(Rect2(fx - 2, fy + 1, 3, 7), Color("#9e2c2b"))
-	_portrait_stage.draw_rect(Rect2(fx + 15, fy + 1, 3, 7), Color("#9e2c2b"))
-	_portrait_stage.draw_rect(Rect2(fx + 3, fy, 4, 2), Color("#cf493e"))
-	_portrait_stage.draw_rect(Rect2(fx + 10, fy, 3, 2), Color("#cf493e"))
-
-	# Olhos e olheiras progressivas.
-	var eye_y: float = fy + 6.0
-	if blink:
-		_portrait_stage.draw_rect(Rect2(fx + 3, eye_y + 1, 3, 1), Color("#181322"))
-		_portrait_stage.draw_rect(Rect2(fx + 10, eye_y + 1, 3, 1), Color("#181322"))
-	else:
-		var eye_h: float = 3.0 if _cycle == 0 else (2.0 if _cycle == 1 else 2.0)
-		var lid_offset: float = 0.0 if _cycle == 0 else 1.0
-		_portrait_stage.draw_rect(Rect2(fx + 3, eye_y + lid_offset, 3, eye_h), Color("#181322"))
-		_portrait_stage.draw_rect(Rect2(fx + 10, eye_y + lid_offset, 3, eye_h), Color("#181322"))
-		if _cycle == 0:
-			_portrait_stage.draw_rect(Rect2(fx + 3, eye_y, 1, 1), Color("#faf0dd"))
-			_portrait_stage.draw_rect(Rect2(fx + 10, eye_y, 1, 1), Color("#faf0dd"))
-
-	# Sobrancelhas cansadas e olheiras.
-	if _cycle == 1:
-		_portrait_stage.draw_rect(Rect2(fx + 2, eye_y + 3, 5, 1), Color("#7a5582"))
-		_portrait_stage.draw_rect(Rect2(fx + 9, eye_y + 3, 5, 1), Color("#7a5582"))
-		_portrait_stage.draw_rect(Rect2(fx + 3, eye_y - 1, 3, 1), Color("#261b2e"))
-		_portrait_stage.draw_rect(Rect2(fx + 10, eye_y - 1, 3, 1), Color("#261b2e"))
-	elif _cycle == 2:
-		_portrait_stage.draw_rect(Rect2(fx + 2, eye_y + 3, 5, 2), Color("#593a6b"))
-		_portrait_stage.draw_rect(Rect2(fx + 9, eye_y + 3, 5, 2), Color("#593a6b"))
-		_portrait_stage.draw_rect(Rect2(fx + 2, eye_y - 1, 4, 1), Color("#181322"))
-		_portrait_stage.draw_rect(Rect2(fx + 10, eye_y - 1, 4, 1), Color("#181322"))
-
-	# Boca.
-	if _cycle == 0:
-		_portrait_stage.draw_rect(Rect2(fx + 6, fy + 12, 4, 1), Color("#8c5252"))
-	elif _cycle == 1:
-		_portrait_stage.draw_rect(Rect2(fx + 6, fy + 12, 4, 1), Color("#734247"))
-	else:
-		_portrait_stage.draw_rect(Rect2(fx + 6, fy + 12, 4, 1), Color("#5c363e"))
-		_portrait_stage.draw_rect(Rect2(fx + 5, fy + 13, 1, 1), Color("#5c363e"))
-		_portrait_stage.draw_rect(Rect2(fx + 10, fy + 13, 1, 1), Color("#5c363e"))
+	var src := Rect2(float(_cycle * 36), 0.0, 36.0, 36.0)
+	_portrait_stage.draw_texture_rect_region(PORTRAITS_TEX, Rect2(tremor_x, 0.0, 36.0, 36.0), src)
+	# Piscar sutil sincronizado ao relógio.
+	if fmod(_elapsed, 3.2) > 3.04:
+		var ey: float = 15.0 + float(_cycle)
+		_portrait_stage.draw_rect(Rect2(13.0 + tremor_x, ey, 3.0, 2.0), Color("#d6aa9a"))
+		_portrait_stage.draw_rect(Rect2(20.0 + tremor_x, ey, 3.0, 2.0), Color("#d6aa9a"))
+		_portrait_stage.draw_rect(Rect2(13.0 + tremor_x, ey + 1.0, 3.0, 1.0), Retro.INK)
+		_portrait_stage.draw_rect(Rect2(20.0 + tremor_x, ey + 1.0, 3.0, 1.0), Retro.INK)
 
 
 func _draw_console_scene() -> void:
 	const W: float = 282.0
 	const H: float = 116.0
-	_console_stage.draw_rect(Rect2(0, 0, W, 82), Color("#151120"))
-	_console_stage.draw_rect(Rect2(0, 82, W, H - 82), Color("#251c33"))
+	_console_stage.draw_texture_rect(CONSOLE_TEX, Rect2(0, 0, W, H), false)
 
-	# Janela noturna ao fundo.
-	_console_stage.draw_rect(Rect2(20, 14, 48, 36), Color("#0b0914"))
-	_console_stage.draw_rect(Rect2(22, 16, 44, 32), Color("#1d2042"))
-	_console_stage.draw_rect(Rect2(50, 20, 7, 7), Color("#ffe29b"))
-	_console_stage.draw_rect(Rect2(52, 20, 5, 5), Color("#1d2042"))
-
-	# Estante + TV de tubo + Console retrô à direita.
-	_console_stage.draw_rect(Rect2(168, 66, 86, 32), Color("#4f3328"))
-	_console_stage.draw_rect(Rect2(168, 66, 86, 3), Color("#7a533e"))
-
-	# Gabinete da TV CRT.
-	_console_stage.draw_rect(Rect2(178, 20, 58, 46), Color("#2b2636"))
-	_console_stage.draw_rect(Rect2(180, 22, 54, 42), Color("#3d364c"))
-	var tv_rect: Rect2 = Rect2(184, 26, 42, 32)
+	var tv_rect: Rect2 = Rect2(185, 27, 40, 30)
 	var tv_center: Vector2 = tv_rect.get_center()
-
-	if _console_step == 0:
-		_console_stage.draw_rect(tv_rect, Color("#151a26"))
-		_console_stage.draw_rect(Rect2(186, 28, 38, 2), Color("#242e40"))
-	else:
-		# Tela ligada com miniatura colorida de "Três Turnos" + scanlines.
+	if _console_step >= 1:
+		# Tela CRT liga exibindo miniatura 32-bit da Sala da Manhã + scanlines + LED verde.
 		_console_stage.draw_texture_rect(ROOM_MORNING_TEX, tv_rect, false, Color("#d4fff8"))
 		for sy: int in range(int(tv_rect.position.y), int(tv_rect.end.y), 3):
 			_console_stage.draw_rect(Rect2(tv_rect.position.x, float(sy), tv_rect.size.x, 1),
 					Color(0.05, 0.08, 0.14, 0.28))
-		# Feixe luminoso da TV iluminando o quarto escuro.
+		_console_stage.draw_rect(Rect2(249, 60, 2, 2), Color("#70ffae"))
 		var glow_strength: float = 0.22 if _console_step == 1 else clampf(0.24 + _console_elapsed * 0.24, 0.24, 0.65)
 		_console_stage.draw_colored_polygon(PackedVector2Array([
-			Vector2(184, 26), Vector2(184, 58), Vector2(40, 108), Vector2(40, 44),
+			Vector2(185, 27), Vector2(185, 57), Vector2(40, 108), Vector2(40, 44),
 		]), Color(0.45, 0.94, 0.96, glow_strength * 0.35))
 
-	# Console ao lado da TV e cartucho.
-	_console_stage.draw_rect(Rect2(238, 56, 14, 10), Color("#24202e"))
-	_console_stage.draw_rect(Rect2(240, 54, 10, 4), Color("#7d8594") if _console_step == 0 else Color("#e8a848"))
-	if _console_step >= 1:
-		_console_stage.draw_rect(Rect2(248, 61, 2, 2), Color("#70ffae"))
-
-	# Cabo do controle até o estudante no tapete.
-	_console_stage.draw_rect(Rect2(84, 88, 156, 2), Color("#120f1a"))
-	_console_stage.draw_rect(Rect2(56, 86, 46, 12), Color("#364561"))
-
-	# Estudante sentado olhando a TV (ou sendo puxado para dentro da tela na etapa 2).
-	var student_pos: Vector2 = Vector2(78, 63)
-	var student_tint: Color = Color.WHITE
+	# Estudante real do jogo (colunas 0..21 sem espada) sentado no tapete com controle.
+	var student_pos: Vector2 = Vector2(78, 76)
 	if _console_step == 2:
 		var pull: float = clampf(_console_elapsed / 2.2, 0.0, 1.0)
-		student_pos = student_pos.lerp(tv_center - Vector2(0, 6), pull * pull)
-		student_tint = Color.WHITE.lerp(Color("#94ffff"), pull)
-		# Vórtice de anéis e partículas saindo da TV!
+		student_pos = student_pos.lerp(tv_center, pull * pull)
 		for ring: int in range(5):
 			var phase: float = fmod(_console_elapsed * 1.9 + float(ring) * 0.2, 1.0)
 			var radius: float = lerpf(6.0, 72.0, phase)
@@ -908,22 +644,23 @@ func _draw_console_scene() -> void:
 			_console_stage.draw_arc(tv_center, radius, 0.0, TAU, 32, ring_col, 2.0)
 		for mote: int in range(12):
 			var t: float = fmod(_console_elapsed * 2.4 + float(mote) / 12.0, 1.0)
-			var start_p: Vector2 = Vector2(46.0 + float(mote % 4) * 18.0, 44.0 + float(mote * 6 % 56))
+			var start_p: Vector2 = Vector2(46.0 + float(mote % 4) * 18.0, 44.0 + float((mote * 6) % 56))
 			var mp: Vector2 = start_p.lerp(tv_center, t).round()
 			_console_stage.draw_rect(Rect2(mp, Vector2(2, 2)), Color(0.75, 1.0, 0.95, 1.0 - t * 0.4))
 
-	if student_tint.a > 0.05:
-		_console_stage.modulate = Color.WHITE
-		_draw_tiny_student(_console_stage, student_pos, true, 1 if _console_step < 2 else 0)
-		_console_stage.draw_rect(Rect2(roundf(student_pos.x + 7.0), roundf(student_pos.y + 17.0), 8, 4),
-				Color("#2c3448"))
-		_console_stage.draw_rect(Rect2(roundf(student_pos.x + 12.0), roundf(student_pos.y + 18.0), 2, 2),
-				Color("#e55a74"))
-		if _console_step == 2:
-			_console_stage.draw_circle(student_pos + Vector2(0, 4), 14.0,
-					Color(0.55, 1.0, 0.96, clampf(_console_elapsed * 0.35, 0.0, 0.55)))
+	_console_stage.draw_texture_rect_region(
+			STUDENT_SHEET,
+			Rect2((student_pos - Vector2(10.0, 16.0)).round(), Vector2(21, 32)),
+			Rect2(0, 0, 21, 32)
+	)
+	_console_stage.draw_rect(Rect2(roundf(student_pos.x + 8.0), roundf(student_pos.y + 3.0), 8, 4),
+			Color("#2c3448"))
+	_console_stage.draw_rect(Rect2(roundf(student_pos.x + 13.0), roundf(student_pos.y + 4.0), 2, 2),
+			Color("#e55a74"))
+	if _console_step == 2:
+		_console_stage.draw_circle(student_pos, 14.0,
+				Color(0.55, 1.0, 0.96, clampf(_console_elapsed * 0.35, 0.0, 0.52)))
 
-	# Clarão final antes da transição para a Sala 1.
 	if _console_step == 2 and _console_elapsed > 1.7:
 		var flash: float = clampf((_console_elapsed - 1.7) / 0.65, 0.0, 1.0)
 		_console_stage.draw_rect(Rect2(0, 0, W, H), Color(0.84, 1.0, 0.98, flash))
@@ -932,50 +669,31 @@ func _draw_console_scene() -> void:
 func _draw_ending_scene() -> void:
 	const W: float = 320.0
 	const H: float = 180.0
-	if _dawn_bg != null:
-		_ending_stage.draw_texture(_dawn_bg, Vector2.ZERO)
+	_ending_stage.draw_texture_rect(DAWN_TEX, Rect2(0, 0, W, H), false)
 
-	# Raios suaves de sol nascente à direita.
 	var pulse: float = 0.5 + 0.5 * sin(_elapsed * 2.0)
 	var sun_center: Vector2 = Vector2(272, 134)
 	for radius: float in [44.0, 28.0, 16.0]:
 		_ending_stage.draw_circle(sun_center, radius, Color(1.0, 0.88, 0.62, 0.10 + pulse * 0.04))
 	_ending_stage.draw_circle(sun_center, 8.0, Color("#fff3cf"))
 
-	# Silhuetas de colinas ao amanhecer.
-	_ending_stage.draw_colored_polygon(PackedVector2Array([
-		Vector2(0, 146), Vector2(68, 128), Vector2(154, 140), Vector2(238, 124), Vector2(320, 138),
-		Vector2(320, H), Vector2(0, H),
-	]), Color("#261c38"))
-	_ending_stage.draw_colored_polygon(PackedVector2Array([
-		Vector2(0, 160), Vector2(92, 146), Vector2(198, 156), Vector2(320, 144),
-		Vector2(320, H), Vector2(0, H),
-	]), Color("#191326"))
-
-	# Ramo de árvore à direita + pequeno pássaro da esperança animado.
-	_ending_stage.draw_rect(Rect2(246, 86, 74, 4), Color("#181224"))
-	_ending_stage.draw_rect(Rect2(262, 82, 14, 2), Color("#181224"))
-	_ending_stage.draw_rect(Rect2(252, 85, 8, 2), Color("#36453c"))
-	_ending_stage.draw_rect(Rect2(288, 84, 10, 2), Color("#36453c"))
-
+	# Pequeno pássaro da esperança em pixel art contornada sobre o galho direito.
 	var bob: float = roundf(sin(_elapsed * 3.2) * 0.8)
 	var bx: float = 270.0
 	var by: float = 73.0 + bob
-	# Perninhas
 	_ending_stage.draw_rect(Rect2(bx + 3, 83, 1, 3), Color("#d48a46"))
 	_ending_stage.draw_rect(Rect2(bx + 6, 83, 1, 3), Color("#d48a46"))
-	# Corpo, asa dourada/celeste, peito quente e cabeça.
+	_ending_stage.draw_rect(Rect2(bx - 1, by + 2, 13, 10), Retro.INK)
+	_ending_stage.draw_rect(Rect2(bx - 2, by - 1, 9, 7), Retro.INK)
 	_ending_stage.draw_rect(Rect2(bx, by + 3, 11, 8), Color("#63b8d9"))
 	_ending_stage.draw_rect(Rect2(bx + 9, by + 6, 6, 3), Color("#417fa1"))
 	_ending_stage.draw_rect(Rect2(bx + 1, by + 6, 5, 4), Color("#f6c580"))
 	_ending_stage.draw_rect(Rect2(bx + 4, by + 4, 6, 4), Color("#8fe6f5"))
 	_ending_stage.draw_rect(Rect2(bx - 1, by, 7, 6), Color("#73cbe8"))
-	# Bico e olhinho piscando suavemente.
 	_ending_stage.draw_rect(Rect2(bx - 4, by + 2, 3, 2), Color("#f4ba72"))
 	if fmod(_elapsed, 3.6) < 3.45:
-		_ending_stage.draw_rect(Rect2(bx + 1, by + 2, 1, 1), Color("#181322"))
+		_ending_stage.draw_rect(Rect2(bx + 1, by + 2, 1, 1), Retro.INK)
 
-	# Penas luminosas e partículas suaves subindo pelo céu.
 	for seed_vec: Vector3 in _feather_seeds:
 		var t: float = fposmod(_elapsed * 0.08 + seed_vec.z * 0.1, 1.0)
 		var px: float = fposmod(seed_vec.x + sin(_elapsed * 1.4 + seed_vec.z) * 8.0, W)
@@ -985,23 +703,3 @@ func _draw_ending_scene() -> void:
 		pcol.a = alpha
 		_ending_stage.draw_rect(Rect2(roundf(px), roundf(py), 2, 1), pcol)
 		_ending_stage.draw_rect(Rect2(roundf(px + 1.0), roundf(py - 1.0), 1, 2), pcol)
-
-
-func _build_dawn_texture() -> ImageTexture:
-	const W: int = 320
-	const H: int = 180
-	var img: Image = Image.create_empty(W, H, false, Image.FORMAT_RGBA8)
-	var bayer: Array[float] = [0.0, 0.5, 0.75, 0.25]
-	var stops: Array[Color] = [
-		Color("#1c1836"), Color("#392852"), Color("#6b3b60"), Color("#b05e66"), Color("#e89c68"),
-	]
-	for y: int in range(H):
-		var scaled: float = float(y) / float(H - 1) * float(stops.size() - 1)
-		var band: int = mini(stops.size() - 2, int(floorf(scaled)))
-		var frac: float = scaled - float(band)
-		var c1: Color = stops[band]
-		var c2: Color = stops[band + 1]
-		for x: int in range(W):
-			var thresh: float = bayer[((x & 1) * 2) + (y & 1)]
-			img.set_pixel(x, y, c2 if frac > thresh else c1)
-	return ImageTexture.create_from_image(img)

@@ -112,8 +112,8 @@ func _on_pillars_changed(body: float, mind: float, rest: float) -> void:
 		_names[row].text = "%s %d%%" % [NAMES[row], floori(values[index])]
 
 
-func _on_room_changed(room: int) -> void:
-	_room.text = "SALA %d/3 • %s" % [room, TURNS[room - 1]]
+func _on_room_changed(_room_index: int) -> void:
+	_room.text = "CICLO %d/3 • %s" % [GameManager.get_cycle(), TURNS[GameManager.get_turn() - 1]]
 
 
 func _on_mind_state_changed(state: GameManager.MindState) -> void:

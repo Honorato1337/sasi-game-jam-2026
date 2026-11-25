@@ -637,8 +637,10 @@ func _update_summary(won: bool) -> void:
 	_end_caption.add_theme_color_override(&"font_color", Retro.MINT if won else Retro.GOLD)
 	_end_heading.text = "O AMANHECER CHEGOU" if won else "O BURNOUT PEDIU PAUSA"
 	_end_heading.add_theme_color_override(&"font_color", Retro.MINT if won else Retro.GOLD)
-	_end_message.text = ("O estudante desligou a tela e escolheu cuidar de si.\nComer, beber água, descansar e dormir também é viver."
+	_end_message.text = ("O estudante assumiu a própria rotina e decidiu mudar de ritmo.\nComer, beber água, descansar e dormir é cuidar de si."
 			if won else "O estudante chegou ao limite.\nÉ hora de respirar, descansar e pedir apoio.")
-	_stats.text = "Sala %d/3   •   HP %d/%d   •   Score %d   •   Combo x%d" % [
-		GameManager.room, GameManager.hp, GameManager.max_hp, GameManager.score, maxi(1, GameManager.combo),
+	const TURN_NAMES: Array[String] = ["Manhã", "Tarde", "Noite"]
+	_stats.text = "Ciclo %d/3 (%s)   •   HP %d/%d   •   Score %d   •   Combo x%d" % [
+		GameManager.get_cycle(), TURN_NAMES[GameManager.get_turn() - 1],
+		GameManager.hp, GameManager.max_hp, GameManager.score, maxi(1, GameManager.combo),
 	]

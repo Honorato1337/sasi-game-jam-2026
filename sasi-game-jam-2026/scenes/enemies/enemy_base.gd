@@ -13,8 +13,8 @@ enum EnemyType {
 const Player = preload("res://scenes/player/player.gd")
 const Projectile = preload("res://scenes/enemies/enemy_projectile.gd")
 const Puddle = preload("res://scenes/enemies/slow_puddle.gd")
-const MAX_HP: Array[int] = [28, 25, 36, 260]
-const SPEEDS: Array[float] = [34.0, 58.0, 42.0, 22.0]
+const MAX_HP: Array[int] = [34, 30, 44, 340]
+const SPEEDS: Array[float] = [39.0, 68.0, 47.0, 25.0]
 const COLORS: Array[Color] = [
 	Color("#9c75ba"), Color("#ff9b52"), Color("#ca83ff"), Color("#ff586d"),
 ]
@@ -24,7 +24,7 @@ const SPRITES: Array[Texture2D] = [
 	preload("res://assets/sprites/enemy_selfcriticism_sheet.png"),
 	preload("res://assets/sprites/boss_burnout_sheet.png"),
 ]
-const ATTACK_INTERVALS: Array[float] = [4.8, 3.0, 3.8, 4.4]
+const ATTACK_INTERVALS: Array[float] = [4.4, 2.7, 3.5, 4.0]
 const WARNING_DURATIONS: Array[float] = [0.0, 0.35, 0.6, 0.85]
 const HIT_FLASH_DURATION: float = 0.09
 const DRAIN_VISUAL_DURATION: float = 0.65
@@ -49,6 +49,7 @@ var _step_time: float = 0.0
 var _motion_time: float = 0.0
 var _trail_remaining: float = 0.0
 var _trail: Array[Vector2] = []
+var _fog_amount: float = 0.0
 
 
 @onready var _sprite: Sprite2D = $Sprite2D
@@ -61,7 +62,26 @@ func _ready() -> void:
 	_sprite.texture = SPRITES[enemy_type]
 	if player == null:
 		player = get_tree().get_first_node_in_group(&"player") as Player
+	_update_fog()
 	_update_sprite(core_position)
+
+
+func _update_fog() -> void:
+	if is_boss():
+		_fog_amount = 0.0
+		_flash_material.set_shader_parameter(&"fog_amount", 0.0)
+		modulate.a = 1.0
+		return
+	var cycle: int = GameManager.get_cycle()
+	_fog_amount = 0.80 if cycle == 1 else (0.44 if cycle == 2 else 0.10)
+	var fog_tint: Color = Color("#261d3a")
+	if enemy_type == EnemyType.DEADLINE:
+		fog_tint = Color("#4a2936")
+	elif enemy_type == EnemyType.SELF_CRITICISM:
+		fog_tint = Color("#36224b")
+	_flash_material.set_shader_parameter(&"fog_amount", _fog_amount)
+	_flash_material.set_shader_parameter(&"fog_color", fog_tint)
+	modulate.a = 0.88 if cycle == 1 else (0.94 if cycle == 2 else 1.0)
 
 
 func _physics_process(delta: float) -> void:
@@ -98,7 +118,8 @@ func _physics_process(delta: float) -> void:
 func _move(delta: float, target: Vector2) -> void:
 	var distance: float = global_position.distance_to(target)
 	var direction: Vector2 = global_position.direction_to(target)
-	var speed: float = SPEEDS[enemy_type]
+	var cycle_mult: float = 1.0 if is_boss() else (1.0 + 0.06 * float(GameManager.get_cycle() - 1))
+	var speed: float = SPEEDS[enemy_type] * cycle_mult
 	if enemy_type == EnemyType.SELF_CRITICISM and distance <= 115.0:
 		speed = -speed if distance < 85.0 else 0.0
 		if direction == Vector2.ZERO:
@@ -112,7 +133,7 @@ func _move(delta: float, target: Vector2) -> void:
 		speed *= 1.0 - cos(_motion_time * TAU / 0.62)
 	var slowed_step: float = minf(delta, _slow_remaining)
 	var charge_step: float = minf(delta, _charge_remaining)
-	var travel: Vector2 = direction * speed * (delta - charge_step) + _aim * 130.0 * charge_step
+	var travel: Vector2 = direction * speed * (delta - charge_step) + _aim * 145.0 * charge_step
 	global_position += travel * (1.0 - slowed_step / delta * (1.0 - _slow_factor))
 	global_position += _knockback * delta
 	_knockback = _knockback.move_toward(Vector2.ZERO, 850.0 * delta)
@@ -125,17 +146,17 @@ func _check_contact() -> void:
 		return
 	match enemy_type:
 		EnemyType.PROCRASTINATION:
-			player.apply_enemy_contact(global_position, 5, 0.0, 6.0)
+			player.apply_enemy_contact(global_position, 7, 0.0, 8.0)
 		EnemyType.DEADLINE:
-			player.apply_enemy_contact(global_position, 6, 6.0, 0.0)
+			player.apply_enemy_contact(global_position, 8, 7.0, 0.0)
 
 
 func _attack_interval() -> float:
-	return 3.4 if is_phase_two() else ATTACK_INTERVALS[enemy_type]
+	return 3.0 if is_phase_two() else ATTACK_INTERVALS[enemy_type]
 
 
 func is_phase_two() -> bool:
-	return is_boss() and hp <= 130
+	return is_boss() and hp <= 170
 
 
 func _update_attack(delta: float, target: Vector2) -> void:
@@ -160,7 +181,7 @@ func _update_attack(delta: float, target: Vector2) -> void:
 	if is_boss():
 		_drain_visual = maxf(0.0, _drain_visual - delta)
 		_drain_elapsed += delta
-		if _drain_elapsed >= (7.0 if is_phase_two() else 8.5):
+		if _drain_elapsed >= (6.0 if is_phase_two() else 7.5):
 			_drain_elapsed = 0.0
 			_drain_visual = DRAIN_VISUAL_DURATION
 			_drain_origin = global_position
@@ -170,9 +191,9 @@ func _update_attack(delta: float, target: Vector2) -> void:
 func _drain_pillar() -> void:
 	const PILLARS: Array[String] = ["CORPO", "MENTE", "DESCANSO"]
 	match _next_pillar:
-		0: GameManager.modify_body(-16.0)
-		1: GameManager.modify_mind(-16.0)
-		2: GameManager.modify_rest(-16.0)
+		0: GameManager.modify_body(-19.0)
+		1: GameManager.modify_mind(-19.0)
+		2: GameManager.modify_rest(-19.0)
 	pillar_drained.emit(PILLARS[_next_pillar])
 	_next_pillar = (_next_pillar + 1) % PILLARS.size()
 	boss_pulsed.emit()
@@ -254,7 +275,7 @@ func _warning_strength() -> float:
 
 func get_effective_damage(amount: int, is_clarity: bool) -> int:
 	if amount > 0 and is_clarity and is_boss():
-		return 110
+		return 115
 	return maxi(0, amount)
 
 func take_damage(amount: int, is_clarity: bool = false,

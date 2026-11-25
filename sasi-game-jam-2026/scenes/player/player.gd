@@ -19,7 +19,7 @@ const ATTACK_FLASH_DURATION: float = 0.20
 const DASH_SPEED: float = 245.0
 const DASH_DURATION: float = 0.18
 const DASH_COOLDOWN: float = 0.75
-const HIT_INVULNERABILITY: float = 0.75
+const HIT_INVULNERABILITY: float = 0.60
 const HIT_PUSH_DURATION: float = 0.10
 const HIT_FLASH_DURATION: float = 0.09
 const HIT_PUSH_SPEED: float = 105.0
@@ -223,7 +223,7 @@ func _attack() -> void:
 		hit_enemy = true
 
 	if not _attack_is_clarity:
-		GameManager.spend_rest(8.0)
+		GameManager.spend_rest(9.0)
 	elif hit_enemy:
 		clarity_hit.emit()
 	if _attack_is_clarity:

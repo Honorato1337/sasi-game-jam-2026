@@ -39,8 +39,7 @@ func _physics_process(delta: float) -> void:
 	_badge.visible = is_instance_valid(player) and (
 			global_position.distance_squared_to(player.global_position) <= INTERACTION_RADIUS * INTERACTION_RADIUS)
 	_badge.queue_redraw()
-	if station_type == StationType.ROOM_PILLAR:
-		queue_redraw()
+	queue_redraw()
 
 
 func can_interact() -> bool:
@@ -61,24 +60,24 @@ func interact(player: Node2D) -> String:
 		return ""
 	match station_type:
 		StationType.WATER_SNACK:
-			_cooldown = 3.5
-			GameManager.modify_body(50.0)
-			GameManager.heal_player(20)
-			return "+50 Corpo · +20 HP"
+			_cooldown = 4.0
+			GameManager.modify_body(45.0)
+			GameManager.heal_player(15)
+			return "+45 Corpo · +15 HP"
 		StationType.REST_SPOT:
-			_cooldown = 3.5
-			GameManager.modify_rest(50.0)
-			GameManager.modify_mind(25.0)
-			GameManager.heal_player(10)
-			return "+50 Descanso · +25 Mente · +10 HP"
-		StationType.ROOM_PILLAR:
-			_cooldown = 1.0
-			match pillar_name:
-				"CORPO": GameManager.modify_body(45.0)
-				"MENTE": GameManager.modify_mind(45.0)
-				"DESCANSO": GameManager.modify_rest(45.0)
+			_cooldown = 4.0
+			GameManager.modify_rest(45.0)
+			GameManager.modify_mind(22.0)
 			GameManager.heal_player(8)
-			return "+45 " + pillar_name + " · +8 HP"
+			return "+45 Descanso · +22 Mente · +8 HP"
+		StationType.ROOM_PILLAR:
+			_cooldown = 1.1
+			match pillar_name:
+				"CORPO": GameManager.modify_body(42.0)
+				"MENTE": GameManager.modify_mind(42.0)
+				"DESCANSO": GameManager.modify_rest(42.0)
+			GameManager.heal_player(6)
+			return "+42 " + pillar_name + " · +6 HP"
 		StationType.CLASSMATE_NPC:
 			GameManager.activate_ally()
 			classmate_recruited.emit()
@@ -94,7 +93,7 @@ func _draw_badge() -> void:
 	var prompt: String
 	match station_type:
 		StationType.WATER_SNACK: prompt = "[E] Beber Água"
-		StationType.REST_SPOT: prompt = "[E] Pausar"
+		StationType.REST_SPOT: prompt = "[E] Descansar"
 		StationType.CLASSMATE_NPC: prompt = "[E] Pedir Apoio"
 		StationType.ROOM_PILLAR: prompt = "[E] Reacender " + pillar_name
 	if _cooldown > 0.0:
@@ -113,24 +112,76 @@ func _draw_badge() -> void:
 
 
 func _draw() -> void:
-	if station_type != StationType.ROOM_PILLAR:
+	var pulse: float = 0.5 + 0.5 * sin(_time * 4.2)
+	if station_type == StationType.ROOM_PILLAR:
+		var level: float = GameManager.body
+		var color := Color("#80f1a8")
+		match pillar_name:
+			"MENTE":
+				level = GameManager.mind
+				color = Color("#8de5ff")
+			"DESCANSO":
+				level = GameManager.rest
+				color = Color("#ffe091")
+		var p_pulse: float = 0.5 + 0.5 * sin(_time * 6.0)
+		if level < 40.0:
+			color = Color("#ff435b")
+			p_pulse = 1.0 if fmod(_time, 0.42) < 0.21 else 0.12
+		var center := Vector2(0, -24)
+		draw_circle(center, 9.0 + roundf(4.0 * p_pulse), Color(color, 0.14 + p_pulse * 0.35))
+		draw_colored_polygon(PackedVector2Array([
+			center + Vector2(0, -8), center + Vector2(6, 0),
+			center + Vector2(0, 8), center + Vector2(-6, 0),
+		]), Color(color, 0.55 + p_pulse * 0.45))
 		return
-	var level: float = GameManager.body
-	var color := Color("#80f1a8")
-	match pillar_name:
-		"MENTE":
-			level = GameManager.mind
-			color = Color("#8de5ff")
-		"DESCANSO":
-			level = GameManager.rest
-			color = Color("#ffe091")
-	var pulse: float = 0.5 + 0.5 * sin(_time * 6.0)
-	if level < 40.0:
-		color = Color("#ff435b")
-		pulse = 1.0 if fmod(_time, 0.42) < 0.21 else 0.12
-	var center := Vector2(0, -24)
-	draw_circle(center, 9.0 + roundf(4.0 * pulse), Color(color, 0.14 + pulse * 0.35))
-	draw_colored_polygon(PackedVector2Array([
-		center + Vector2(0, -8), center + Vector2(6, 0),
-		center + Vector2(0, 8), center + Vector2(-6, 0),
-	]), Color(color, 0.55 + pulse * 0.45))
+
+	if station_type == StationType.CLASSMATE_NPC and not visible:
+		return
+
+	var base_color: Color = Color("#59e2f5")
+	var tag_text: String = "ÁGUA"
+	var bob: float = roundf(sin(_time * 3.5) * 1.5)
+	var urgent: bool = false
+	match station_type:
+		StationType.WATER_SNACK:
+			base_color = Color("#59e2f5")
+			tag_text = "ÁGUA"
+			urgent = GameManager.body < 55.0
+		StationType.REST_SPOT:
+			base_color = Color("#ffe091")
+			tag_text = "DESCANSO"
+			urgent = GameManager.rest < 65.0 or GameManager.mind < 60.0
+		StationType.CLASSMATE_NPC:
+			base_color = Color("#81e6c0")
+			tag_text = "COLEGA"
+
+	var aura_alpha: float = (0.34 if urgent else 0.18) + pulse * (0.28 if urgent else 0.14)
+	draw_arc(Vector2(0, 10), 17.0 + pulse * 2.0, 0.0, TAU, 28, Color(base_color, aura_alpha), 1.5)
+
+	if _cooldown <= 0.0:
+		var marker_pos := Vector2(0, -34.0 + bob)
+		if station_type == StationType.WATER_SNACK:
+			# Gota de água ciano brilhante contornada acima da estação.
+			draw_colored_polygon(PackedVector2Array([
+				marker_pos + Vector2(0, -5), marker_pos + Vector2(4, 1),
+				marker_pos + Vector2(2, 4), marker_pos + Vector2(-2, 4), marker_pos + Vector2(-4, 1),
+			]), Color("#181224"))
+			draw_colored_polygon(PackedVector2Array([
+				marker_pos + Vector2(0, -4), marker_pos + Vector2(3, 1),
+				marker_pos + Vector2(2, 3), marker_pos + Vector2(-2, 3), marker_pos + Vector2(-3, 1),
+			]), Color("#7bf2ff"))
+			draw_rect(Rect2(marker_pos + Vector2(-1, 0), Vector2(1, 2)), Color.WHITE)
+		else:
+			# Brilho dourado/menta suave acima do Descanso ou Colega.
+			draw_circle(marker_pos, 4.5, Color(base_color, 0.28 + pulse * 0.25))
+			draw_rect(Rect2(marker_pos - Vector2(2, 2), Vector2(4, 4)), Color("#181224"))
+			draw_rect(Rect2(marker_pos - Vector2(1, 1), Vector2(2, 2)), base_color)
+
+	if not _badge.visible and _cooldown <= 0.0:
+		var font: Font = ThemeDB.fallback_font
+		var tw: float = ceilf(font.get_string_size(tag_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x)
+		var tag_pos := Vector2(-ceilf(tw * 0.5), 22)
+		var pill := Rect2(tag_pos - Vector2(4, 9), Vector2(tw + 8, 12))
+		draw_rect(pill, Color(0.09, 0.07, 0.14, 0.85))
+		draw_rect(Rect2(pill.position, Vector2(pill.size.x, 1)), Color(base_color, 0.72))
+		draw_string(font, tag_pos, tag_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, base_color)

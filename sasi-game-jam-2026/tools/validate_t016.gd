@@ -4,11 +4,18 @@ const Manager := preload("res://scripts/autoload/game_manager.gd")
 const SPRITES := "res://assets/sprites/"
 # Largura e altura de cada quadro, seguidas do número de quadros.
 const LAYOUTS := {
-	"student_sheet": Vector3i(32,32,8), "classmate_sheet": Vector3i(32,32,2),
-	"stations_sheet": Vector3i(48,48,4), "enemy_procrastination_sheet": Vector3i(32,32,2),
-	"enemy_deadline_sheet": Vector3i(32,32,2), "enemy_selfcriticism_sheet": Vector3i(34,36,2),
-	"boss_burnout_sheet": Vector3i(80,80,2), "room_morning": Vector3i(640,360,1),
-	"room_afternoon": Vector3i(640,360,1), "room_night": Vector3i(640,360,1)
+	"student_sheet": Vector3i(32, 32, 8), "classmate_sheet": Vector3i(32, 32, 2),
+	"stations_sheet": Vector3i(48, 48, 4), "enemy_procrastination_sheet": Vector3i(32, 32, 2),
+	"enemy_deadline_sheet": Vector3i(32, 32, 2), "enemy_selfcriticism_sheet": Vector3i(34, 36, 2),
+	"boss_burnout_sheet": Vector3i(80, 80, 2),
+	"room_morning": Vector3i(640, 360, 1), "room_afternoon": Vector3i(640, 360, 1), "room_night": Vector3i(640, 360, 1),
+	"room_c2_morning": Vector3i(640, 360, 1), "room_c2_afternoon": Vector3i(640, 360, 1), "room_c2_night": Vector3i(640, 360, 1),
+	"room_c3_morning": Vector3i(640, 360, 1), "room_c3_afternoon": Vector3i(640, 360, 1), "room_c3_night": Vector3i(640, 360, 1),
+	"cutscene_wake": Vector3i(208, 103, 1), "cutscene_bus_day": Vector3i(208, 103, 1),
+	"cutscene_class": Vector3i(208, 103, 1), "cutscene_lunch": Vector3i(208, 103, 1),
+	"cutscene_bus_night": Vector3i(208, 103, 1), "cutscene_sleep": Vector3i(208, 103, 1),
+	"cutscene_console": Vector3i(282, 116, 1), "cutscene_dawn": Vector3i(320, 180, 1),
+	"cutscene_portraits": Vector3i(36, 36, 3),
 }
 var failures: int = 0
 
@@ -50,16 +57,16 @@ func run() -> void:
 	var key := InputEventKey.new()
 	key.physical_keycode = KEY_E
 	check(InputMap.action_has_event(&"interact", key), "interação E")
-	check(gm.get_attack_damage() == 18 and gm.get_attack_range() == 28 and gm.get_move_speed_multiplier() == 0.75, "corpo baixo")
+	check(gm.get_attack_damage() == 16 and gm.get_attack_range() == 26 and gm.get_move_speed_multiplier() == 0.75, "corpo baixo")
 	gm.modify_body(5)
-	check(gm.get_attack_damage() == 30 and gm.get_attack_range() == 46 and gm.get_move_speed_multiplier() == 1, "limiar corpo")
+	check(gm.get_attack_damage() == 26 and gm.get_attack_range() == 44 and gm.get_move_speed_multiplier() == 1, "limiar corpo")
 	gm.spend_rest(25)
 	gm.tick_pillars(0.45)
 	check(gm.rest == 75, "espera antes da recuperação")
 	gm.tick_pillars(0.5)
-	check(is_equal_approx(gm.rest,89), "recuperação passiva")
+	check(is_equal_approx(gm.rest,87.5), "recuperação passiva")
 	gm.tick_pillars(0.25,true)
-	check(is_equal_approx(gm.rest,99.5) and is_equal_approx(gm.body,39.46), "respiração e desgaste")
+	check(is_equal_approx(gm.rest,97) and is_equal_approx(gm.body,39.28), "respiração e desgaste")
 	gm.spend_rest(200)
 	gm.tick_pillars(1.5)
 	check(gm.is_exhausted and gm.rest == 0 and gm.get_move_speed_multiplier() == 0.55, "exaustão")
@@ -81,12 +88,14 @@ func run() -> void:
 	check(gm.mind == 27.5, "colega próximo")
 	gm.spend_rest(100)
 	gm.complete_breathing()
-	check(gm.get_breathe_duration() == 1.2 and gm.mind == 62.5 and gm.rest == 25 and not gm.is_exhausted, "respiração completa")
-	check(gm.get_attack_range() == 66 and gm.get_attack_damage() == 75 and gm.consume_clarity_strike() and not gm.consume_clarity_strike(), "clareza consumida uma vez")
+	check(gm.get_breathe_duration() == 1.35 and gm.mind == 62.5 and gm.rest == 25 and not gm.is_exhausted, "respiração completa")
+	check(gm.get_attack_range() == 64 and gm.get_attack_damage() == 70 and gm.consume_clarity_strike() and not gm.consume_clarity_strike(), "clareza consumida uma vez")
 	gm.enter_room(5)
+	check(gm.room == 5 and gm.get_cycle() == 2 and gm.get_turn() == 2 and not gm.is_final_room(), "ciclo e turno sala 5")
+	gm.enter_room(12)
 	gm.increment_combo()
 	gm.add_score(10)
-	check(gm.room == 3 and gm.combo == 1 and gm.score == 10, "sala e placar")
+	check(gm.room == 9 and gm.get_cycle() == 3 and gm.get_turn() == 3 and gm.is_final_room() and gm.combo == 1 and gm.score == 10, "sala e placar")
 	gm.damage_player(40)
 	gm.heal_player(15)
 	check(gm.hp == 75 and gm.core_hp == gm.hp, "vida e compatibilidade")

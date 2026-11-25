@@ -14,9 +14,9 @@ signal ally_activated(active: bool)
 signal combo_changed(new_combo: int)
 
 const MAX_PILLAR: float = 100.0
-const MAX_ROOMS: int = 3
+const MAX_ROOMS: int = 9
 const REST_RECOVERY_DELAY: float = 0.45
-const REST_RECOVERY_RATE: float = 28.0
+const REST_RECOVERY_RATE: float = 25.0
 
 var body: float = MAX_PILLAR
 var mind: float = MAX_PILLAR
@@ -197,7 +197,7 @@ func get_move_speed_multiplier() -> float:
 
 
 func get_breathe_duration() -> float:
-	return 1.2
+	return 1.35
 
 
 func _reset_run(new_state: GameState) -> void:
@@ -231,7 +231,7 @@ func _reset_run(new_state: GameState) -> void:
 func tick_pillars(delta: float, is_breathing: bool = false, near_ally: bool = false) -> void:
 	if current_state != GameState.PLAYING or delta <= 0.0:
 		return
-	modify_body(-0.45 * delta)
+	modify_body(-0.60 * delta)
 	if ally_active and near_ally:
 		modify_mind(3.5 * delta)
 	var remaining: float = delta
@@ -245,7 +245,7 @@ func tick_pillars(delta: float, is_breathing: bool = false, near_ally: bool = fa
 	var delay: float = minf(remaining, _rest_delay)
 	_rest_delay -= delay
 	if remaining > delay:
-		modify_rest((remaining - delay) * (42.0 if is_breathing else REST_RECOVERY_RATE))
+		modify_rest((remaining - delay) * (38.0 if is_breathing else REST_RECOVERY_RATE))
 
 
 func modify_body(delta_val: float) -> void:
@@ -314,14 +314,26 @@ func _sync_signal_level() -> void:
 
 func get_attack_range() -> float:
 	if clarity_ready:
-		return 66.0
-	return 28.0 if body < 40.0 else 46.0
+		return 64.0
+	return 26.0 if body < 40.0 else 44.0
 
 
 func get_attack_damage() -> int:
 	if clarity_ready:
-		return 75
-	return 18 if body < 40.0 else 30
+		return 70
+	return 16 if body < 40.0 else 26
+
+
+func get_cycle() -> int:
+	return ((room - 1) / 3) + 1
+
+
+func get_turn() -> int:
+	return ((room - 1) % 3) + 1
+
+
+func is_final_room() -> bool:
+	return room == MAX_ROOMS
 
 
 func activate_ally() -> void:

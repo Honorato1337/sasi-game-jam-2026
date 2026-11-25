@@ -4,9 +4,10 @@ const Player = preload("res://scenes/player/player.gd")
 
 const SFX_POOL_SIZE: int = 8
 const SAMPLE_RATE: int = 22050
-const SYNTHESIS_BUDGET_US: int = 1500
-const SYNTHESIS_BLOCK_SIZE: int = 256
-const MUSIC_VOLUME_DB: float = -9.0
+const WAVE_SIZE: int = 1024
+const SYNTHESIS_BUDGET_US: int = 2500
+const SYNTHESIS_BLOCK_SIZE: int = 512
+const MUSIC_VOLUME_DB: float = -7.5
 
 # Each event holds a MIDI melody note, a MIDI bass note and a duration in ticks.
 # Zero means a rest. The phrases are original and use the composers' styles as cues.
@@ -64,6 +65,12 @@ const HOPE: Array[Vector3i] = [
 	Vector3i(74, 50, 2), Vector3i(77, 53, 2), Vector3i(76, 52, 2), Vector3i(72, 48, 2),
 	Vector3i(74, 43, 2), Vector3i(71, 47, 2), Vector3i(72, 48, 3), Vector3i(0, 48, 1),
 ]
+const NIGHT: Array[Vector3i] = [
+	Vector3i(69, 45, 2), Vector3i(72, 52, 2), Vector3i(76, 57, 2), Vector3i(74, 53, 2),
+	Vector3i(72, 48, 3), Vector3i(0, 48, 1), Vector3i(71, 43, 2), Vector3i(69, 45, 2),
+	Vector3i(67, 43, 2), Vector3i(72, 48, 2), Vector3i(74, 50, 2), Vector3i(76, 52, 2),
+	Vector3i(72, 45, 3), Vector3i(69, 45, 3), Vector3i(0, 40, 2),
+]
 const EFFECT_SCORES: Dictionary[StringName, Array] = {
 	&"voice_blip": [Vector3i(76, 0, 1)],
 	&"pickup": [Vector3i(72, 0, 1), Vector3i(84, 0, 2)],
@@ -98,13 +105,17 @@ var _pending_track: StringName
 var _pending_volume: float = MUSIC_VOLUME_DB
 var _pending_pitch: float = 1.0
 var _synthesis_deadline: int = 0
-const ROOM_TRACKS: Array[StringName] = [&"morning", &"nocturne", &"boss"]
+const ROOM_TRACKS: Array[StringName] = [&"morning", &"nocturne", &"night"]
+var _piano_wave: PackedFloat32Array = PackedFloat32Array()
+var _pad_wave: PackedFloat32Array = PackedFloat32Array()
+var _bell_wave: PackedFloat32Array = PackedFloat32Array()
 var _beat_phase: float = 1.0
 var _vibrato_time: float = 0.0
 var _breath_cue_frame: int = -1
 
 
 func _ready() -> void:
+	_build_wavetables()
 	music_player = AudioStreamPlayer.new()
 	music_player.name = "MusicPlayer"
 	add_child(music_player)
@@ -278,11 +289,11 @@ func _update_music() -> void:
 			track = &"menu"
 			music_player.pitch_scale = 1.0
 		GameManager.GameState.DIALOGUE:
-			track = ROOM_TRACKS[GameManager.room - 1]
+			track = &"boss" if GameManager.is_final_room() else ROOM_TRACKS[GameManager.get_turn() - 1]
 			music_player.pitch_scale = 1.0
 			volume -= 7.0
 		GameManager.GameState.PLAYING:
-			track = ROOM_TRACKS[GameManager.room - 1]
+			track = &"boss" if GameManager.is_final_room() else ROOM_TRACKS[GameManager.get_turn() - 1]
 			_update_pitch()
 		_:
 			return
@@ -371,23 +382,37 @@ func _on_player_hit(_bpm_added: float) -> void:
 	_play_effect(&"player_hit")
 
 
+func _build_wavetables() -> void:
+	_piano_wave.resize(WAVE_SIZE)
+	_pad_wave.resize(WAVE_SIZE)
+	_bell_wave.resize(WAVE_SIZE)
+	for idx: int in range(WAVE_SIZE):
+		var a: float = TAU * float(idx) / float(WAVE_SIZE)
+		# Piano de feltro quente, cordas suaves e celesta sem ondas quadradas agressivas.
+		_piano_wave[idx] = (sin(a) + 0.34 * sin(a * 2.0) + 0.11 * sin(a * 3.0) + 0.03 * sin(a * 4.0)) / 1.38
+		_pad_wave[idx] = (sin(a) + 0.26 * sin(a * 2.0) + 0.16 * sin(a * 3.0) + 0.06 * sin(a * 5.0)) / 1.32
+		_bell_wave[idx] = (sin(a) + 0.18 * sin(a * 2.0) + 0.08 * sin(a * 3.0)) / 1.20
+
+
 func _generate_audio() -> void:
 	_synthesis_deadline = Time.get_ticks_usec() + SYNTHESIS_BUDGET_US
 	for effect: StringName in EFFECT_SCORES:
 		var score: Array[Vector3i] = []
 		score.assign(EFFECT_SCORES[effect])
-		_effects[effect] = await _render_score(score, 0.026, 0.31, false)
+		var sfx_timbre: StringName = &"pad" if effect == &"heartbeat" else (&"piano" if effect in [&"player_hit", &"core_hit", &"attack", &"dash"] else &"bell")
+		_effects[effect] = await _render_score(score, 0.036, sfx_timbre, false)
 
-	await _generate_track(&"menu", MENU, 0.29, 0.46)
-	await _generate_track(&"beethoven", BEETHOVEN, 0.16, 0.30)
-	await _generate_track(&"morning", MORNING, 0.17, 0.5)
-	await _generate_track(&"nocturne", NOCTURNE, 0.23, 0.33)
-	await _generate_track(&"boss", BOSS, 0.145, 0.25)
-	await _generate_track(&"hope", HOPE, 0.30, 0.50)
+	await _generate_track(&"menu", MENU, 0.29, &"piano")
+	await _generate_track(&"beethoven", BEETHOVEN, 0.16, &"strings")
+	await _generate_track(&"morning", MORNING, 0.18, &"bell")
+	await _generate_track(&"nocturne", NOCTURNE, 0.24, &"piano")
+	await _generate_track(&"night", NIGHT, 0.26, &"piano")
+	await _generate_track(&"boss", BOSS, 0.155, &"strings")
+	await _generate_track(&"hope", HOPE, 0.31, &"bell")
 
 
-func _generate_track(track: StringName, score: Array[Vector3i], tick: float, duty: float) -> void:
-	_music[track] = await _render_score(score, tick, duty, true)
+func _generate_track(track: StringName, score: Array[Vector3i], tick: float, timbre: StringName) -> void:
+	_music[track] = await _render_score(score, tick, timbre, true)
 	if _pending_track == track:
 		if GameManager.current_state == GameManager.GameState.CUTSCENE:
 			play_track(track, _pending_volume, _pending_pitch)
@@ -395,39 +420,82 @@ func _generate_track(track: StringName, score: Array[Vector3i], tick: float, dut
 			_update_music()
 
 
-func _render_score(score: Array[Vector3i], tick_seconds: float, duty: float,
+func _sample_wave(table: PackedFloat32Array, phase: float) -> float:
+	var pos: float = fposmod(phase, 1.0) * float(WAVE_SIZE)
+	var i0: int = int(pos) % WAVE_SIZE
+	var i1: int = (i0 + 1) % WAVE_SIZE
+	return lerpf(table[i0], table[i1], pos - floorf(pos))
+
+
+func _render_score(score: Array[Vector3i], tick_seconds: float, timbre: StringName,
 		loop: bool) -> AudioStreamWAV:
 	var samples_per_tick: int = roundi(tick_seconds * SAMPLE_RATE)
 	var total_samples: int = 0
 	for event: Vector3i in score:
 		total_samples += event.z * samples_per_tick
 
-	var pcm: PackedByteArray = PackedByteArray()
-	pcm.resize(total_samples * 2)
+	var mix_buf: PackedFloat32Array = PackedFloat32Array()
+	mix_buf.resize(total_samples)
+	var lead_table: PackedFloat32Array = _piano_wave
+	var attack_sec: float = 0.018
+	if timbre == &"strings":
+		lead_table = _pad_wave
+		attack_sec = 0.042 if loop else 0.012
+	elif timbre == &"bell":
+		lead_table = _bell_wave
+		attack_sec = 0.010 if loop else 0.006
+	elif timbre == &"pad":
+		lead_table = _pad_wave
+		attack_sec = 0.014
+
+	var attack_samples: float = maxf(1.0, float(SAMPLE_RATE) * attack_sec)
+	var release_samples: float = maxf(1.0, float(SAMPLE_RATE) * (0.045 if loop else 0.014))
 	var offset: int = 0
 	for event: Vector3i in score:
 		var length: int = event.z * samples_per_tick
+		var tail_len: int = roundi(float(length) * 0.28) if loop else 0
+		var render_len: int = length + tail_len
 		var lead_step: float = _note_step(event.x)
 		var bass_step: float = _note_step(event.y)
-		var fade_samples: float = SAMPLE_RATE * (0.009 if loop else 0.005)
-		var lead_gain: float = (0.23 if loop else 0.46) if event.x != 0 else 0.0
-		var bass_gain: float = (0.18 if loop else 0.47) if event.y != 0 else 0.0
-		for block: int in range(0, length, SYNTHESIS_BLOCK_SIZE):
+		var lead_gain: float = (0.30 if loop else 0.48) if event.x != 0 else 0.0
+		var bass_gain: float = (0.24 if loop else 0.44) if event.y != 0 else 0.0
+		for block: int in range(0, render_len, SYNTHESIS_BLOCK_SIZE):
 			if Time.get_ticks_usec() >= _synthesis_deadline:
 				# Spread PCM synthesis across frames on single-threaded Web exports.
 				await get_tree().process_frame
 				_synthesis_deadline = Time.get_ticks_usec() + SYNTHESIS_BUDGET_US
-			var end: int = mini(block + SYNTHESIS_BLOCK_SIZE, length)
+			var end: int = mini(block + SYNTHESIS_BLOCK_SIZE, render_len)
 			for sample: int in range(block, end):
-				var lead_phase: float = fmod(sample * lead_step, 1.0)
-				var bass_phase: float = fmod(sample * bass_step, 1.0)
-				var pulse: float = (1.0 if lead_phase < duty else -1.0) + 1.0 - 2.0 * duty
-				var triangle: float = 1.0 - 4.0 * absf(bass_phase - 0.5)
-				var envelope: float = minf(1.0, mini(sample, length - 1 - sample) / fade_samples)
-				var decay: float = 1.0 - 0.38 * float(sample) / length
-				var amplitude: float = (pulse * lead_gain + triangle * bass_gain) * envelope * decay
-				pcm.encode_s16((offset + sample) * 2, roundi(amplitude * 32767.0))
+				var env: float = 1.0
+				if float(sample) < attack_samples:
+					env = float(sample) / attack_samples
+				elif sample >= length:
+					env = maxf(0.0, 1.0 - float(sample - length) / float(maxi(1, tail_len)))
+				else:
+					var dist_end: float = float(render_len - 1 - sample)
+					if dist_end < release_samples:
+						env = dist_end / release_samples
+				var decay: float = 1.0 - (0.36 if timbre == &"strings" else 0.56) * float(sample) / float(render_len)
+				var lead_val: float = _sample_wave(lead_table, float(sample) * lead_step) if lead_gain > 0.0 else 0.0
+				var bass_val: float = _sample_wave(_pad_wave, float(sample) * bass_step) if bass_gain > 0.0 else 0.0
+				var dest: int = (offset + sample) % total_samples if loop else mini(total_samples - 1, offset + sample)
+				mix_buf[dest] += (lead_val * lead_gain + bass_val * bass_gain) * env * decay
 		offset += length
+
+	if loop and total_samples > 0:
+		var delay_samples: int = mini(total_samples - 1, roundi(0.16 * SAMPLE_RATE))
+		var echoed: PackedFloat32Array = PackedFloat32Array()
+		echoed.resize(total_samples)
+		for idx: int in range(total_samples):
+			var tap: int = (idx - delay_samples + total_samples) % total_samples
+			echoed[idx] = mix_buf[idx] + mix_buf[tap] * 0.18
+		mix_buf = echoed
+
+	var pcm: PackedByteArray = PackedByteArray()
+	pcm.resize(total_samples * 2)
+	for idx: int in range(total_samples):
+		var shaped: float = clampf(mix_buf[idx] * 0.88, -0.98, 0.98)
+		pcm.encode_s16(idx * 2, roundi(shaped * 32767.0))
 
 	var stream: AudioStreamWAV = AudioStreamWAV.new()
 	stream.format = AudioStreamWAV.FORMAT_16_BITS
