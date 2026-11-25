@@ -237,7 +237,7 @@ func _check_afternoon() -> void:
 
 
 func _check_cycle_progression() -> void:
-	# Sala 3 (Noite Ciclo 1)
+	# Sala 3 (Noite Ciclo 1) -> Sala de Respiro 1 -> Sala 4
 	_check_room(3, "room_3_night", 4, 9)
 	_check(AudioManager.music_player.stream == AudioManager._music.get(&"night"), "Trilha da Noite C1")
 	await _tap(KEY_ESCAPE)
@@ -249,8 +249,22 @@ func _check_cycle_progression() -> void:
 	GameManager.modify_rest(100.0)
 	GameManager.modify_mind(100.0)
 	GameManager.modify_body(100.0)
-	await _walk_through_door(4, KEY_2)
-	_check(GameManager.max_hp == 125 and GameManager.nutrition_rank == 1, "Hábito 2 amplia HP máximo no Ciclo 2")
+	await _walk_through_door(4, true)
+	_check(GameManager.in_respite_room and _arena._enemy_container.get_child_count() == 0
+			and _story.active_sequence == "respite_1" and not _arena._door_open
+			and AudioManager.music_player.stream == AudioManager._music.get(&"poem"),
+			"Respiro 1 inicia calmo com música suave")
+	await _tap(KEY_ESCAPE)
+	await _wait(0.08)
+	await _capture("respiro-1")
+	var nutrition_altar: Station = _find_habit_altar("nutrition")
+	_check(nutrition_altar != null, "Pedestal Nutrição presente no Respiro 1")
+	_player.position = nutrition_altar.position + Vector2(0, 20)
+	await _tap(KEY_E)
+	await _wait(0.08)
+	_check(GameManager.max_hp == 125 and GameManager.nutrition_rank == 1 and _arena._door_open,
+			"Pedestal no Respiro aplica Hábito 2 e destranca Porta Norte")
+	await _walk_through_door(4)
 
 	# Sala 4 (Manhã Ciclo 2)
 	_check_room(4, "room_4_c2_morning", 4, 9)
@@ -265,24 +279,47 @@ func _check_cycle_progression() -> void:
 	GameManager.modify_body(100.0)
 	await _walk_through_door(5)
 
-	# Sala 5 (Tarde Ciclo 2) e Sala 6 (Noite Ciclo 2)
-	_check_room(5, "room_5_c2_afternoon", 5, 10)
+	# Sala 5 (Turno de Sobrevivência 28s - Tarde Ciclo 2)
+	_check_room(5, "room_5_c2_afternoon", 4, 4)
+	_check(_arena._is_survival_room and is_equal_approx(_arena._survival_remaining, 28.0)
+			and _arena._hud.is_survival_hud_visible(), "Sala 5 inicia Turno de Sobrevivência de 28s")
 	await _tap(KEY_ESCAPE)
-	await _clear_combat()
+	await _wait(0.08)
+	await _capture("sobrevivencia-c2")
+	_first_enemy().take_damage(1000)
+	await _wait(0.06)
+	_check(not _arena._door_open, "Porta na Sala 5 não abre antes de encerrar os 28s")
+	_arena._survival_remaining = 0.06
+	await _wait(0.14)
+	_check(_arena._survival_finished and _arena._enemy_container.get_child_count() == 0
+			and not _arena._hud.is_survival_hud_visible(),
+			"Sinal de fim do turno dissipa sombras e oculta timer")
 	GameManager.modify_body(100.0)
 	GameManager.modify_mind(100.0)
 	await _walk_through_door(6)
 
+	# Sala 6 (Noite Ciclo 2) -> Sala de Respiro 2 -> Sala 7
 	_check_room(6, "room_6_c2_night", 5, 11)
 	await _tap(KEY_ESCAPE)
 	await _clear_combat()
 	GameManager.modify_body(100.0)
 	GameManager.modify_mind(100.0)
 	GameManager.modify_rest(100.0)
-	await _walk_through_door(7, KEY_1)
-	_check(GameManager.sleep_rank == 1, "Hábito 1 aplica Descanso & Sono no Ciclo 3")
+	await _walk_through_door(7, true)
+	_check(GameManager.in_respite_room and _story.active_sequence == "respite_2"
+			and AudioManager.music_player.stream == AudioManager._music.get(&"hope"),
+			"Respiro 2 inicia com música de esperança")
+	await _tap(KEY_ESCAPE)
+	await _wait(0.08)
+	var sleep_altar: Station = _find_habit_altar("sleep")
+	_check(sleep_altar != null, "Pedestal Sono presente no Respiro 2")
+	_player.position = sleep_altar.position + Vector2(0, 20)
+	await _tap(KEY_E)
+	await _wait(0.08)
+	_check(GameManager.sleep_rank == 1 and _arena._door_open, "Hábito 1 no Respiro 2 destranca Sala 7")
+	await _walk_through_door(7)
 
-	# Sala 7 (Manhã Ciclo 3) e Sala 8 (Tarde Ciclo 3)
+	# Sala 7 (Manhã Ciclo 3) e Sala 8 (Turno de Sobrevivência 28s Ciclo 3)
 	_check_room(7, "room_7_c3_morning", 5, 11)
 	await _tap(KEY_ESCAPE)
 	await _wait(0.08)
@@ -292,9 +329,14 @@ func _check_cycle_progression() -> void:
 	GameManager.modify_body(100.0)
 	await _walk_through_door(8)
 
-	_check_room(8, "room_8_c3_afternoon", 6, 13)
+	_check_room(8, "room_8_c3_afternoon", 5, 5)
+	_check(_arena._is_survival_room and _arena._hud.is_survival_hud_visible(),
+			"Sala 8 inicia Turno de Sobrevivência 28s do Ciclo 3")
 	await _tap(KEY_ESCAPE)
-	await _clear_combat()
+	_arena._survival_remaining = 0.06
+	await _wait(0.14)
+	_check(_arena._survival_finished and _arena._enemy_container.get_child_count() == 0,
+			"Sala 8 dissipa sombras ao fim do turno")
 	GameManager.modify_body(100.0)
 	GameManager.modify_mind(100.0)
 	await _walk_through_door(9)
@@ -420,21 +462,28 @@ func _clear_combat() -> void:
 		await _wait(0.12)
 
 
-func _walk_through_door(next_room: int, habit_key: int = 0) -> void:
+func _walk_through_door(next_room: int, expect_respite: bool = false) -> void:
 	_player.position = _arena._door.position + Vector2(0, 50)
 	await _wait(0.06)
 	_check(_arena._door_open and _arena._door_sign.text == "AVANÇAR ↑", "Porta abre após cumprir objetivos")
-	await _capture("porta-%d" % GameManager.room)
+	await _capture("porta-%s%d" % ["respiro-" if GameManager.in_respite_room else "", GameManager.room])
 	_key(KEY_W, true)
 	await _wait(0.45)
 	_key(KEY_W, false)
-	if habit_key != 0:
-		_check(GameManager.current_state == GameManager.GameState.HABIT_SELECT,
-				"Abre escolha de hábito antes da Sala %d" % next_room)
-		await _capture("habito-ciclo%d" % GameManager.get_cycle())
-		await _tap(habit_key)
-		await _wait(0.08)
-	_check(GameManager.room == next_room, "Cruza a Porta Norte andando até a Sala %d" % next_room)
+	if expect_respite:
+		_check(GameManager.in_respite_room and GameManager.current_state == GameManager.GameState.DIALOGUE,
+				"Entra na Sala de Respiro antes da Sala %d" % next_room)
+	else:
+		_check(not GameManager.in_respite_room and GameManager.room == next_room,
+				"Cruza a Porta Norte andando até a Sala %d" % next_room)
+
+
+func _find_habit_altar(habit: String) -> Station:
+	for node: Node in _arena._stations.get_children():
+		var station: Station = node as Station
+		if station != null and station.station_type == Station.StationType.HABIT_ALTAR and station.habit_key == habit:
+			return station
+	return null
 
 
 func _find_station(type: Station.StationType, pillar: String = "CORPO") -> Station:

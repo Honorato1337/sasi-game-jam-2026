@@ -55,6 +55,17 @@ func _ready() -> void:
 	_score = Retro.label(info, Rect2(9, 39, 210, 14), "", 10, Retro.MUTED)
 	_ally = Retro.label(info, Rect2(9, 53, 210, 14), "", 10, Retro.CREAM)
 
+	var survival_panel: Panel = Retro.panel(self, Rect2(214, 8, 176, 28), true)
+	survival_panel.name = "SurvivalBox"
+	var survival_lbl: Label = Retro.label(survival_panel, Rect2(8, 3, 160, 13), "TURNO • 28s",
+			10, Retro.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	var survival_bar: ProgressBar = Retro.meter(survival_panel, Rect2(10, 18, 156, 5), Retro.GOLD)
+	survival_bar.max_value = 28.0
+	survival_panel.hide()
+	set_meta(&"_survival_panel", survival_panel)
+	set_meta(&"_survival_lbl", survival_lbl)
+	set_meta(&"_survival_bar", survival_bar)
+
 	_breathing = Retro.panel(self, Rect2(8, 320, 174, 32), true)
 	Retro.label(_breathing, Rect2(8, 4, 158, 14), "Segure [R] Respirar", 10)
 	_breath = Retro.meter(_breathing, Rect2(8, 21, 158, 5), Retro.MINT)
@@ -67,6 +78,7 @@ func _ready() -> void:
 	GameManager.hp_changed.connect(_on_hp_changed)
 	GameManager.pillars_changed.connect(_on_pillars_changed)
 	GameManager.room_changed.connect(_on_room_changed)
+	GameManager.respite_changed.connect(_on_respite_changed)
 	GameManager.mind_state_changed.connect(_on_mind_state_changed)
 	GameManager.score_changed.connect(_on_score_changed)
 	GameManager.combo_changed.connect(_on_combo_changed)
@@ -90,9 +102,33 @@ func set_objective(message: String) -> void:
 	_objective.text = message
 
 
+func set_survival_status(active: bool, remaining: float = 0.0, duration: float = 28.0) -> void:
+	var panel: Panel = get_meta(&"_survival_panel") as Panel
+	var lbl: Label = get_meta(&"_survival_lbl") as Label
+	var bar: ProgressBar = get_meta(&"_survival_bar") as ProgressBar
+	set_meta(&"_survival_active", active)
+	if panel == null:
+		return
+	panel.visible = active and GameManager.current_state in [
+			GameManager.GameState.PLAYING, GameManager.GameState.DIALOGUE, GameManager.GameState.PAUSED]
+	if active:
+		lbl.text = "TURNO • %02ds" % maxi(0, ceili(remaining))
+		lbl.add_theme_color_override(&"font_color", Color("#ff8998") if remaining <= 6.0 else Retro.GOLD)
+		bar.max_value = maxf(1.0, duration)
+		bar.value = clampf(remaining, 0.0, duration)
+
+
+func is_survival_hud_visible() -> bool:
+	var panel: Panel = get_meta(&"_survival_panel", null) as Panel
+	return panel != null and panel.visible
+
+
 func _on_state_changed(state: GameManager.GameState) -> void:
 	visible = state in [GameManager.GameState.PLAYING, GameManager.GameState.DIALOGUE, GameManager.GameState.PAUSED]
 	_breathing.visible = state != GameManager.GameState.DIALOGUE
+	var panel: Panel = get_meta(&"_survival_panel", null) as Panel
+	if panel != null:
+		panel.visible = bool(get_meta(&"_survival_active", false)) and visible
 	_on_clarity_ready_changed(GameManager.clarity_ready)
 
 
@@ -114,8 +150,15 @@ func _on_pillars_changed(body: float, mind: float, rest: float) -> void:
 		_names[row].text = "%s %d%%" % [NAMES[row], floori(values[index])]
 
 
+func _on_respite_changed(_active: bool) -> void:
+	_on_room_changed(GameManager.room)
+
+
 func _on_room_changed(_room_index: int) -> void:
-	_room.text = "CICLO %d/3 • %s" % [GameManager.get_cycle(), TURNS[GameManager.get_turn() - 1]]
+	if GameManager.in_respite_room:
+		_room.text = "INTERLÚDIO %d/2 • RESPIRO" % GameManager.get_cycle()
+	else:
+		_room.text = "CICLO %d/3 • %s" % [GameManager.get_cycle(), TURNS[GameManager.get_turn() - 1]]
 
 
 func _on_mind_state_changed(state: GameManager.MindState) -> void:

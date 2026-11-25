@@ -10,6 +10,7 @@ signal hp_changed(new_hp: int, max_hp: int)
 signal mind_state_changed(new_state: MindState)
 signal exhausted_changed(is_exhausted: bool)
 signal room_changed(new_room: int)
+signal respite_changed(in_respite: bool)
 signal ally_activated(active: bool)
 signal combo_changed(new_combo: int)
 
@@ -26,6 +27,7 @@ var hp: int = 100
 var mind_state: MindState = MindState.CALM
 var is_exhausted: bool = false
 var ally_active: bool = false
+var in_respite_room: bool = false
 var room: int = 1
 var combo: int = 0
 var _rest_delay: float = 0.0
@@ -233,6 +235,7 @@ func _reset_run(new_state: GameState) -> void:
 	_exhaustion_remaining = 0.0
 	_rest_delay = 0.0
 	_set_exhausted(false)
+	set_respite_room(false)
 	body = 35.0 if new_state == GameState.PLAYING else MAX_PILLAR
 	rest = MAX_PILLAR
 	modify_mind(MAX_PILLAR)
@@ -256,6 +259,11 @@ func _reset_run(new_state: GameState) -> void:
 
 func tick_pillars(delta: float, is_breathing: bool = false, near_ally: bool = false) -> void:
 	if current_state != GameState.PLAYING or delta <= 0.0:
+		return
+	if in_respite_room:
+		modify_body(4.0 * delta)
+		modify_mind(6.0 * delta)
+		modify_rest(28.0 * delta)
 		return
 	var cycle: int = get_cycle()
 	var body_drain: float = (0.60 + (0.40 * float(cycle - 1) if cycle > 1 else 0.0)) * pow(0.84, nutrition_rank)
@@ -369,6 +377,12 @@ func is_final_room() -> bool:
 	return room == MAX_ROOMS
 
 
+func set_respite_room(active: bool) -> void:
+	if in_respite_room != active:
+		in_respite_room = active
+		respite_changed.emit(in_respite_room)
+
+
 func activate_ally() -> void:
 	if not ally_active:
 		ally_active = true
@@ -376,6 +390,7 @@ func activate_ally() -> void:
 
 
 func enter_room(room_index: int) -> void:
+	set_respite_room(false)
 	var next: int = clampi(room_index, 1, MAX_ROOMS)
 	if room != next:
 		room = next

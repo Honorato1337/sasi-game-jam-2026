@@ -152,6 +152,7 @@ func _ready() -> void:
 
 	GameManager.state_changed.connect(_on_state_changed)
 	GameManager.room_changed.connect(_on_room_changed)
+	GameManager.respite_changed.connect(_on_respite_changed)
 	GameManager.mind_state_changed.connect(_on_mind_state_changed)
 	GameManager.exhausted_changed.connect(_on_exhausted_changed)
 	GameManager.clarity_ready_changed.connect(_on_clarity_ready_changed)
@@ -164,7 +165,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if GameManager.current_state != GameManager.GameState.PLAYING:
+	if GameManager.current_state != GameManager.GameState.PLAYING or GameManager.in_respite_room:
 		return
 	if GameManager.mind_state != GameManager.MindState.CALM or GameManager.is_exhausted:
 		_beat_phase += delta * GameManager.bpm / 60.0
@@ -302,6 +303,13 @@ func _on_room_changed(_room: int) -> void:
 	_update_music()
 
 
+func _on_respite_changed(active: bool) -> void:
+	if active:
+		_beat_phase = 1.0
+		_stop_heartbeat()
+	_update_music()
+
+
 func _update_music() -> void:
 	var track: StringName
 	var volume: float = MUSIC_VOLUME_DB
@@ -310,12 +318,21 @@ func _update_music() -> void:
 			track = &"menu"
 			music_player.pitch_scale = 1.0
 		GameManager.GameState.DIALOGUE:
-			track = &"boss" if GameManager.is_final_room() else ROOM_TRACKS[GameManager.get_turn() - 1]
-			music_player.pitch_scale = 1.0
-			volume -= 7.0
+			if GameManager.in_respite_room:
+				track = &"hope" if GameManager.get_cycle() >= 2 else &"poem"
+				music_player.pitch_scale = 1.0
+				volume -= 5.0
+			else:
+				track = &"boss" if GameManager.is_final_room() else ROOM_TRACKS[GameManager.get_turn() - 1]
+				music_player.pitch_scale = 1.0
+				volume -= 7.0
 		GameManager.GameState.PLAYING:
-			track = &"boss" if GameManager.is_final_room() else ROOM_TRACKS[GameManager.get_turn() - 1]
-			_update_pitch()
+			if GameManager.in_respite_room:
+				track = &"hope" if GameManager.get_cycle() >= 2 else &"poem"
+				music_player.pitch_scale = 1.0
+			else:
+				track = &"boss" if GameManager.is_final_room() else ROOM_TRACKS[GameManager.get_turn() - 1]
+				_update_pitch()
 		_:
 			return
 	var stream: AudioStreamWAV = _music.get(track) as AudioStreamWAV
@@ -344,6 +361,9 @@ func _update_reaction() -> void:
 
 
 func _update_pitch() -> void:
+	if GameManager.in_respite_room:
+		music_player.pitch_scale = 1.0
+		return
 	if GameManager.is_exhausted:
 		music_player.pitch_scale = 0.90
 	else:

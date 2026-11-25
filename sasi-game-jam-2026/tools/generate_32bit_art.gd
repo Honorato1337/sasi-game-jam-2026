@@ -26,6 +26,8 @@ func _initialize() -> void:
 			for shift in 3:
 				draw_room(shift, cycle)
 				save(room_filename(shift, cycle))
+		draw_respite_room()
+		save("room_respite")
 		quit(1 if failed else 0)
 		return
 	sheet("student_sheet", STUDENT)
@@ -39,10 +41,102 @@ func _initialize() -> void:
 		for shift in 3:
 			draw_room(shift, cycle)
 			save(room_filename(shift, cycle))
+	draw_respite_room()
+	save("room_respite")
 	draw_title_screen()
 	save("title_bg")
 	generate_cutscene_assets()
 	quit(1 if failed else 0)
+
+
+func draw_respite_room() -> void:
+	const RW: int = 960
+	const RH: int = 540
+	art = Image.create_empty(RW, RH, false, Image.FORMAT_RGBA8)
+	art.fill(Color("22253a"))
+	var tile_palette: Array[String] = ["343852", "2e324a", "393b56", "2a2e45"]
+	for y in range(48, RH, 22):
+		for x in range(-32, RW, 32):
+			var tx: int = x + ((y / 22) % 2) * 16
+			var tone: String = tile_palette[rng.randi_range(0, 3)]
+			rect(tx, y, 31, 21, tone)
+			rect(tx + 1, y, 29, 1, "4a4d6b")
+			rect(tx + 1, y + 20, 29, 1, "1e2133")
+			for n in 4:
+				rect(tx + rng.randi_range(3, 25), y + rng.randi_range(3, 17), 2, 1, tile_palette[(n + 2) % 4])
+	blend_rect_tint(0, 48, RW, RH - 48, Color("3c3354"), 0.14)
+
+	# Passarela central de madeira aconchegante ligando o terraço à Porta Norte.
+	for y in range(52, 476, 12):
+		timber(436, y, 88, 11)
+	rect(434, 52, 2, 424, INK)
+	rect(524, 52, 2, 424, INK)
+
+	# Moldura decorativa de terraço no piso.
+	rect(164, 152, 632, 2, "4a3a4a")
+	rect(164, 464, 632, 2, "4a3a4a")
+	rect(164, 152, 2, 314, "4a3a4a")
+	rect(794, 152, 2, 314, "4a3a4a")
+
+	# Parede Norte crepuscular (y = 0..48) + sanca + janelas estreladas + luzes quentes.
+	masonry(0, 0, RW, 48, true)
+	blend_rect_tint(0, 0, RW, 48, Color("242848"), 0.34)
+	rect(0, 47, RW, 5, INK)
+	for x in range(0, RW, 64):
+		timber(x, 42, 64, 8)
+	for px in [168, 404, 546, 780]:
+		_draw_pilaster(px, 46, "2e324d", "565e85")
+	# Moldura exata da Porta Norte em x = 480.
+	rect(454, 0, 52, 50, INK)
+	for side in [449, 506]:
+		for y in range(2, 46, 7):
+			rect(side, y, 6, 6, "837076")
+			rect(side + 1, y, 4, 1, "aa9191")
+	rect(450, 0, 61, 5, "987d72")
+	for nx in [72, 232, 608, 796]:
+		rect(nx, 6, 84, 34, INK)
+		rect(nx + 2, 8, 80, 29, "222847")
+		rect(nx + 2, 28, 80, 9, "59425a")
+		rect(nx + 2, 33, 80, 4, "8f5c63")
+		for i in 16:
+			rect(rng.randi_range(nx + 5, nx + 77), rng.randi_range(10, 24), 1, 1, "e8e2f5")
+		rect(nx + 41, 7, 2, 31, "5c454a")
+	for bx in [92, 148, 280, 356, 588, 668, 740, 840]:
+		rect(bx - 1, 46, 4, 4, INK)
+		rect(bx, 47, 2, 2, "ffd978")
+		blend_radial_tint(bx + 1, 48, 22.0, Color("ffbe6b"), 0.22)
+
+	room_perimeter_walls(1, 1)
+
+	# Medalhão circular de pausa serena em (480, 235).
+	blend_radial_tint(480, 235, 62.0, Color("564a70"), 0.20)
+	for ring_r in [38, 54, 68]:
+		for tick in 32:
+			var a: float = TAU * float(tick) / 32.0
+			rect(480 + roundi(cos(a) * float(ring_r)), 235 + roundi(sin(a) * float(ring_r) * 0.68),
+					2, 2, "d99d56" if ring_r == 54 else "5c6282")
+
+	# Canteiros verdes e vasos acolhedores nas laterais.
+	potted_plant(42, 118, true)
+	potted_plant(898, 118, true)
+	potted_plant(42, 420, false)
+	potted_plant(898, 420, false)
+	for sy in [224, 334]:
+		for sx in [36, 892]:
+			rect(sx, sy, 32, 20, INK)
+			timber(sx + 1, sy + 1, 30, 18)
+			rect(sx + 4, sy + 4, 24, 11, "2f664b")
+			rect(sx + 6, sy + 5, 18, 8, "56a36c")
+			rect(sx + 10, sy + 7, 3, 2, "ffd978")
+			rect(sx + 20, sy + 8, 3, 2, "ff8fa3")
+
+	# Bases iluminadas para Água, Descanso, Colega e os 3 Pedestais de Hábito.
+	draw_station_pad(210, 330, Color("56d9f0"), "467e91")
+	draw_station_pad(750, 330, Color("f4ba72"), "8e6c4b")
+	draw_station_pad(480, 320, Color("81e6c0"), "497d6d")
+	draw_station_pad(310, 225, Color("ffe091"), "8e6c4b")
+	draw_station_pad(480, 205, Color("80f1a8"), "4b8568")
+	draw_station_pad(650, 225, Color("8de5ff"), "467e91")
 
 
 func room_filename(shift: int, cycle: int) -> String:
@@ -1925,7 +2019,7 @@ func generate_stations_sheet() -> void:
 
 
 func generate_room_props_sheet() -> void:
-	art = Image.create_empty(192, 48, false, Image.FORMAT_RGBA8)
+	art = Image.create_empty(240, 48, false, Image.FORMAT_RGBA8)
 	var shadow := Color(0.08, 0.05, 0.12, 0.45)
 
 	# Quadro 0 (x = 0..47): Pilastra de pedra clara e carvalho (Manhã).
@@ -2015,6 +2109,30 @@ func generate_room_props_sheet() -> void:
 	rect(x3 + 35, 11, 6, 7, INK)
 	rect(x3 + 36, 12, 4, 5, "d9dfe8")
 	rect(x3 + 37, 12, 2, 1, "5e3a2d")
+
+	# Quadro 4 (x = 192..239): Pedestal de madeira e pedra com Caderno de Rotina aberto.
+	var x4: int = 192
+	art.fill_rect(Rect2i(x4 + 9, 39, 30, 6), shadow)
+	rect(x4 + 12, 32, 24, 10, INK)
+	rect(x4 + 13, 33, 22, 8, "564659")
+	rect(x4 + 14, 33, 20, 2, "8e7b88")
+	rect(x4 + 16, 17, 16, 16, INK)
+	timber(x4 + 17, 18, 14, 14)
+	rect(x4 + 17, 20, 14, 2, "d99d56")
+	rect(x4 + 17, 29, 14, 2, "a86d3b")
+	rect(x4 + 9, 9, 30, 11, INK)
+	timber(x4 + 10, 10, 28, 9)
+	rect(x4 + 13, 7, 22, 11, INK)
+	rect(x4 + 14, 8, 20, 9, "f5ebd6")
+	rect(x4 + 14, 15, 20, 2, "dfd0bc")
+	rect(x4 + 23, 8, 2, 9, "8e654d")
+	for lrow in [10, 12, 14]:
+		rect(x4 + 16, lrow, 5, 1, "705f54")
+		rect(x4 + 27, lrow, 5, 1, "705f54")
+	rect(x4 + 15, 8, 2, 2, "ffd978")
+	rect(x4 + 31, 8, 2, 2, "ffd978")
+	rect(x4 + 23, 17, 3, 6, INK)
+	rect(x4 + 24, 18, 1, 4, "ff6f84")
 	save("room_props_sheet")
 
 

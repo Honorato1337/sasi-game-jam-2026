@@ -6,13 +6,14 @@ const SPRITES := "res://assets/sprites/"
 const LAYOUTS := {
 	"student_sheet": Vector3i(32, 32, 8), "student_cutscene_sheet": Vector3i(32, 32, 4),
 	"classmate_sheet": Vector3i(32, 32, 2),
-	"stations_sheet": Vector3i(48, 48, 4), "room_props_sheet": Vector3i(48, 48, 4),
+	"stations_sheet": Vector3i(48, 48, 4), "room_props_sheet": Vector3i(48, 48, 5),
 	"enemy_procrastination_sheet": Vector3i(32, 32, 2),
 	"enemy_deadline_sheet": Vector3i(32, 32, 2), "enemy_selfcriticism_sheet": Vector3i(34, 36, 2),
 	"boss_burnout_sheet": Vector3i(80, 80, 2),
 	"room_morning": Vector3i(960, 540, 1), "room_afternoon": Vector3i(960, 540, 1), "room_night": Vector3i(960, 540, 1),
 	"room_c2_morning": Vector3i(960, 540, 1), "room_c2_afternoon": Vector3i(960, 540, 1), "room_c2_night": Vector3i(960, 540, 1),
 	"room_c3_morning": Vector3i(960, 540, 1), "room_c3_afternoon": Vector3i(960, 540, 1), "room_c3_night": Vector3i(960, 540, 1),
+	"room_respite": Vector3i(960, 540, 1),
 	"cutscene_wake": Vector3i(208, 103, 1), "cutscene_bus_day": Vector3i(208, 103, 1),
 	"cutscene_class": Vector3i(208, 103, 1), "cutscene_lunch": Vector3i(208, 103, 1),
 	"cutscene_bus_night": Vector3i(208, 103, 1), "cutscene_sleep": Vector3i(208, 103, 1),
@@ -125,6 +126,11 @@ func run() -> void:
 	gm.start_new_run()
 	gm.apply_habit_choice("nutrition")
 	check(gm.max_hp == 125 and gm.nutrition_rank == 1, "hábito nutrição amplia HP máximo")
+	gm.set_respite_room(true)
+	var b0: float = gm.body
+	gm.tick_pillars(1.0)
+	check(gm.in_respite_room and gm.body > b0, "sala de respiro recupera pilares passivamente")
 	gm.reset_game()
+	check(not gm.in_respite_room, "reinício limpa sala de respiro")
 	print("T-016: ", failures, " falha(s).")
 	quit(1 if failures else 0)

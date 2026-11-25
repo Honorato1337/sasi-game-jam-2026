@@ -1,18 +1,24 @@
 extends Node2D
 
 signal classmate_recruited
+signal habit_altar_chosen(choice: String)
+signal respite_ally_talked
 
-enum StationType { WATER_SNACK, REST_SPOT, ROOM_PILLAR, CLASSMATE_NPC }
+enum StationType { WATER_SNACK, REST_SPOT, ROOM_PILLAR, CLASSMATE_NPC, HABIT_ALTAR, RESPITE_ALLY }
 
 const INTERACTION_RADIUS: float = 46.0
 const CLASSMATE_SHEET = preload("res://assets/sprites/classmate_sheet.png")
+const ROOM_PROPS_SHEET = preload("res://assets/sprites/room_props_sheet.png")
 
 @export var station_type: StationType = StationType.WATER_SNACK
 @export_enum("CORPO", "MENTE", "DESCANSO") var pillar_name: String = "CORPO"
+@export_enum("sleep", "nutrition", "connection") var habit_key: String = "sleep"
 
 var _cooldown: float = 0.0
 var _time: float = 0.0
 var locked_by_wave: bool = false
+var habit_locked: bool = false
+var habit_selected: bool = false
 
 @onready var _sprite: Sprite2D = $Sprite2D
 @onready var _badge: Node2D = $Badge
@@ -25,6 +31,15 @@ func _ready() -> void:
 		_sprite.texture = CLASSMATE_SHEET
 		GameManager.ally_activated.connect(_update_npc_visibility)
 		_update_npc_visibility(GameManager.ally_active)
+	elif station_type == StationType.RESPITE_ALLY:
+		_sprite.frame = 0
+		_sprite.hframes = 2
+		_sprite.texture = CLASSMATE_SHEET
+		visible = true
+	elif station_type == StationType.HABIT_ALTAR:
+		_sprite.texture = ROOM_PROPS_SHEET
+		_sprite.hframes = 5
+		_sprite.frame = 4
 	else:
 		_sprite.frame = station_type
 	_badge.draw.connect(_draw_badge)
@@ -38,11 +53,19 @@ func set_wave_locked(locked: bool) -> void:
 		queue_redraw()
 
 
+func set_habit_resolution(chosen_key: String) -> void:
+	habit_locked = true
+	habit_selected = habit_key == chosen_key
+	if is_instance_valid(_sprite):
+		_sprite.modulate = Color.WHITE if habit_selected else Color(0.55, 0.56, 0.68, 0.85)
+	queue_redraw()
+
+
 func _physics_process(delta: float) -> void:
 	if GameManager.current_state == GameManager.GameState.PLAYING:
 		_cooldown = maxf(0.0, _cooldown - delta)
 		_time += delta
-	if station_type == StationType.CLASSMATE_NPC:
+	if station_type == StationType.CLASSMATE_NPC or station_type == StationType.RESPITE_ALLY:
 		_sprite.frame = int(_time * 3.0) % 2
 	var player: Node2D = get_tree().get_first_node_in_group(&"player") as Node2D
 	_badge.visible = is_instance_valid(player) and (
@@ -52,15 +75,25 @@ func _physics_process(delta: float) -> void:
 
 
 func can_interact() -> bool:
-	return GameManager.current_state == GameManager.GameState.PLAYING and not locked_by_wave and _cooldown <= 0.0 and (
-			station_type != StationType.CLASSMATE_NPC or not GameManager.ally_active)
+	if GameManager.current_state != GameManager.GameState.PLAYING or locked_by_wave:
+		return false
+	if station_type == StationType.HABIT_ALTAR:
+		return not habit_locked and (habit_key != "connection" or GameManager.ally_count < GameManager.MAX_ALLIES)
+	if _cooldown > 0.0:
+		return false
+	return station_type != StationType.CLASSMATE_NPC or not GameManager.ally_active
 
 
 func get_station_name() -> String:
 	match station_type:
 		StationType.WATER_SNACK: return "Água e Lanche"
 		StationType.REST_SPOT: return "Canto de Pausa"
-		StationType.CLASSMATE_NPC: return "Colega"
+		StationType.CLASSMATE_NPC, StationType.RESPITE_ALLY: return "Colega"
+		StationType.HABIT_ALTAR:
+			match habit_key:
+				"sleep": return "Sono Profundo"
+				"nutrition": return "Nutrição & Corpo"
+				_: return "Rede de Apoio"
 		_: return pillar_name
 
 
@@ -91,6 +124,17 @@ func interact(player: Node2D) -> String:
 			GameManager.activate_ally()
 			classmate_recruited.emit()
 			return "Colega recrutado!"
+		StationType.HABIT_ALTAR:
+			habit_altar_chosen.emit(habit_key)
+			return "Hábito: " + get_station_name()
+		StationType.RESPITE_ALLY:
+			_cooldown = 6.0
+			GameManager.modify_body(25.0)
+			GameManager.modify_mind(25.0)
+			GameManager.modify_rest(25.0)
+			GameManager.heal_player(15)
+			respite_ally_talked.emit()
+			return "+25 Pilares · +15 HP"
 	return ""
 
 
@@ -104,16 +148,29 @@ func _draw_badge() -> void:
 		StationType.WATER_SNACK: prompt = "[E] Beber Água"
 		StationType.REST_SPOT: prompt = "[E] Descansar"
 		StationType.CLASSMATE_NPC: prompt = "[E] Pedir Apoio"
+		StationType.RESPITE_ALLY: prompt = "[E] Conversar com Colega"
 		StationType.ROOM_PILLAR: prompt = "[E] Reacender " + pillar_name
+		StationType.HABIT_ALTAR:
+			if habit_locked:
+				prompt = "HÁBITO ESCOLHIDO ★" if habit_selected else "CICLO DEFINIDO"
+			elif habit_key == "connection" and GameManager.ally_count >= GameManager.MAX_ALLIES:
+				prompt = "APOIO NO MÁXIMO (%d/%d)" % [GameManager.ally_count, GameManager.MAX_ALLIES]
+			else:
+				match habit_key:
+					"sleep": prompt = "[E] Sono Profundo (-0,18s [R] · +15% Descanso)"
+					"nutrition": prompt = "[E] Nutrição (+25 HP Máx · +8% veloc.)"
+					_: prompt = "[E] Rede de Apoio (+10 dano & pulso Colega)"
 	if locked_by_wave:
 		prompt = "SELADO • Vença a 1ª leva"
-	elif _cooldown > 0.0:
+	elif _cooldown > 0.0 and station_type != StationType.HABIT_ALTAR:
 		prompt = "Aguarde %ds" % ceili(_cooldown)
 	var font: Font = ThemeDB.fallback_font
 	var width: float = ceilf(font.get_string_size(prompt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x)
 	var origin := Vector2(-ceilf(width / 2.0), -38)
 	var box := Rect2(origin - Vector2(5, 12), Vector2(width + 10, 17))
-	var border_col: Color = Color("#e8758a") if locked_by_wave else Color("#e8b875")
+	var border_col: Color = Color("#e8758a") if locked_by_wave else (
+			Color("#ffd978") if station_type == StationType.HABIT_ALTAR and (not habit_locked or habit_selected)
+			else Color("#e8b875"))
 	_badge.draw_rect(Rect2(box.position + Vector2(1, 0), box.size - Vector2(2, 0)), Color("#181322"))
 	_badge.draw_rect(Rect2(box.position + Vector2(0, 1), box.size - Vector2(0, 2)), Color("#181322"))
 	_badge.draw_rect(Rect2(box.position + Vector2(2, 1), Vector2(box.size.x - 4, 1)), border_col)
@@ -166,6 +223,20 @@ func _draw() -> void:
 		StationType.CLASSMATE_NPC:
 			base_color = Color("#81e6c0")
 			tag_text = "COLEGA"
+		StationType.RESPITE_ALLY:
+			base_color = Color("#81e6c0")
+			tag_text = "CONVERSAR"
+		StationType.HABIT_ALTAR:
+			match habit_key:
+				"sleep":
+					base_color = Color("#ffe091")
+					tag_text = "SONO"
+				"nutrition":
+					base_color = Color("#80f1a8")
+					tag_text = "CORPO"
+				_:
+					base_color = Color("#8de5ff")
+					tag_text = "APOIO"
 
 	if locked_by_wave:
 		draw_arc(Vector2(0, 10), 19.0 + pulse * 2.0, 0.0, TAU, 26, Color("#ff6f84", 0.55 + 0.30 * pulse), 2.0)
@@ -178,6 +249,22 @@ func _draw() -> void:
 			draw_rect(lpill, Color(0.14, 0.07, 0.14, 0.88))
 			draw_rect(Rect2(lpill.position, Vector2(lpill.size.x, 1)), Color("#ff6f84", 0.85))
 			draw_string(font_lock, lpos, lock_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("#ff98a8"))
+		return
+
+	if station_type == StationType.HABIT_ALTAR and habit_locked:
+		if habit_selected:
+			draw_arc(Vector2(0, 10), 19.0 + pulse * 2.0, 0.0, TAU, 28, Color("#ffd978", 0.85), 2.0)
+			if not _badge.visible:
+				var f_sel: Font = ThemeDB.fallback_font
+				var txt_sel: String = "ESCOLHIDO"
+				var stw: float = ceilf(f_sel.get_string_size(txt_sel, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x)
+				var spos := Vector2(-ceilf(stw * 0.5), 22)
+				var spill := Rect2(spos - Vector2(4, 9), Vector2(stw + 8, 12))
+				draw_rect(spill, Color(0.12, 0.09, 0.16, 0.88))
+				draw_rect(Rect2(spill.position, Vector2(spill.size.x, 1)), Color("#ffd978", 0.85))
+				draw_string(f_sel, spos, txt_sel, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("#ffd978"))
+		else:
+			draw_arc(Vector2(0, 10), 16.0, 0.0, TAU, 24, Color("#6b647a", 0.35), 1.5)
 		return
 
 	var aura_alpha: float = (0.34 if urgent else 0.18) + pulse * (0.28 if urgent else 0.14)
@@ -197,7 +284,7 @@ func _draw() -> void:
 			]), Color("#7bf2ff"))
 			draw_rect(Rect2(marker_pos + Vector2(-1, 0), Vector2(1, 2)), Color.WHITE)
 		else:
-			# Brilho dourado/menta suave acima do Descanso ou Colega.
+			# Brilho dourado/menta suave acima do Descanso, Colega ou Pedestal.
 			draw_circle(marker_pos, 4.5, Color(base_color, 0.28 + pulse * 0.25))
 			draw_rect(Rect2(marker_pos - Vector2(2, 2), Vector2(4, 4)), Color("#181224"))
 			draw_rect(Rect2(marker_pos - Vector2(1, 1), Vector2(2, 2)), base_color)

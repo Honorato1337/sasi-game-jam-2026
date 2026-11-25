@@ -29,7 +29,7 @@ const SEQUENCES: Dictionary = {
 	],
 	"room_5_c2_afternoon": [
 		{"speaker": "Estudante", "portrait": "student", "text": "Outro turno no laboratório. Estou preso nesse ciclo de três tempos."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Os vultos estão menos foscos agora. Eles carregam a minha própria exaustão."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Preciso aguentar 28 segundos até o sinal tocar sem deixar Corpo e Mente caírem!"},
 	],
 	"room_6_c2_night": [
 		{"speaker": "Estudante", "portrait": "student", "text": "Outra madrugada sem descanso. Cada descuido meu se multiplica na sala."},
@@ -41,11 +41,22 @@ const SEQUENCES: Dictionary = {
 	],
 	"room_8_c3_afternoon": [
 		{"speaker": "Estudante", "portrait": "student", "text": "Última tarde desse ciclo. Não quero continuar fugindo de mim mesmo."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Cuidar do corpo e da mente não é perder tempo — é continuar vivo."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Aguentar 28 segundos cuidando do corpo e da mente — é só até o último sinal!"},
 	],
 	"room_9_c3_night": [
 		{"speaker": "Estudante", "portrait": "student", "text": "Essa silhueta gigante sou eu... destruído por cada dia sem cuidado."},
 		{"speaker": "Estudante", "portrait": "student", "text": "Corpo, Mente e Descanso. Se eu me equilibrar e respirar [R], encerro isso."},
+	],
+	"respite_1": [
+		{"speaker": "Colega", "portrait": "classmate", "text": "Conseguimos sair do primeiro ciclo. Sente o vento aqui fora e respira um pouco."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Tem três cadernos iluminados nos pedestais. Vou escolher um cuidado [E] para seguir."},
+	],
+	"respite_2": [
+		{"speaker": "Colega", "portrait": "classmate", "text": "Mais uma pausa merecida antes da reta final. Nada te apressa aqui no terraço."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Vou recuperar o fôlego, ajustar meu último hábito [E] e encarar o último ciclo."},
+	],
+	"respite_ally_chat": [
+		{"speaker": "Colega", "portrait": "classmate", "text": "Cuidar de si também faz parte do caminho. Estou com você até o amanhecer."},
 	],
 	"victory": [
 		{"speaker": "Estudante", "portrait": "student", "text": "O gigante se desfaz em luz... esse tempo todo eu estava lutando contra mim mesmo."},

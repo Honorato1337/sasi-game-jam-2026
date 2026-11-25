@@ -13,6 +13,8 @@ const ALLY_SCENE = preload("res://scenes/enemies/ally_support.tscn")
 const STATION_SCENE = preload("res://scenes/objects/care_station.tscn")
 const HABIT_SCENE = preload("res://scenes/ui/habit_terminal.tscn")
 const ROOM_PROPS_SHEET: Texture2D = preload("res://assets/sprites/room_props_sheet.png")
+const ROOM_RESPITE: Texture2D = preload("res://assets/sprites/room_respite.png")
+const SURVIVAL_DURATION: float = 28.0
 const ROOM_ART: Array[Texture2D] = [
 	preload("res://assets/sprites/room_morning.png"),
 	preload("res://assets/sprites/room_afternoon.png"),
@@ -130,6 +132,13 @@ var _ally: Ally
 var _decor_obstacles: Node2D
 var _habit_terminal: HabitTerminal
 var _pending_next_room: int = 0
+var _respite_habit_chosen: bool = false
+var _is_survival_room: bool = false
+var _survival_remaining: float = 0.0
+var _survival_finished: bool = false
+var _survival_spawn_timer: float = 0.0
+var _survival_spawn_index: int = 0
+var _last_countdown_sec: int = -1
 var _stations_sealed: bool = false
 var _last_hit_clarity: bool = false
 var _last_hit_point: Vector2 = Vector2.ZERO
@@ -253,7 +262,7 @@ func _setup_room(room_index: int) -> void:
 			_add_obstacle(Vector2(98, 158), Vector2(68, 20), Vector2(0, 180))
 			_add_obstacle(Vector2(862, 158), Vector2(68, 20), Vector2(0, 180))
 			_populate_turn_props(2)
-			_start_waves(AFTERNOON_C2, 5)
+			_start_survival(AFTERNOON_C2, 4)
 		6:
 			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 250))
 			_add_station(Station.StationType.REST_SPOT, Vector2(680, 250))
@@ -273,7 +282,7 @@ func _setup_room(room_index: int) -> void:
 			_add_obstacle(Vector2(98, 158), Vector2(68, 20), Vector2(0, 180))
 			_add_obstacle(Vector2(862, 158), Vector2(68, 20), Vector2(0, 180))
 			_populate_turn_props(2)
-			_start_waves(AFTERNOON_C3, 6)
+			_start_survival(AFTERNOON_C3, 5)
 		9:
 			_add_station(Station.StationType.ROOM_PILLAR, Vector2(480, 145), "MENTE")
 			_add_station(Station.StationType.ROOM_PILLAR, Vector2(265, 375), "CORPO")
@@ -287,6 +296,64 @@ func _setup_room(room_index: int) -> void:
 		_spawn_ally(_player.position)
 	_refresh_objective()
 	_story.play_sequence(ROOM_DIALOGUES[room_index - 1])
+
+
+func _setup_respite_room(next_room: int) -> void:
+	_clear_room()
+	_pending_next_room = next_room
+	_respite_habit_chosen = false
+	GameManager.set_respite_room(true)
+	_courtyard.texture = ROOM_RESPITE
+	_player.position = Vector2(480, 415)
+	_player.reset_run()
+	_snap_camera()
+	_door.visible = true
+	$NorthDoor/CollisionShape2D.set_deferred(&"disabled", false)
+	_door_open = false
+	_update_door_visual()
+	_add_station(Station.StationType.WATER_SNACK, Vector2(210, 330))
+	_add_station(Station.StationType.REST_SPOT, Vector2(750, 330))
+	var npc: Station = _add_station(Station.StationType.RESPITE_ALLY, Vector2(480, 320))
+	npc.respite_ally_talked.connect(_on_respite_ally_talked)
+	_add_habit_altar(Vector2(310, 225), "sleep")
+	_add_habit_altar(Vector2(480, 205), "nutrition")
+	_add_habit_altar(Vector2(650, 225), "connection")
+	_add_prop_pillar(Vector2(220, 185), 2)
+	_add_prop_pillar(Vector2(740, 185), 2)
+	_add_prop_pillar(Vector2(220, 435), 0)
+	_add_prop_pillar(Vector2(740, 435), 0)
+	_refresh_objective()
+	_story.play_sequence("respite_1" if next_room == 4 else "respite_2")
+
+
+func _add_habit_altar(point: Vector2, choice: String) -> Station:
+	var altar: Station = STATION_SCENE.instantiate() as Station
+	altar.station_type = Station.StationType.HABIT_ALTAR
+	altar.habit_key = choice
+	altar.position = point
+	_stations.add_child(altar)
+	altar.habit_altar_chosen.connect(_on_respite_altar_chosen)
+	_add_obstacle(point + Vector2(0, 4), Vector2(24, 14), Vector2.ZERO, _decor_obstacles)
+	return altar
+
+
+func _on_respite_altar_chosen(choice: String) -> void:
+	if _respite_habit_chosen:
+		return
+	_respite_habit_chosen = true
+	GameManager.apply_habit_choice(choice)
+	AudioManager.play_ui_cue()
+	_burst(_player.position, Color("#ffd978"), 16)
+	for node: Node in _stations.get_children():
+		var station: Station = node as Station
+		if station != null and station.station_type == Station.StationType.HABIT_ALTAR:
+			station.set_habit_resolution(choice)
+	_update_door()
+	_refresh_objective()
+
+
+func _on_respite_ally_talked() -> void:
+	_float_text(_player.position + Vector2(0, -28), "RESPIRA, ESTAMOS QUASE LÁ!", Color("#89ffe0"))
 
 
 func _populate_turn_props(turn: int) -> void:
@@ -330,7 +397,7 @@ func _add_prop_pillar(point: Vector2, frame_idx: int) -> void:
 	body.add_child(collider)
 	var sprite: Sprite2D = Sprite2D.new()
 	sprite.texture = ROOM_PROPS_SHEET
-	sprite.hframes = 4
+	sprite.hframes = 5
 	sprite.frame = frame_idx
 	sprite.position = Vector2(0, -8 if frame_idx == 3 else -13)
 	body.add_child(sprite)
@@ -351,6 +418,15 @@ func _clear_room() -> void:
 	_ally = null
 	_remaining = 0
 	_first_wave_count = 0
+	_respite_habit_chosen = false
+	_is_survival_room = false
+	_survival_remaining = 0.0
+	_survival_finished = false
+	_survival_spawn_timer = 0.0
+	_survival_spawn_index = 0
+	_last_countdown_sec = -1
+	if is_instance_valid(_hud):
+		_hud.set_survival_status(false)
 	_stations_sealed = false
 	_last_hit_clarity = false
 	_reinforcement_toggle = 0
@@ -372,6 +448,29 @@ func _start_waves(types: Array[Enemy.EnemyType], first_wave_size: int) -> void:
 	_second_wave_delay = 3.6 if GameManager.get_cycle() == 1 else 3.0
 	for index: int in range(first_wave_size):
 		_spawn_enemy(types[index], SPAWN_POINTS[index % SPAWN_POINTS.size()])
+
+
+func _start_survival(pool: Array[Enemy.EnemyType], initial_count: int) -> void:
+	_is_survival_room = true
+	_survival_remaining = SURVIVAL_DURATION
+	_survival_finished = false
+	_survival_spawn_timer = 4.2 if GameManager.get_cycle() == 2 else 3.4
+	_survival_spawn_index = initial_count
+	_last_countdown_sec = 6
+	_second_wave.assign(pool)
+	_remaining = initial_count
+	for index: int in range(initial_count):
+		_spawn_enemy(pool[index % pool.size()], SPAWN_POINTS[index % SPAWN_POINTS.size()])
+	_hud.set_survival_status(true, _survival_remaining, SURVIVAL_DURATION)
+
+
+func _count_live_enemies() -> int:
+	var count: int = 0
+	for node: Node in _enemy_container.get_children():
+		var enemy: Enemy = node as Enemy
+		if enemy != null and not enemy.is_queued_for_deletion():
+			count += 1
+	return count
 
 
 func _add_station(type: Station.StationType, point: Vector2, pillar: String = "CORPO") -> Station:
@@ -435,8 +534,11 @@ func _spawn_enemy(type: Enemy.EnemyType, point: Vector2) -> Enemy:
 
 
 func _on_enemy_defeated(enemy: Enemy) -> void:
-	_remaining -= 1
-	if _remaining <= _second_wave.size() and _stations_sealed:
+	if _is_survival_room and not _survival_finished:
+		_remaining = maxi(1, _count_live_enemies())
+	else:
+		_remaining -= 1
+	if not _is_survival_room and _remaining <= _second_wave.size() and _stations_sealed:
 		_unlock_stations()
 	GameManager.increment_combo()
 	GameManager.add_score(100 * GameManager.combo)
@@ -511,16 +613,60 @@ func _physics_process(delta: float) -> void:
 			enemy.position = enemy.position.clamp(Vector2(30, 56), Vector2(930, 512))
 	_update_drops(delta)
 	_update_hazards(delta)
-	if not GameManager.is_final_room():
-		_update_waves(delta)
+	if GameManager.in_respite_room:
+		_update_door()
+	elif not GameManager.is_final_room():
+		if _is_survival_room:
+			_update_survival(delta)
+		else:
+			_update_waves(delta)
 		_update_door()
 	else:
 		_update_reinforcements(delta)
 	_refresh_objective()
 
 
+func _update_survival(delta: float) -> void:
+	if _survival_finished:
+		_hud.set_survival_status(false)
+		return
+	_survival_remaining = maxf(0.0, _survival_remaining - delta)
+	_hud.set_survival_status(true, _survival_remaining, SURVIVAL_DURATION)
+	var whole_sec: int = ceili(_survival_remaining)
+	if _survival_remaining <= 5.0 and whole_sec >= 1 and whole_sec < _last_countdown_sec:
+		_last_countdown_sec = whole_sec
+		AudioManager.play_alarm_beep()
+	if _survival_remaining <= 0.0:
+		_survival_finished = true
+		_hud.set_survival_status(false)
+		AudioManager.play_alarm_beep()
+		_hazards.clear()
+		for node: Node in _enemy_container.get_children():
+			var enemy: Enemy = node as Enemy
+			if enemy != null and not enemy.is_queued_for_deletion():
+				_burst(enemy.position, Enemy.COLORS[enemy.enemy_type], 10)
+				enemy.queue_free()
+		for projectile: Node in get_tree().get_nodes_in_group(&"enemy_projectiles"):
+			projectile.queue_free()
+		_remaining = 0
+		_second_wave.clear()
+		_float_text(_player.position + Vector2(0, -24), "SINAL DO TURNO! SOMBRAS DISSIPADAS!", Color("#afff9d"))
+		return
+	if _survival_remaining > 0.8:
+		_survival_spawn_timer -= delta
+		var active_enemies: int = _count_live_enemies()
+		var max_concurrent: int = 5 if GameManager.get_cycle() == 2 else 6
+		if (_survival_spawn_timer <= 0.0 or active_enemies == 0) and active_enemies < max_concurrent and not _second_wave.is_empty():
+			_survival_spawn_timer = 4.2 if GameManager.get_cycle() == 2 else 3.4
+			var enemy_type: Enemy.EnemyType = _second_wave[_survival_spawn_index % _second_wave.size()]
+			var spawn_pt: Vector2 = SPAWN_POINTS[_survival_spawn_index % SPAWN_POINTS.size()]
+			_spawn_enemy(enemy_type, spawn_pt)
+			_survival_spawn_index += 1
+			_remaining = _count_live_enemies()
+
+
 func _update_hazards(delta: float) -> void:
-	var active_combat: bool = _remaining > 0 and (
+	var active_combat: bool = not GameManager.in_respite_room and _remaining > 0 and (
 			GameManager.room in [5, 6, 7, 8]
 			or (GameManager.is_final_room() and is_instance_valid(_boss) and _boss.is_phase_two())
 	)
@@ -576,12 +722,16 @@ func _update_reinforcements(delta: float) -> void:
 
 
 func _update_door() -> void:
-	var turn: int = GameManager.get_turn()
-	var min_body: float = 50.0 if turn == 1 else 45.0
-	var balanced: bool = GameManager.body >= min_body \
-			and (turn < 2 or GameManager.mind >= 45.0) \
-			and (turn < 3 or GameManager.rest >= 45.0)
-	var open: bool = _remaining == 0 and balanced
+	var open: bool = false
+	if GameManager.in_respite_room:
+		open = _respite_habit_chosen
+	else:
+		var turn: int = GameManager.get_turn()
+		var min_body: float = 50.0 if turn == 1 else 45.0
+		var balanced: bool = GameManager.body >= min_body \
+				and (turn < 2 or GameManager.mind >= 45.0) \
+				and (turn < 3 or GameManager.rest >= 45.0)
+		open = _remaining == 0 and (not _is_survival_room or _survival_finished) and balanced
 	if open != _door_open:
 		_door_open = open
 		_update_door_visual()
@@ -589,9 +739,12 @@ func _update_door() -> void:
 			_float_text(_door.position + Vector2(0, 66), "PORTA ABERTA!", Color("#afff9d"))
 			AudioManager.play_door_open()
 	if _door_open and _player.position.distance_squared_to(_door.position) <= 26.0 * 26.0:
-		if GameManager.room in [3, 6]:
-			_pending_next_room = GameManager.room + 1
-			GameManager.set_state(GameManager.GameState.HABIT_SELECT)
+		if GameManager.in_respite_room:
+			var next_room: int = _pending_next_room if _pending_next_room > 0 else GameManager.room + 1
+			_pending_next_room = 0
+			_setup_room(next_room)
+		elif GameManager.room in [3, 6]:
+			_setup_respite_room(GameManager.room + 1)
 		else:
 			_setup_room(GameManager.room + 1)
 
@@ -604,7 +757,10 @@ func _update_door_visual() -> void:
 
 
 func _refresh_objective() -> void:
-	if GameManager.is_final_room():
+	if GameManager.in_respite_room:
+		_hud.set_objective("PORTA ABERTA! Siga para o próximo ciclo ↑" if _door_open
+				else "Escolha 1 Hábito nos pedestais [E]")
+	elif GameManager.is_final_room():
 		var hp: int = maxi(0, _boss.hp) if is_instance_valid(_boss) else 0
 		var phase: int = 2 if is_instance_valid(_boss) and _boss.is_phase_two() else 1
 		_hud.set_objective("Burnout %d HP  •  Fase %d" % [hp, phase])
@@ -620,8 +776,13 @@ func _refresh_objective() -> void:
 		if turn == 3 and GameManager.rest < 45.0:
 			need_parts.append("Descanso [E]")
 		var need: String = " + ".join(need_parts)
-		var seal_note: String = "  •  Selado" if _stations_sealed else ""
-		_hud.set_objective("Inimigos: %d%s%s" % [_remaining, "  •  " + need if not need.is_empty() else "", seal_note])
+		if _is_survival_room and not _survival_finished:
+			var sec_left: int = maxi(1, ceili(_survival_remaining))
+			_hud.set_objective("Aguente %ds%s" % [sec_left,
+					"  •  " + need if not need.is_empty() else "  •  Pilares ≥ 45%"])
+		else:
+			var seal_note: String = "  •  Selado" if _stations_sealed else ""
+			_hud.set_objective("Inimigos: %d%s%s" % [_remaining, "  •  " + need if not need.is_empty() else "", seal_note])
 
 
 func _update_drops(delta: float) -> void:
@@ -760,53 +921,62 @@ func _draw_atmosphere() -> void:
 	var cycle: int = GameManager.get_cycle()
 	var tint: Color = ROOM_LIGHT[turn - 1]
 	var shimmer: float = 0.5 + 0.5 * sin(_ambient_time * 2.2)
-	match turn:
-		1:
-			var beam_col: Color = Color("#ffd38a") if cycle == 1 else (Color("#d2b0c2") if cycle == 2 else Color("#bd9eff"))
-			for beam_x: float in [194.0, 620.0]:
-				_draw_sunbeam(beam_x, 54.0, 86.0, beam_col, 0.032 + shimmer * 0.015)
-			_draw_halo(Vector2(142, 52), 28.0, beam_col, 0.025 + shimmer * 0.010)
-			_draw_halo(Vector2(858, 60), 34.0, beam_col, 0.026 + shimmer * 0.010)
-		2:
-			var beam_col: Color = Color("#f2b872") if cycle == 1 else (Color("#d98b88") if cycle == 2 else Color("#b880ff"))
-			for beam_x: float in [188.0, 596.0]:
-				_draw_sunbeam(beam_x, 54.0, 86.0, beam_col, 0.026 + shimmer * 0.012)
-			for screen_pos: Vector2 in [
-				Vector2(98, 148), Vector2(98, 328), Vector2(862, 148), Vector2(862, 328),
-			]:
-				var screen_tint: Color = Color("#74e5ff") if screen_pos.x < 480.0 else Color("#ffcb80")
-				if cycle == 2:
-					screen_tint = Color("#ffa354") if screen_pos.x < 480.0 else Color("#ff6f69")
-				elif cycle == 3:
-					screen_tint = Color("#ff5a76") if screen_pos.x < 480.0 else Color("#ca83ff")
-				_draw_halo(screen_pos, 36.0, screen_tint, 0.028 + shimmer * 0.012)
-		3:
-			_draw_halo(Vector2(648, 30), 42.0, Color("#f8c170"), 0.038 + 0.015 * sin(_ambient_time * 5.0))
-			for idx: int in range(_night_torch_points.size()):
-				var flicker_col: float = 0.035 + 0.015 * sin(_ambient_time * 6.5 + float(idx) * 1.3)
-				_draw_halo(_night_torch_points[idx], 34.0, Color("#ffbe6b"), flicker_col)
-			if GameManager.is_final_room():
-				for step: int in range(7):
-					var frac: float = float(step) / 7.0
-					var width: float = 48.0 + frac * 18.0
-					var moon_color := Color(0.58, 0.74, 0.96, (1.0 - frac) * (0.045 + shimmer * 0.015))
-					_atmosphere.draw_rect(Rect2(480.0 - width * 0.5, 50.0 + frac * 98.0, width, 14.0), moon_color)
-				for idx: int in range(6):
-					var candle: Vector2 = [
-						Vector2(34, 134), Vector2(922, 134),
-						Vector2(34, 292), Vector2(922, 292),
-						Vector2(34, 462), Vector2(922, 462),
-					][idx]
-					var flicker: float = 0.032 + 0.014 * sin(_ambient_time * 7.0 + float(idx) * 1.7)
-					_draw_halo(candle, 30.0, Color("#ffbd6b"), flicker)
-				_draw_ley_pulses()
-			else:
-				for idx: int in range(4):
-					var candle: Vector2 = [
-						Vector2(34, 180), Vector2(922, 180),
-						Vector2(34, 462), Vector2(922, 462),
-					][idx]
-					_draw_halo(candle, 28.0, Color("#ffbd6b"), 0.032 + 0.012 * sin(_ambient_time * 6.0 + float(idx)))
+	if GameManager.in_respite_room:
+		tint = Color("#ffd978")
+		_draw_halo(Vector2(480, 220), 68.0, Color("#ffe091"), 0.032 + shimmer * 0.014)
+		for idx: int in range(_night_torch_points.size()):
+			var flicker_col: float = 0.035 + 0.015 * sin(_ambient_time * 5.0 + float(idx) * 1.1)
+			_draw_halo(_night_torch_points[idx], 34.0, Color("#ffbe6b"), flicker_col)
+		for bulb_x: float in [92.0, 280.0, 668.0, 840.0]:
+			_draw_halo(Vector2(bulb_x, 48.0), 28.0, Color("#ffd978"), 0.028 + 0.012 * shimmer)
+	else:
+		match turn:
+			1:
+				var beam_col: Color = Color("#ffd38a") if cycle == 1 else (Color("#d2b0c2") if cycle == 2 else Color("#bd9eff"))
+				for beam_x: float in [194.0, 620.0]:
+					_draw_sunbeam(beam_x, 54.0, 86.0, beam_col, 0.032 + shimmer * 0.015)
+				_draw_halo(Vector2(142, 52), 28.0, beam_col, 0.025 + shimmer * 0.010)
+				_draw_halo(Vector2(858, 60), 34.0, beam_col, 0.026 + shimmer * 0.010)
+			2:
+				var beam_col: Color = Color("#f2b872") if cycle == 1 else (Color("#d98b88") if cycle == 2 else Color("#b880ff"))
+				for beam_x: float in [188.0, 596.0]:
+					_draw_sunbeam(beam_x, 54.0, 86.0, beam_col, 0.026 + shimmer * 0.012)
+				for screen_pos: Vector2 in [
+					Vector2(98, 148), Vector2(98, 328), Vector2(862, 148), Vector2(862, 328),
+				]:
+					var screen_tint: Color = Color("#74e5ff") if screen_pos.x < 480.0 else Color("#ffcb80")
+					if cycle == 2:
+						screen_tint = Color("#ffa354") if screen_pos.x < 480.0 else Color("#ff6f69")
+					elif cycle == 3:
+						screen_tint = Color("#ff5a76") if screen_pos.x < 480.0 else Color("#ca83ff")
+					_draw_halo(screen_pos, 36.0, screen_tint, 0.028 + shimmer * 0.012)
+			3:
+				_draw_halo(Vector2(648, 30), 42.0, Color("#f8c170"), 0.038 + 0.015 * sin(_ambient_time * 5.0))
+				for idx: int in range(_night_torch_points.size()):
+					var flicker_col: float = 0.035 + 0.015 * sin(_ambient_time * 6.5 + float(idx) * 1.3)
+					_draw_halo(_night_torch_points[idx], 34.0, Color("#ffbe6b"), flicker_col)
+				if GameManager.is_final_room():
+					for step: int in range(7):
+						var frac: float = float(step) / 7.0
+						var width: float = 48.0 + frac * 18.0
+						var moon_color := Color(0.58, 0.74, 0.96, (1.0 - frac) * (0.045 + shimmer * 0.015))
+						_atmosphere.draw_rect(Rect2(480.0 - width * 0.5, 50.0 + frac * 98.0, width, 14.0), moon_color)
+					for idx: int in range(6):
+						var candle: Vector2 = [
+							Vector2(34, 134), Vector2(922, 134),
+							Vector2(34, 292), Vector2(922, 292),
+							Vector2(34, 462), Vector2(922, 462),
+						][idx]
+						var flicker: float = 0.032 + 0.014 * sin(_ambient_time * 7.0 + float(idx) * 1.7)
+						_draw_halo(candle, 30.0, Color("#ffbd6b"), flicker)
+					_draw_ley_pulses()
+				else:
+					for idx: int in range(4):
+						var candle: Vector2 = [
+							Vector2(34, 180), Vector2(922, 180),
+							Vector2(34, 462), Vector2(922, 462),
+						][idx]
+						_draw_halo(candle, 28.0, Color("#ffbd6b"), 0.032 + 0.012 * sin(_ambient_time * 6.0 + float(idx)))
 
 	if _door.visible and _door_open:
 		_draw_halo(_door.position + Vector2(0, 14), 40.0, Color("#c9ff7a"),
