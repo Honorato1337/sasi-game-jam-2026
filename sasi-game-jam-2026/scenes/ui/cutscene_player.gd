@@ -93,15 +93,6 @@ const CANSACO_LINES: Array[String] = [
 	"Nem sequer de tudo ou de nada:",
 	"Cansaço assim mesmo, ele mesmo,",
 	"Cansaço.",
-	"",
-	"A subtileza das sensações inúteis,",
-	"As paixões violentas por coisa nenhuma,",
-	"Os amores intensos por o suposto em alguém,",
-	"Essas coisas todas —",
-	"Essas e o que falta nelas eternamente —;",
-	"Tudo isso faz um cansaço,",
-	"Este cansaço,",
-	"Cansaço.",
 ]
 const CONSOLE_CAPTIONS: Array[String] = [
 	"Preciso desligar a cabeça... talvez jogar um pouco ajude a descansar.",
@@ -270,26 +261,26 @@ func _build_intro_poem_ui() -> void:
 	_intro_poem_stage.draw.connect(_draw_intro_poem_scene)
 	_intro_poem_root.add_child(_intro_poem_stage)
 
-	var title: Label = Retro.label(_intro_poem_root, Rect2(60, 16, 520, 20), "CANSAÇO", 14,
+	var title: Label = Retro.label(_intro_poem_root, Rect2(60, 64, 520, 20), "CANSAÇO", 14,
 			Retro.GOLD, HORIZONTAL_ALIGNMENT_CENTER, false)
 	title.add_theme_font_override(&"font", Retro.FONT_BOLD)
-	Retro.block(_intro_poem_root, Rect2(260, 38, 120, 1), Color("#3b324a"))
+	Retro.block(_intro_poem_root, Rect2(260, 88, 120, 1), Color("#3b324a"))
 
 	_intro_poem_labels.clear()
-	var cursor_y: int = 48
+	var cursor_y: int = 112
 	for line: String in CANSACO_LINES:
 		if line.is_empty():
 			cursor_y += 10
 			continue
-		var lbl: Label = Retro.label(_intro_poem_root, Rect2(48, cursor_y, 544, 17), line, 12,
+		var lbl: Label = Retro.label(_intro_poem_root, Rect2(48, cursor_y, 544, 18), line, 12,
 				Retro.CREAM, HORIZONTAL_ALIGNMENT_CENTER, false)
 		lbl.modulate.a = 0.0
 		_intro_poem_labels.append(lbl)
-		cursor_y += 17
+		cursor_y += 22
 
 	_intro_poem_schedule = _build_poem_schedule(CANSACO_LINES, 0.65, 1.60, 1.05)
 
-	_intro_poem_author = Retro.label(_intro_poem_root, Rect2(48, 294, 544, 18),
+	_intro_poem_author = Retro.label(_intro_poem_root, Rect2(48, 244, 544, 18),
 			"— Álvaro de Campos (Fernando Pessoa, 1934)", 11, Retro.BEVEL_LIGHT,
 			HORIZONTAL_ALIGNMENT_CENTER, false)
 	_intro_poem_author.modulate.a = 0.0
