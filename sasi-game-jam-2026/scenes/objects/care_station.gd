@@ -61,22 +61,24 @@ func interact(player: Node2D) -> String:
 		return ""
 	match station_type:
 		StationType.WATER_SNACK:
-			_cooldown = 5.0
-			GameManager.modify_body(45.0)
-			GameManager.heal_player(10)
-			return "+45 Corpo · +10 HP"
+			_cooldown = 3.5
+			GameManager.modify_body(50.0)
+			GameManager.heal_player(20)
+			return "+50 Corpo · +20 HP"
 		StationType.REST_SPOT:
-			_cooldown = 5.0
-			GameManager.modify_rest(45.0)
-			GameManager.modify_mind(20.0)
-			return "+45 Descanso · +20 Mente"
+			_cooldown = 3.5
+			GameManager.modify_rest(50.0)
+			GameManager.modify_mind(25.0)
+			GameManager.heal_player(10)
+			return "+50 Descanso · +25 Mente · +10 HP"
 		StationType.ROOM_PILLAR:
-			_cooldown = 1.2
+			_cooldown = 1.0
 			match pillar_name:
-				"CORPO": GameManager.modify_body(40.0)
-				"MENTE": GameManager.modify_mind(40.0)
-				"DESCANSO": GameManager.modify_rest(40.0)
-			return "+40 " + pillar_name
+				"CORPO": GameManager.modify_body(45.0)
+				"MENTE": GameManager.modify_mind(45.0)
+				"DESCANSO": GameManager.modify_rest(45.0)
+			GameManager.heal_player(8)
+			return "+45 " + pillar_name + " · +8 HP"
 		StationType.CLASSMATE_NPC:
 			GameManager.activate_ally()
 			classmate_recruited.emit()

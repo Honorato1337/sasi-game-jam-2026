@@ -7,24 +7,25 @@ extends RefCounted
 
 const SEQUENCES: Dictionary = {
 	"room_1_morning": [
-		{"speaker": "Estudante", "portrait": "student", "text": "Mal abri os olhos e meu corpo já pesa como no fim do dia."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Na minha cabeça, a mochila vira armadura. E o lápis, espada."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Antes de enfrentar o dia, preciso beber água. A garrafa está ali. [E]"},
+		{"speaker": "Estudante", "portrait": "student", "text": "Espere... eu entrei mesmo no jogo? Até minha mochila virou armadura."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Mas o cansaço veio comigo: mal comecei e o corpo já pesa demais."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Antes de encarar a sala, preciso beber água. A garrafa está ali. [E]"},
 	],
 	"room_2_afternoon": [
-		{"speaker": "Estudante", "portrait": "student", "text": "No laboratório, cada notificação parece acrescentar outra tarefa à lista."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Meu colega está perto da bancada. Posso pedir ajuda. [E]"},
+		{"speaker": "Estudante", "portrait": "student", "text": "Esse lugar parece o laboratório... prazos e cobranças por todo lado."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Um colega está perto da bancada. Posso pedir apoio. [E]"},
 	],
 	"classmate_help": [
-		{"speaker": "Colega", "portrait": "classmate", "text": "Senta aqui um instante. Quer me dizer o que está pesando?"},
+		{"speaker": "Colega", "portrait": "classmate", "text": "Respira um pouco. Você não precisa carregar tudo sozinho."},
 		{"speaker": "Colega", "portrait": "classmate", "text": "Vamos por partes. Eu fico com você enquanto a gente abre caminho."},
 	],
 	"room_3_night": [
-		{"speaker": "Estudante", "portrait": "student", "text": "Já é madrugada. A Sombra do Burnout se ergue entre os três pilares."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Corpo, Mente, Descanso. Se um vacilar, corro até ele. Ainda dá tempo de respirar."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Madrugada... a Sombra do Burnout quer apagar os meus três pilares."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Corpo, Mente e Descanso. Se um cair, eu reacendo e respiro [R]."},
 	],
 	"victory": [
-		{"speaker": "Estudante", "portrait": "student", "text": "A luz voltou pela janela. Pela primeira vez hoje, consigo largar a espada."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Amanhã eu começo com água, uma pausa e uma mensagem para quem caminha comigo."},
+		{"speaker": "Estudante", "portrait": "student", "text": "O controle ainda está na minha mão... eu estava alucinando de tanto cansaço."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Os monstros não eram reais, mas os sinais do meu corpo eram verdadeiros."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Para viver, preciso fazer aqui fora: comer, beber água, descansar e dormir."},
 	],
 }

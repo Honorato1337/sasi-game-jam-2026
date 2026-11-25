@@ -97,7 +97,7 @@ func _build_title() -> void:
 	Retro.divider(_title_window, Rect2(40, 104, 212, 1))
 
 	var play: Button = _action(_title_window, Rect2(40, 120, 212, 30), "JOGAR",
-			GameManager.start_new_run)
+			GameManager.start_intro_cutscene)
 	play.add_theme_stylebox_override(&"normal",
 			Retro.pixel_button_box(Color("#4f3448"), Retro.GOLD, Color("#ffe3a0"), Color("#8c5c34"), false))
 	play.add_theme_font_override(&"font", Retro.FONT_BOLD)
@@ -254,17 +254,20 @@ func _setting_label(y: int, caption: String) -> void:
 
 
 func _build_credits() -> void:
-	_credits_window = _window(230, "CRÉDITOS & SAÚDE")
-	_centered(_credits_window, 36, 22, "SASI: GAME JAM 2026  •  UFAC", 15, Retro.MINT)
-	_centered(_credits_window, 62, 36,
+	_credits_window = _window(252, "CRÉDITOS & SAÚDE")
+	_centered(_credits_window, 36, 20, "SASI: GAME JAM 2026  •  UFAC", 14, Retro.MINT)
+	_centered(_credits_window, 58, 34,
 			"Arte pixel e áudio chiptune criados para o jogo.\nDesenvolvimento com apoio de Antigravity e OpenAI Codex.",
-			12, Retro.CREAM)
-	Retro.block(_credits_window, Rect2(16, 108, 418, 70), Retro.INK)
-	_centered(_credits_window, 112, 20, "SAÚDE EM JOGO", 12, Retro.GOLD)
-	_centered(_credits_window, 136, 36,
+			11, Retro.CREAM)
+	_centered(_credits_window, 94, 24,
+			"Poemas em Domínio Público: Álvaro de Campos (F. Pessoa)\ne Emily Dickinson (tradução livre).",
+			10, Retro.MUTED)
+	Retro.block(_credits_window, Rect2(16, 124, 418, 72), Retro.INK)
+	_centered(_credits_window, 128, 18, "SAÚDE EM JOGO", 12, Retro.GOLD)
+	_centered(_credits_window, 150, 40,
 			"Cuidar também passa por perceber os sinais do corpo,\nrespeitar seus limites e dividir a rotina com quem pode ajudar.",
-			12, Retro.CREAM)
-	_back_button(_credits_window, 192)
+			11, Retro.CREAM)
+	_back_button(_credits_window, 214)
 
 
 func _build_pause() -> void:
@@ -634,7 +637,7 @@ func _update_summary(won: bool) -> void:
 	_end_caption.add_theme_color_override(&"font_color", Retro.MINT if won else Retro.GOLD)
 	_end_heading.text = "O AMANHECER CHEGOU" if won else "O BURNOUT PEDIU PAUSA"
 	_end_heading.add_theme_color_override(&"font_color", Retro.MINT if won else Retro.GOLD)
-	_end_message.text = ("O estudante atravessou a noite e viu o dia nascer.\nCuide dos seus pilares e aceite companhia."
+	_end_message.text = ("O estudante desligou a tela e escolheu cuidar de si.\nComer, beber água, descansar e dormir também é viver."
 			if won else "O estudante chegou ao limite.\nÉ hora de respirar, descansar e pedir apoio.")
 	_stats.text = "Sala %d/3   •   HP %d/%d   •   Score %d   •   Combo x%d" % [
 		GameManager.room, GameManager.hp, GameManager.max_hp, GameManager.score, maxi(1, GameManager.combo),

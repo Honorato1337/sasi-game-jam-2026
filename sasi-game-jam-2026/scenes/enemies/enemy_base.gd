@@ -13,8 +13,8 @@ enum EnemyType {
 const Player = preload("res://scenes/player/player.gd")
 const Projectile = preload("res://scenes/enemies/enemy_projectile.gd")
 const Puddle = preload("res://scenes/enemies/slow_puddle.gd")
-const MAX_HP: Array[int] = [35, 30, 45, 380]
-const SPEEDS: Array[float] = [42.0, 76.0, 50.0, 26.0]
+const MAX_HP: Array[int] = [28, 25, 36, 260]
+const SPEEDS: Array[float] = [34.0, 58.0, 42.0, 22.0]
 const COLORS: Array[Color] = [
 	Color("#9c75ba"), Color("#ff9b52"), Color("#ca83ff"), Color("#ff586d"),
 ]
@@ -24,7 +24,7 @@ const SPRITES: Array[Texture2D] = [
 	preload("res://assets/sprites/enemy_selfcriticism_sheet.png"),
 	preload("res://assets/sprites/boss_burnout_sheet.png"),
 ]
-const ATTACK_INTERVALS: Array[float] = [4.0, 2.4, 3.2, 3.8]
+const ATTACK_INTERVALS: Array[float] = [4.8, 3.0, 3.8, 4.4]
 const WARNING_DURATIONS: Array[float] = [0.0, 0.35, 0.6, 0.85]
 const HIT_FLASH_DURATION: float = 0.09
 const DRAIN_VISUAL_DURATION: float = 0.65
@@ -112,7 +112,7 @@ func _move(delta: float, target: Vector2) -> void:
 		speed *= 1.0 - cos(_motion_time * TAU / 0.62)
 	var slowed_step: float = minf(delta, _slow_remaining)
 	var charge_step: float = minf(delta, _charge_remaining)
-	var travel: Vector2 = direction * speed * (delta - charge_step) + _aim * 165.0 * charge_step
+	var travel: Vector2 = direction * speed * (delta - charge_step) + _aim * 130.0 * charge_step
 	global_position += travel * (1.0 - slowed_step / delta * (1.0 - _slow_factor))
 	global_position += _knockback * delta
 	_knockback = _knockback.move_toward(Vector2.ZERO, 850.0 * delta)
@@ -125,17 +125,17 @@ func _check_contact() -> void:
 		return
 	match enemy_type:
 		EnemyType.PROCRASTINATION:
-			player.apply_enemy_contact(global_position, 8, 0.0, 10.0)
+			player.apply_enemy_contact(global_position, 5, 0.0, 6.0)
 		EnemyType.DEADLINE:
-			player.apply_enemy_contact(global_position, 10, 8.0, 0.0)
+			player.apply_enemy_contact(global_position, 6, 6.0, 0.0)
 
 
 func _attack_interval() -> float:
-	return 2.8 if is_phase_two() else ATTACK_INTERVALS[enemy_type]
+	return 3.4 if is_phase_two() else ATTACK_INTERVALS[enemy_type]
 
 
 func is_phase_two() -> bool:
-	return is_boss() and hp <= 190
+	return is_boss() and hp <= 130
 
 
 func _update_attack(delta: float, target: Vector2) -> void:
@@ -160,7 +160,7 @@ func _update_attack(delta: float, target: Vector2) -> void:
 	if is_boss():
 		_drain_visual = maxf(0.0, _drain_visual - delta)
 		_drain_elapsed += delta
-		if _drain_elapsed >= (5.5 if is_phase_two() else 7.0):
+		if _drain_elapsed >= (7.0 if is_phase_two() else 8.5):
 			_drain_elapsed = 0.0
 			_drain_visual = DRAIN_VISUAL_DURATION
 			_drain_origin = global_position
@@ -170,9 +170,9 @@ func _update_attack(delta: float, target: Vector2) -> void:
 func _drain_pillar() -> void:
 	const PILLARS: Array[String] = ["CORPO", "MENTE", "DESCANSO"]
 	match _next_pillar:
-		0: GameManager.modify_body(-22.0)
-		1: GameManager.modify_mind(-22.0)
-		2: GameManager.modify_rest(-22.0)
+		0: GameManager.modify_body(-16.0)
+		1: GameManager.modify_mind(-16.0)
+		2: GameManager.modify_rest(-16.0)
 	pillar_drained.emit(PILLARS[_next_pillar])
 	_next_pillar = (_next_pillar + 1) % PILLARS.size()
 	boss_pulsed.emit()
@@ -254,7 +254,7 @@ func _warning_strength() -> float:
 
 func get_effective_damage(amount: int, is_clarity: bool) -> int:
 	if amount > 0 and is_clarity and is_boss():
-		return 120
+		return 110
 	return maxi(0, amount)
 
 func take_damage(amount: int, is_clarity: bool = false,

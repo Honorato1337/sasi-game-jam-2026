@@ -1,10 +1,11 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scenes/levels/arena.gd" id="1_arena"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="3_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/story_dialog.tscn" id="4_story"]
 [ext_resource type="PackedScene" path="res://scenes/ui/title_end_screens.tscn" id="5_screens"]
+[ext_resource type="PackedScene" path="res://scenes/ui/cutscene_player.tscn" id="8_cutscene"]
 
 [ext_resource type="Texture2D" path="res://assets/sprites/room_morning.png" id="6_background"]
 [ext_resource type="Texture2D" path="res://assets/sprites/stations_sheet.png" id="7_stations"]
@@ -116,3 +117,5 @@ position = Vector2(320, 247)
 [node name="StoryDialog" parent="." instance=ExtResource("4_story")]
 
 [node name="TitleEndScreens" parent="." instance=ExtResource("5_screens")]
+
+[node name="CutscenePlayer" parent="." instance=ExtResource("8_cutscene")]

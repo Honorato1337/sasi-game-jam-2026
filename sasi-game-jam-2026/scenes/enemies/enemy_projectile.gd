@@ -24,10 +24,10 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 		return
 	var previous: Vector2 = global_position
-	global_position += direction * (125.0 if is_stress else 85.0) * delta
+	global_position += direction * (96.0 if is_stress else 68.0) * delta
 	var closest: Vector2 = Geometry2D.get_closest_point_to_segment(player.global_position, previous, global_position)
 	if closest.distance_squared_to(player.global_position) <= HIT_RADIUS * HIT_RADIUS:
-		if player.apply_enemy_contact(previous, 12 if is_stress else 8, 12.0 if is_stress else 14.0, 0.0):
+		if player.apply_enemy_contact(previous, 7 if is_stress else 5, 8.0 if is_stress else 9.0, 0.0):
 			queue_free()
 
 

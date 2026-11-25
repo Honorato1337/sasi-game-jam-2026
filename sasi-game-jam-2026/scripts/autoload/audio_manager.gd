@@ -44,6 +44,26 @@ const BOSS: Array[Vector3i] = [
 	Vector3i(78, 30, 2), Vector3i(77, 42, 1), Vector3i(78, 30, 1),
 	Vector3i(85, 42, 2), Vector3i(82, 46, 1), Vector3i(78, 42, 1),
 ]
+const BEETHOVEN: Array[Vector3i] = [
+	# Compasso 1 (8 ticks): motivo rítmico dramático em Dó menor
+	Vector3i(67, 48, 1), Vector3i(67, 48, 1), Vector3i(67, 48, 1),
+	Vector3i(63, 39, 3), Vector3i(0, 48, 1), Vector3i(65, 43, 1),
+	# Compasso 2 (8 ticks): resposta descendente
+	Vector3i(65, 43, 1), Vector3i(65, 43, 1), Vector3i(65, 43, 1),
+	Vector3i(62, 38, 3), Vector3i(0, 43, 1), Vector3i(67, 48, 1),
+	# Compasso 3 (8 ticks): arpejo urgente ascendente
+	Vector3i(72, 48, 1), Vector3i(75, 48, 1), Vector3i(79, 51, 1), Vector3i(75, 51, 1),
+	Vector3i(77, 50, 1), Vector3i(74, 50, 1), Vector3i(79, 43, 1), Vector3i(74, 43, 1),
+	# Compasso 4 (8 ticks): tensão e retorno
+	Vector3i(75, 48, 2), Vector3i(74, 43, 1), Vector3i(72, 48, 1),
+	Vector3i(71, 43, 2), Vector3i(72, 48, 1), Vector3i(0, 36, 1),
+]
+const HOPE: Array[Vector3i] = [
+	Vector3i(72, 48, 2), Vector3i(76, 52, 2), Vector3i(79, 55, 2), Vector3i(84, 52, 2),
+	Vector3i(81, 53, 2), Vector3i(79, 55, 2), Vector3i(76, 52, 3), Vector3i(0, 48, 1),
+	Vector3i(74, 50, 2), Vector3i(77, 53, 2), Vector3i(76, 52, 2), Vector3i(72, 48, 2),
+	Vector3i(74, 43, 2), Vector3i(71, 47, 2), Vector3i(72, 48, 3), Vector3i(0, 48, 1),
+]
 const EFFECT_SCORES: Dictionary[StringName, Array] = {
 	&"voice_blip": [Vector3i(76, 0, 1)],
 	&"pickup": [Vector3i(72, 0, 1), Vector3i(84, 0, 2)],
@@ -56,6 +76,8 @@ const EFFECT_SCORES: Dictionary[StringName, Array] = {
 	&"core_hit": [Vector3i(39, 32, 2), Vector3i(33, 25, 3)],
 	&"heartbeat": [Vector3i(0, 43, 2), Vector3i(0, 0, 1), Vector3i(0, 38, 2)],
 	&"habit_select": [Vector3i(74, 50, 1), Vector3i(79, 55, 2)],
+	&"alarm_beep": [Vector3i(88, 0, 1), Vector3i(0, 0, 1), Vector3i(88, 0, 1)],
+	&"console_boot": [Vector3i(60, 48, 1), Vector3i(67, 55, 1), Vector3i(72, 60, 1), Vector3i(84, 60, 3)],
 	&"victory": [Vector3i(72, 48, 2), Vector3i(76, 48, 2), Vector3i(79, 55, 2),
 		Vector3i(84, 48, 7)],
 	&"game_over": [Vector3i(71, 47, 2), Vector3i(67, 43, 2), Vector3i(63, 39, 3),
@@ -73,6 +95,8 @@ var _next_sfx_player_index: int = 0
 var _music: Dictionary[StringName, AudioStreamWAV] = {}
 var _effects: Dictionary[StringName, AudioStreamWAV] = {}
 var _pending_track: StringName
+var _pending_volume: float = MUSIC_VOLUME_DB
+var _pending_pitch: float = 1.0
 var _synthesis_deadline: int = 0
 const ROOM_TRACKS: Array[StringName] = [&"morning", &"nocturne", &"boss"]
 var _beat_phase: float = 1.0
@@ -134,6 +158,25 @@ func stop_music() -> void:
 	music_player.stop()
 
 
+func play_track(track: StringName, volume_db: float = MUSIC_VOLUME_DB, pitch: float = 1.0) -> void:
+	var stream: AudioStreamWAV = _music.get(track) as AudioStreamWAV
+	if stream == null:
+		stop_music()
+		_pending_track = track
+		_pending_volume = volume_db
+		_pending_pitch = maxf(pitch, 0.1)
+		return
+	music_player.pitch_scale = maxf(pitch, 0.1)
+	play_music(stream, volume_db)
+
+
+func set_music_pitch(pitch: float) -> void:
+	var clamped: float = maxf(pitch, 0.1)
+	_pending_pitch = clamped
+	if music_player != null:
+		music_player.pitch_scale = clamped
+
+
 func play_sfx(stream: AudioStream, volume_db: float = 0.0, pitch_scale: float = 1.0) -> void:
 	if stream == null or sfx_players.is_empty():
 		return
@@ -179,6 +222,14 @@ func play_door_open() -> void:
 	_play_effect(&"door_open", -7.0)
 
 
+func play_alarm_beep() -> void:
+	_play_effect(&"alarm_beep", -14.0)
+
+
+func play_console_boot() -> void:
+	_play_effect(&"console_boot", -7.0)
+
+
 func _apply_music_volume() -> void:
 	if music_player != null:
 		music_player.volume_db = _get_effective_volume(_music_volume_db, music_volume)
@@ -209,6 +260,8 @@ func _on_state_changed(state: GameManager.GameState) -> void:
 		GameManager.GameState.GAME_OVER:
 			stop_music()
 			_play_effect(&"game_over")
+		GameManager.GameState.CUTSCENE:
+			pass
 		GameManager.GameState.MENU, GameManager.GameState.HABIT_SELECT, GameManager.GameState.PLAYING, GameManager.GameState.DIALOGUE:
 			_update_music()
 
@@ -326,15 +379,20 @@ func _generate_audio() -> void:
 		_effects[effect] = await _render_score(score, 0.026, 0.31, false)
 
 	await _generate_track(&"menu", MENU, 0.29, 0.46)
+	await _generate_track(&"beethoven", BEETHOVEN, 0.16, 0.30)
 	await _generate_track(&"morning", MORNING, 0.17, 0.5)
 	await _generate_track(&"nocturne", NOCTURNE, 0.23, 0.33)
 	await _generate_track(&"boss", BOSS, 0.145, 0.25)
+	await _generate_track(&"hope", HOPE, 0.30, 0.50)
 
 
 func _generate_track(track: StringName, score: Array[Vector3i], tick: float, duty: float) -> void:
 	_music[track] = await _render_score(score, tick, duty, true)
 	if _pending_track == track:
-		_update_music()
+		if GameManager.current_state == GameManager.GameState.CUTSCENE:
+			play_track(track, _pending_volume, _pending_pitch)
+		else:
+			_update_music()
 
 
 func _render_score(score: Array[Vector3i], tick_seconds: float, duty: float,

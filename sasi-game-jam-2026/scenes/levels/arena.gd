@@ -6,6 +6,7 @@ const Ally = preload("res://scenes/enemies/ally_support.gd")
 const Station = preload("res://scenes/objects/care_station.gd")
 const HUD = preload("res://scenes/ui/hud.gd")
 const StoryDialog = preload("res://scenes/ui/story_dialog.gd")
+const CutscenePlayer = preload("res://scenes/ui/cutscene_player.gd")
 const ENEMY_SCENE = preload("res://scenes/enemies/enemy_base.tscn")
 const ALLY_SCENE = preload("res://scenes/enemies/ally_support.tscn")
 const STATION_SCENE = preload("res://scenes/objects/care_station.tscn")
@@ -18,12 +19,11 @@ const ROOM_DIALOGUES: Array[String] = ["room_1_morning", "room_2_afternoon", "ro
 const ROOM_LIGHT: Array[Color] = [Color("#ffc370"), Color("#f1a875"), Color("#9599ff")]
 const MORNING_ENEMIES: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.DEADLINE,
-	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.DEADLINE,
+	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.DEADLINE,
 ]
 const AFTERNOON_ENEMIES: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.SELF_CRITICISM,
-	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.PROCRASTINATION,
-	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
+	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.SELF_CRITICISM,
 ]
 const SPAWN_POINTS: Array[Vector2] = [
 	Vector2(178, 127), Vector2(485, 147), Vector2(322, 102), Vector2(498, 245),
@@ -85,6 +85,7 @@ var _effects_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 @onready var _door_lock: Sprite2D = $NorthDoor/Lock
 @onready var _hud: HUD = $HUD
 @onready var _story: StoryDialog = $StoryDialog
+@onready var _cutscene: CutscenePlayer = $CutscenePlayer
 
 
 func _ready() -> void:
@@ -104,7 +105,13 @@ func _ready() -> void:
 	_player.breathing_completed.connect(_on_breathing_completed)
 	GameManager.exhausted_changed.connect(_on_exhausted)
 	GameManager.state_changed.connect(_on_state_changed)
+	GameManager.intro_requested.connect(_play_intro_cutscene)
 	GameManager.run_started.connect(_setup_room.bind(1))
+
+
+func _play_intro_cutscene() -> void:
+	_clear_room()
+	_cutscene.play_intro(GameManager.start_new_run)
 
 
 func _setup_room(room_index: int) -> void:
@@ -117,7 +124,7 @@ func _setup_room(room_index: int) -> void:
 	$NorthDoor/CollisionShape2D.set_deferred(&"disabled", room_index == 3)
 	_door_open = false
 	_update_door_visual()
-	_reinforcement_delay = 12.0
+	_reinforcement_delay = 18.0
 	match room_index:
 		1:
 			_add_station(Station.StationType.WATER_SNACK, Vector2(133, 131))
@@ -129,7 +136,7 @@ func _setup_room(room_index: int) -> void:
 			colleague.classmate_recruited.connect(_on_classmate_recruited.bind(colleague.position))
 			_add_obstacle(Vector2(44, 100), Vector2(68, 18), Vector2(0, 87))
 			_add_obstacle(Vector2(596, 100), Vector2(68, 18), Vector2(0, 87))
-			_start_waves(AFTERNOON_ENEMIES, 3)
+			_start_waves(AFTERNOON_ENEMIES, 2)
 		3:
 			_add_station(Station.StationType.ROOM_PILLAR, Vector2(320, 116), "MENTE")
 			_add_station(Station.StationType.ROOM_PILLAR, Vector2(158, 270), "CORPO")
@@ -228,7 +235,17 @@ func _on_enemy_defeated(enemy: Enemy) -> void:
 
 func _finish_boss() -> void:
 	if GameManager.current_state == GameManager.GameState.PLAYING and GameManager.hp > 0:
-		_story.play_sequence("victory", _win)
+		for node: Node in _enemy_container.get_children():
+			if not node.is_queued_for_deletion():
+				node.queue_free()
+		for projectile: Node in get_tree().get_nodes_in_group(&"enemy_projectiles"):
+			projectile.queue_free()
+		_story.play_sequence("victory", _play_ending_poem)
+
+
+func _play_ending_poem() -> void:
+	if GameManager.hp > 0:
+		_cutscene.play_ending_poem(_win)
 
 
 func _win() -> void:
@@ -290,10 +307,10 @@ func _update_reinforcements(delta: float) -> void:
 	if not is_instance_valid(_boss) or _boss.is_queued_for_deletion() or not _boss.is_phase_two():
 		return
 	_reinforcement_delay = maxf(0.0, _reinforcement_delay - delta)
-	if _reinforcement_delay == 0.0 and _remaining < 3:
+	if _reinforcement_delay == 0.0 and _remaining < 2:
 		_remaining += 1
 		_spawn_enemy(Enemy.EnemyType.PROCRASTINATION, SPAWN_POINTS[0])
-		_reinforcement_delay = 15.0
+		_reinforcement_delay = 20.0
 
 
 func _update_door() -> void:
@@ -341,10 +358,11 @@ func _update_drops(delta: float) -> void:
 		drop.position = drop.position.move_toward(_player.position, 185.0 * delta)
 		if drop.position.distance_squared_to(_player.position) <= 8.0 * 8.0:
 			_drops.remove_at(index)
-			GameManager.modify_body(12.0)
+			GameManager.modify_body(15.0)
+			GameManager.heal_player(4)
 			GameManager.add_score(25)
 			AudioManager.play_pickup()
-			_float_text(_player.position + Vector2(0, -16), "+12 CORPO", Color("#8de5ff"))
+			_float_text(_player.position + Vector2(0, -16), "+15 CORPO · +4 HP", Color("#8de5ff"))
 
 
 func _on_enemy_hit(point: Vector2, damage: int, clarity: bool, _is_boss: bool) -> void:

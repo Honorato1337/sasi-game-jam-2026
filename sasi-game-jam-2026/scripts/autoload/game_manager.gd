@@ -1,9 +1,10 @@
 extends Node
 
 # HABIT_SELECT is used by the legacy arena until T-018.
-enum GameState { MENU, DIALOGUE, PLAYING, PAUSED, VICTORY, GAME_OVER, HABIT_SELECT }
+enum GameState { MENU, CUTSCENE, DIALOGUE, PLAYING, PAUSED, VICTORY, GAME_OVER, HABIT_SELECT }
 enum MindState { CALM, ANXIOUS, OVERLOAD }
 
+signal intro_requested
 signal pillars_changed(body: float, mind: float, rest: float)
 signal hp_changed(new_hp: int, max_hp: int)
 signal mind_state_changed(new_state: MindState)
@@ -15,7 +16,7 @@ signal combo_changed(new_combo: int)
 const MAX_PILLAR: float = 100.0
 const MAX_ROOMS: int = 3
 const REST_RECOVERY_DELAY: float = 0.45
-const REST_RECOVERY_RATE: float = 22.0
+const REST_RECOVERY_RATE: float = 28.0
 
 var body: float = MAX_PILLAR
 var mind: float = MAX_PILLAR
@@ -175,6 +176,11 @@ func advance_wave() -> void:
 	wave_changed.emit(wave)
 
 
+func start_intro_cutscene() -> void:
+	set_state(GameState.CUTSCENE)
+	intro_requested.emit()
+
+
 func start_new_run() -> void:
 	_reset_run(GameState.PLAYING)
 	run_started.emit()
@@ -191,7 +197,7 @@ func get_move_speed_multiplier() -> float:
 
 
 func get_breathe_duration() -> float:
-	return 1.5
+	return 1.2
 
 
 func _reset_run(new_state: GameState) -> void:
@@ -225,7 +231,7 @@ func _reset_run(new_state: GameState) -> void:
 func tick_pillars(delta: float, is_breathing: bool = false, near_ally: bool = false) -> void:
 	if current_state != GameState.PLAYING or delta <= 0.0:
 		return
-	modify_body(-0.85 * delta)
+	modify_body(-0.45 * delta)
 	if ally_active and near_ally:
 		modify_mind(3.5 * delta)
 	var remaining: float = delta
@@ -239,7 +245,7 @@ func tick_pillars(delta: float, is_breathing: bool = false, near_ally: bool = fa
 	var delay: float = minf(remaining, _rest_delay)
 	_rest_delay -= delay
 	if remaining > delay:
-		modify_rest((remaining - delay) * (34.0 if is_breathing else REST_RECOVERY_RATE))
+		modify_rest((remaining - delay) * (42.0 if is_breathing else REST_RECOVERY_RATE))
 
 
 func modify_body(delta_val: float) -> void:
@@ -308,14 +314,14 @@ func _sync_signal_level() -> void:
 
 func get_attack_range() -> float:
 	if clarity_ready:
-		return 60.0
-	return 24.0 if body < 40.0 else 40.0
+		return 66.0
+	return 28.0 if body < 40.0 else 46.0
 
 
 func get_attack_damage() -> int:
 	if clarity_ready:
-		return 65
-	return 14 if body < 40.0 else 24
+		return 75
+	return 18 if body < 40.0 else 30
 
 
 func activate_ally() -> void:
