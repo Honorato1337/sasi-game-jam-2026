@@ -448,8 +448,33 @@ func _process(delta: float) -> void:
 
 func _draw_atmosphere() -> void:
 	var tint: Color = ROOM_LIGHT[GameManager.room - 1]
-	for point: Vector2 in [Vector2(43, 52), Vector2(595, 60), Vector2(90, 275), Vector2(549, 282)]:
-		_draw_halo(point, 42.0, tint, 0.025)
+	var shimmer: float = 0.5 + 0.5 * sin(_ambient_time * 2.2)
+	match GameManager.room:
+		1:
+			for beam_x: float in [186.0, 462.0]:
+				_draw_sunbeam(beam_x, 46.0, 72.0, Color("#ffd38a"), 0.032 + shimmer * 0.015)
+			_draw_halo(Vector2(122, 42), 24.0, Color("#ffb970"), 0.025 + shimmer * 0.010)
+			_draw_halo(Vector2(558, 44), 32.0, Color("#ffd38a"), 0.026 + shimmer * 0.010)
+		2:
+			_draw_sunbeam(196.0, 46.0, 74.0, Color("#f2b872"), 0.026 + shimmer * 0.012)
+			for screen_pos: Vector2 in [
+				Vector2(44, 92), Vector2(44, 179), Vector2(596, 92), Vector2(596, 179),
+			]:
+				var screen_tint: Color = Color("#74e5ff") if screen_pos.x < 320.0 else Color("#ffcb80")
+				_draw_halo(screen_pos, 32.0, screen_tint, 0.028 + shimmer * 0.012)
+		3:
+			for step: int in range(6):
+				var frac: float = float(step) / 6.0
+				var width: float = 34.0 + frac * 14.0
+				var moon_color := Color(0.58, 0.74, 0.96, (1.0 - frac) * (0.045 + shimmer * 0.015))
+				_atmosphere.draw_rect(Rect2(320.0 - width * 0.5, 44.0 + frac * 70.0, width, 12.0), moon_color)
+			_draw_halo(Vector2(476, 22), 36.0, Color("#f8c170"), 0.038 + 0.015 * sin(_ambient_time * 5.0))
+			for idx: int in range(4):
+				var candle: Vector2 = [Vector2(30, 300), Vector2(600, 300), Vector2(30, 102), Vector2(600, 106)][idx]
+				var flicker: float = 0.032 + 0.014 * sin(_ambient_time * 7.0 + float(idx) * 1.7)
+				_draw_halo(candle, 28.0, Color("#ffbd6b"), flicker)
+			_draw_ley_pulses()
+
 	if _door.visible and _door_open:
 		_draw_halo(_door.position + Vector2(0, 14), 36.0, Color("#c9ff7a"),
 				0.045 + 0.014 * sin(_ambient_time * 4.0))
@@ -457,8 +482,37 @@ func _draw_atmosphere() -> void:
 		var phase: float = index * 2.39996
 		var drift: Vector2 = Vector2(sin(_ambient_time * 0.4 + phase) * 11.0,
 				cos(_ambient_time * 0.6 + phase) * 8.0)
-		tint.a = 0.20 + 0.12 * sin(_ambient_time * 1.2 + phase)
+		tint.a = 0.22 + 0.14 * sin(_ambient_time * 1.2 + phase)
 		_atmosphere.draw_rect(Rect2((_dust_origins[index] + drift).round(), Vector2.ONE), tint)
+
+
+func _draw_sunbeam(origin_x: float, start_y: float, length: float, color: Color, opacity: float) -> void:
+	for step: int in range(6):
+		var frac: float = float(step) / 6.0
+		var py: float = start_y + frac * length
+		var px: float = origin_x + frac * length * 0.45
+		color.a = opacity * (1.0 - frac * 0.55)
+		_atmosphere.draw_rect(Rect2(Vector2(px, py).round(), Vector2(28, 12)), color)
+
+
+func _draw_ley_pulses() -> void:
+	var center := Vector2(320, 175)
+	var conduits: Array = [
+		[Vector2(320, 116), GameManager.mind, Color("#8de5ff")],
+		[Vector2(158, 270), GameManager.body, Color("#80f1a8")],
+		[Vector2(482, 270), GameManager.rest, Color("#ffe091")],
+	]
+	for entry_idx: int in range(conduits.size()):
+		var entry: Array = conduits[entry_idx]
+		var anchor: Vector2 = entry[0] as Vector2
+		var value: float = float(entry[1])
+		var critical: bool = value < 40.0
+		var pulse_color: Color = Color("#ff435b") if critical else (entry[2] as Color)
+		for mote: int in range(3):
+			var phase: float = fposmod(_ambient_time * (0.95 if critical else 0.45) + float(mote) / 3.0 + float(entry_idx) * 0.2, 1.0)
+			var pos: Vector2 = anchor.lerp(center, phase).round()
+			pulse_color.a = sin(phase * PI) * (0.65 if critical else 0.35)
+			_atmosphere.draw_rect(Rect2(pos - Vector2.ONE, Vector2(2, 2)), pulse_color)
 
 
 func _draw_halo(point: Vector2, radius: float, color: Color, opacity: float) -> void:

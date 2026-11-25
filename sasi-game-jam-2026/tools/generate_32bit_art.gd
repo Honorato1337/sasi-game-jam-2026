@@ -21,6 +21,12 @@ func _initialize() -> void:
 		save("title_bg")
 		quit(1 if failed else 0)
 		return
+	if "--rooms-only" in OS.get_cmdline_user_args():
+		for shift in 3:
+			draw_room(shift)
+			save(["room_morning", "room_afternoon", "room_night"][shift])
+		quit(1 if failed else 0)
+		return
 	sheet("student_sheet", STUDENT)
 	sheet("classmate_sheet", CLASSMATE)
 	sheet("stations_sheet", STATIONS)
@@ -409,53 +415,280 @@ const BOSS_BURNOUT = ["0123456789ABCDEFGHI", "181224 4e293e 9d3e4c 8a3548 382f43
 ................................................................................................................................................................
 ................................................................................................................................................................"""]
 
-func desk(x: int, y: int, monitor: bool) -> void:
+func desk(x: int, y: int, monitor: bool, glow_hex: String = "5dc2d1") -> void:
+	rect(x + 2, y + 24, 64, 5, "1c1528")
 	rect(x+3,y+16,5,12,INK)
 	rect(x+59,y+16,5,12,INK)
 	rect(x,y,68,18,INK)
 	for row in 3:
 		timber(x+1,y+1+row*5,66,5)
 	if monitor:
-		rect(x+21,y-10,26,17,INK)
-		rect(x+23,y-8,22,12,"435877")
-		rect(x+24,y-7,19,2,"7e9bab")
+		rect(x+19,y-11,30,19,INK)
+		rect(x+21,y-9,26,14,"2a3346")
+		rect(x+23,y-7,22,10,"344865")
+		rect(x+24,y-6,20,2,"7e9bab")
 		for i in 3:
-			rect(x+25,y-3+i*2,12-i*3,1,"8ab2b5")
-		rect(x+30,y+7,8,2,"343448")
+			rect(x+25,y-3+i*2,13-i*3,1,glow_hex)
+		rect(x+40,y-4,4,2,"f4ba72")
+		rect(x+30,y+7,8,3,"282838")
 		rect(x+23,y+11,22,3,"353746")
+		rect(x+48,y+10,8,5,"4f6d73")
+		rect(x+52,y+6,4,4,"d8be92")
+		rect(x+12,y+9,7,5,"9a4b52")
+		rect(x+13,y+10,4,2,"e6c9a8")
 	else:
-		rect(x+24,y+4,18,8,"c6ac8e")
-		rect(x+33,y+4,1,8,"7b6063")
+		rect(x+10,y+4,11,9,"4f6d73")
+		rect(x+24,y+4,18,8,"e5d4ba")
+		rect(x+33,y+4,1,8,"876868")
 		for i in 3:
 			rect(x+26,y+5+2*i,5,1,"887977")
+		rect(x+47,y+4,10,9,"9b4e52")
+		rect(x+50,y+2,4,3,"e7ba72")
 
 func bookcase(x: int, y: int) -> void:
 	rect(x,y,72,36,INK)
-	var spines := ["88515b","62617c","677c72","aa7958","675578"]
+	rect(x+2,y+2,68,32,"231826")
+	var spines := ["995762","626486","5d8678","bc8459","745a88","d4a367"]
 	for row in 2:
 		for i in 13:
-			var height := rng.randi_range(6,12)
+			var height := rng.randi_range(7,13)
 			var bx := x+4+i*5
 			var foot := y+15+row*16
-			rect(bx,foot-height,4,height,spines[rng.randi_range(0,4)])
-			rect(bx,foot-height+2,3,1,"b19581")
+			rect(bx,foot-height,4,height,spines[(i+row+rng.randi_range(0,2))%spines.size()])
+			rect(bx,foot-height+2,3,1,"d8c1a3")
 		timber(x+1,y+15+16*row,70,4)
 
 func rug(x: int, y: int, w: int, h: int) -> void:
 	rect(x-2,y+2,w+4,h,INK)
-	rect(x,y,w,h,"895a54")
-	rect(x+2,y+2,w-4,h-4,"423745")
-	rect(x+5,y+5,w-10,h-10,"684650")
-	for j in range(7,h-7,6):
-		for i in range(6,w-7,12):
-			rect(x+i+(j%4),y+j,2,1,"7d5254")
-	for i in range(3,w-3,8):
-		rect(x+i,y-2,2,2,"ac846e")
-		rect(x+i,y+h,2,2,"ac846e")
-	for i in range(-32,33):
-		var dy := 16-absi(i)/2
-		rect(x+w/2+i,y+h/2+dy,1,1,"ae7966")
-		rect(x+w/2+i,y+h/2-dy,1,1,"ae7966")
+	rect(x,y,w,h,"945e56")
+	rect(x+2,y+2,w-4,h-4,"3c3042")
+	rect(x+4,y+4,w-8,h-8,"744b54")
+	rect(x+7,y+7,w-14,h-14,"5f3d49")
+	for corner: Vector2i in [
+		Vector2i(x+8, y+8), Vector2i(x+w-14, y+8),
+		Vector2i(x+8, y+h-14), Vector2i(x+w-14, y+h-14),
+	]:
+		rect(corner.x, corner.y, 6, 6, "ac7b69")
+		rect(corner.x+2, corner.y+2, 2, 2, "deb287")
+	for j in range(10,h-10,7):
+		for i in range(16,w-16,14):
+			rect(x+i+(j%4),y+j,2,1,"85595b")
+	for i in range(4,w-4,7):
+		rect(x+i,y-2,2,2,"c4987e")
+		rect(x+i,y+h,2,2,"c4987e")
+	for i in range(-36,37):
+		var dy := 18-absi(i)/2
+		rect(x+w/2+i,y+h/2+dy,1,1,"c99276")
+		rect(x+w/2+i,y+h/2-dy,1,1,"c99276")
+	for i in range(-18,19):
+		var dy := 9-absi(i)/2
+		rect(x+w/2+i,y+h/2+dy,1,1,"81e6c0" if absi(i)%6 == 0 else "e3b584")
+		rect(x+w/2+i,y+h/2-dy,1,1,"81e6c0" if absi(i)%6 == 0 else "e3b584")
+
+func blend_pixel_tint(x: int, y: int, target: Color, amount: float) -> void:
+	if x < 0 or x >= 640 or y < 0 or y >= 360:
+		return
+	var current: Color = art.get_pixel(x, y)
+	var out: Color = current.lerp(target, amount)
+	out.a = 1.0
+	art.set_pixel(x, y, out)
+
+func blend_rect_tint(x: int, y: int, w: int, h: int, target: Color, amount: float) -> void:
+	var area := Rect2i(x, y, w, h).intersection(Rect2i(0, 0, 640, 360))
+	for py in range(area.position.y, area.end.y):
+		for px in range(area.position.x, area.end.x):
+			var out: Color = art.get_pixel(px, py).lerp(target, amount)
+			out.a = 1.0
+			art.set_pixel(px, py, out)
+
+func blend_radial_tint(cx: int, cy: int, radius: float, target: Color, max_amount: float) -> void:
+	var r := ceili(radius)
+	for py in range(maxi(0, cy - r), mini(360, cy + r + 1)):
+		for px in range(maxi(0, cx - r), mini(640, cx + r + 1)):
+			var d := sqrt(float((px - cx) * (px - cx) + (py - cy) * (py - cy)))
+			if d <= radius:
+				var q := floorf((1.0 - d / radius) * 4.0) / 4.0
+				blend_pixel_tint(px, py, target, q * max_amount)
+
+func potted_plant(x: int, y: int, tall: bool = false) -> void:
+	rect(x + 2, y + 17, 16, 4, "161121")
+	rect(x + 4, y + 8, 12, 11, INK)
+	rect(x + 3, y + 7, 14, 4, INK)
+	rect(x + 5, y + 11, 10, 7, "9a5743")
+	rect(x + 6, y + 12, 4, 5, "c57756")
+	rect(x + 4, y + 8, 12, 2, "c57756")
+	if tall:
+		for blade: Vector4i in [
+			Vector4i(5, -3, 3, 11), Vector4i(9, -6, 3, 14), Vector4i(13, -2, 3, 10),
+		]:
+			rect(x + blade.x - 1, y + blade.y - 1, blade.z + 2, blade.w, INK)
+			rect(x + blade.x, y + blade.y, blade.z, blade.w, "386c51")
+			rect(x + blade.x, y + blade.y + 1, 1, blade.w - 3, "6da672")
+	else:
+		for puff: Vector4i in [
+			Vector4i(2, 1, 7, 7), Vector4i(11, 1, 7, 7), Vector4i(5, -3, 10, 9),
+		]:
+			rect(x + puff.x - 1, y + puff.y - 1, puff.z + 2, puff.w + 2, INK)
+			rect(x + puff.x, y + puff.y, puff.z, puff.w, "2c5643")
+			rect(x + puff.x + 1, y + puff.y + 1, puff.z - 3, puff.w - 3, "4e895f")
+			rect(x + puff.x + 2, y + puff.y + 1, maxi(2, puff.z - 6), 2, "7bb677")
+
+func paper_scatter(x: int, y: int, seed_offset: int, crumpled: bool = false) -> void:
+	if crumpled:
+		rect(x, y, 6, 5, INK)
+		rect(x + 1, y + 1, 4, 3, "d8ceb8")
+		rect(x + 2, y + 2, 2, 1, "9e9289")
+		return
+	for idx in 2:
+		var px := x + idx * 8 + (seed_offset % 3)
+		var py := y + (idx % 2) * 3
+		rect(px, py, 9, 11, INK)
+		rect(px + 1, py + 1, 7, 9, "ede2cc" if idx == 0 else "79a9b5")
+		rect(px + 2, py + 3, 5, 1, "82767b" if idx == 0 else "faf0dd")
+		rect(px + 2, py + 5, 4, 1, "82767b" if idx == 0 else "faf0dd")
+		rect(px + 2, py + 7, 3, 1, "b8636b")
+
+func book_stack(x: int, y: int) -> void:
+	rect(x + 1, y + 11, 16, 3, "181224")
+	for layer: Array in [
+		[0, 6, 16, 6, "9b4e52", "df7e78"],
+		[1, 2, 14, 5, "4f738a", "8db6c7"],
+		[2, -2, 12, 5, "638054", "a0bd82"],
+	]:
+		var bx: int = x + int(layer[0])
+		var by: int = y + int(layer[1])
+		var bw: int = int(layer[2])
+		var bh: int = int(layer[3])
+		rect(bx, by, bw, bh, INK)
+		rect(bx + 1, by + 1, bw - 2, bh - 2, String(layer[4]))
+		rect(bx + 2, by + 1, bw - 5, 1, String(layer[5]))
+		rect(bx + bw - 3, by + 2, 1, bh - 3, "efe2cb")
+
+func corkboard(x: int, y: int) -> void:
+	rect(x, y, 46, 26, INK)
+	timber(x + 1, y + 1, 44, 24)
+	rect(x + 4, y + 4, 38, 18, "9b6e4e")
+	rect(x + 5, y + 5, 36, 16, "b2815d")
+	for note: Array in [
+		[6, 6, 9, 8, "f7df86"],
+		[17, 7, 10, 7, "f1a1a8"],
+		[29, 6, 9, 9, "a6f0c6"],
+		[11, 13, 12, 7, "ece3cf"],
+		[25, 14, 10, 6, "91d8f2"],
+	]:
+		var nx: int = x + int(note[0])
+		var ny: int = y + int(note[1])
+		rect(nx, ny, int(note[2]), int(note[3]), "694739")
+		rect(nx, ny, int(note[2]) - 1, int(note[3]) - 1, String(note[4]))
+		rect(nx + 2, ny, 2, 1, "c44653")
+
+func rpg_poster(x: int, y: int) -> void:
+	rect(x, y, 28, 28, INK)
+	rect(x + 1, y + 1, 26, 26, "7a5543")
+	rect(x + 3, y + 3, 22, 22, "252845")
+	rect(x + 4, y + 4, 20, 6, "4d3d73")
+	# Pequena espada heroica em pixel art no pôster.
+	for i in 11:
+		rect(x + 8 + i, y + 18 - i, 2, 2, "bcebf2")
+		rect(x + 8 + i, y + 18 - i, 1, 1, "ffffff")
+	rect(x + 7, y + 16, 6, 2, "f4ba72")
+	rect(x + 6, y + 19, 2, 2, "b36b4c")
+
+func whiteboard(x: int, y: int) -> void:
+	rect(x, y, 56, 27, INK)
+	rect(x + 1, y + 1, 54, 23, "6b7285")
+	rect(x + 3, y + 3, 50, 19, "e7e5dd")
+	rect(x + 3, y + 3, 50, 2, "f7f4ec")
+	rect(x + 6, y + 7, 14, 1, "4d7fa8")
+	rect(x + 6, y + 10, 10, 1, "4d7fa8")
+	rect(x + 6, y + 13, 18, 1, "4d7fa8")
+	# Gráfico vermelho de prazos no quadro branco.
+	rect(x + 28, y + 7, 1, 12, "5a6275")
+	rect(x + 28, y + 18, 20, 1, "5a6275")
+	for step in 8:
+		rect(x + 30 + step * 2, y + 17 - step, 2, 1, "c74957")
+	rect(x + 3, y + 23, 50, 2, "4a4e63")
+	rect(x + 8, y + 23, 5, 2, "c74957")
+	rect(x + 15, y + 23, 5, 2, "4d7fa8")
+
+func wall_clock(x: int, y: int, h_dx: int, h_dy: int) -> void:
+	rect(x, y, 16, 16, INK)
+	rect(x + 1, y + 1, 14, 14, "72544a")
+	rect(x + 3, y + 3, 10, 10, "f5ebd6")
+	rect(x + 7, y + 7, 2, 2, INK)
+	rect(x + 7, y + 4, 1, 4, "352e45")
+	rect(x + 7 + h_dx, y + 7 + h_dy, 2 if h_dx == 0 else absi(h_dx) + 1, 2 if h_dy == 0 else absi(h_dy) + 1, "b84a54")
+
+func candle_sconce(x: int, y: int) -> void:
+	rect(x, y + 7, 12, 6, INK)
+	rect(x + 1, y + 8, 10, 4, "5e5266")
+	rect(x + 3, y + 3, 3, 6, "e7dbc4")
+	rect(x + 7, y + 4, 3, 5, "d5c5ad")
+	rect(x + 4, y + 1, 1, 2, "ffe89c")
+	rect(x + 8, y + 2, 1, 2, "f4ba72")
+	blend_radial_tint(x + 6, y + 4, 24.0, Color("f4ba72"), 0.24)
+
+func pillar_dais(cx: int, cy: int, tint: Color, ring_hex: String) -> void:
+	for py in range(cy - 24, cy + 25):
+		for px in range(cx - 28, cx + 29):
+			var dx := float(px - cx)
+			var dy := float(py - cy) * 1.25
+			var d := sqrt(dx * dx + dy * dy)
+			if d <= 24.0 and d >= 21.0:
+				rect(px, py, 1, 1, "1d192b")
+			elif d < 21.0 and d >= 18.0:
+				rect(px, py, 1, 1, ring_hex)
+			elif d < 18.0:
+				blend_pixel_tint(px, py, tint, 0.20)
+	for tick in 8:
+		var a := TAU * tick / 8.0
+		rect(cx + roundi(cos(a) * 14.0), cy + roundi(sin(a) * 11.0), 2, 2, ring_hex)
+
+func ley_line(p1: Vector2i, p2: Vector2i, mid_hex: String, edge_hex: String) -> void:
+	var steps := maxi(absi(p2.x - p1.x), absi(p2.y - p1.y))
+	for i in range(0, steps + 1, 2):
+		var t := float(i) / float(maxi(1, steps))
+		var px := roundi(lerpf(float(p1.x), float(p2.x), t))
+		var py := roundi(lerpf(float(p1.y), float(p2.y), t))
+		rect(px - 1, py - 1, 3, 3, edge_hex)
+		rect(px, py, 1, 1, mid_hex if (i % 6 != 0) else "6b6588")
+
+func room_perimeter_walls(shift: int) -> void:
+	# Sombras suaves nas bordas internas para dar profundidade ao cômodo.
+	blend_rect_tint(12, 43, 616, 8, Color("100b19"), 0.24)
+	blend_rect_tint(12, 338, 616, 10, Color("100b19"), 0.26)
+	blend_rect_tint(12, 43, 8, 297, Color("100b19"), 0.20)
+	blend_rect_tint(620, 43, 8, 297, Color("100b19"), 0.20)
+	for wx in [0, 628]:
+		if shift == 0:
+			rect(wx, 40, 12, 308, INK)
+			rect(wx + 1, 41, 10, 306, "5a3b31")
+			rect(wx + (8 if wx == 0 else 2), 41, 2, 306, "755140")
+			for py in range(48, 344, 18):
+				rect(wx + 2, py, 8, 1, "382524")
+		elif shift == 1:
+			rect(wx, 40, 12, 308, INK)
+			masonry(wx + 1, 41, 10, 306, false)
+			rect(wx + (8 if wx == 0 else 2), 41, 2, 306, "4d7280")
+		else:
+			rect(wx, 40, 12, 308, INK)
+			rect(wx + 1, 41, 10, 306, "1d1d33")
+			for py in range(44, 344, 16):
+				rect(wx + 2, py, 8, 12, "292a46")
+				rect(wx + 3, py, 6, 1, "3b3d60")
+	rect(0, 348, 640, 12, INK)
+	if shift == 0:
+		timber(2, 349, 636, 10)
+	elif shift == 1:
+		rect(2, 349, 636, 10, "343546")
+		for sx in range(12, 630, 32):
+			rect(sx, 350, 28, 8, "444659")
+			rect(sx + 1, 350, 26, 1, "5c5f75")
+	else:
+		rect(2, 349, 636, 10, "18192b")
+		for sx in range(12, 630, 32):
+			rect(sx, 350, 28, 8, "24263d")
+			rect(sx + 1, 350, 26, 1, "353858")
 
 func draw_room(shift: int) -> void:
 	art = Image.create_empty(640,360,false,Image.FORMAT_RGBA8)
@@ -483,82 +716,179 @@ func draw_room(shift: int) -> void:
 	rect(0,39,640,4,INK)
 	for x in range(0,640,64):
 		timber(x,42,64,4)
-	# Moldura livre para a porta interativa.
-	rect(296,0,48,44,INK)
-	for side in [291,344]:
-		for y in range(2,40,7):
-			rect(side,y,6,6,"837076")
-			rect(side+1,y,4,1,"aa9191")
-	rect(292,0,57,4,"987d72")
-	if shift == 0:
-		window(157)
-		window(465)
-		rug(218,145,204,81)
-		rect(25,20,88,61,INK)
-		for y in range(21,81,6):
-			timber(27,y,84,5)
-		rect(30,23,78,48,"384456")
-		rect(33,24,72,13,"c5afa0")
-		rect(34,25,70,2,"ead1ae")
-		rect(30,39,78,31,"45636a")
-		for y in range(41,70,6):
-			rect(32,y,74,2,"638084")
-		desk(526,38,false)
-	elif shift == 1:
-		for x in [16,97,185,377,463,549]:
-			bookcase(x,9)
-		for y in [91,178]:
-			desk(10,y,true)
-			desk(562,y,true)
-		window(263-48)
-		for i in 6:
-			rect(218+i*6,48+i*3,36-i*4,2,"776052")
-	else:
-		rect(80,5,72,31,INK)
-		rect(82,7,68,26,"252640")
-		for i in 23:
-			rect(rng.randi_range(83,148),rng.randi_range(8,31),1,1,"c4bfce")
-		for y in range(-7,8):
-			var half := roundi(sqrt(49-y*y))
-			rect(126-half,19+y,2*half+1,1,"ddcfb0")
-		for y in range(-5,6):
-			var half := roundi(sqrt(25-y*y))
-			rect(129-half,16+y,2*half+1,1,"252640")
-		rect(113,6,2,28,"574858")
-		desk(490,36,true)
-		rect(475,22,3,18,"967453")
-		for y in 10:
-			rect(470-y/3,14+y,12+2*(y/3),1,"d69b66" if y<8 else "f3c583")
-		for ring in [63,65,72]:
-			for degree in 720:
-				var a := deg_to_rad(degree*0.5)
-				rect(320+roundi(cos(a)*ring),197+roundi(sin(a)*ring*0.64),1,1,"66617b" if ring==65 else "4c4966")
-		for i in 12:
-			var a := TAU*i/12.0
-			var x := 320+roundi(cos(a)*57)
-			var y := 197+roundi(sin(a)*35)
-			rect(x,y,1,5,"90809b")
-			rect(x+1,y+1,2,1,"786988")
-			rect(x+3,y-1,1,3,"786988")
 
-	# Faixas de luz em degraus de pixels, com cores limitadas à paleta.
 	if shift < 2:
-		var origin: int = 158 if shift == 0 else 217
-		for y in range(46,100):
-			var depth := y-46
-			for x in range(origin+depth/2,origin+depth/2+36):
-				if (x-origin-depth/2)%18 < 2 or depth in [18,19]:
-					continue
-				var pixel := art.get_pixel(x,y)
-				var amount := (3-depth/18)*0.045
-				art.set_pixel(x,y,pixel.lerp(Color("dda26c"),amount))
+		# Moldura da porta norte para Manhã e Tarde.
+		rect(296,0,48,44,INK)
+		for side in [291,344]:
+			for y in range(2,40,7):
+				rect(side,y,6,6,"837076")
+				rect(side+1,y,4,1,"aa9191")
+		rect(292,0,57,4,"987d72")
+	else:
+		# Na Noite a porta norte não existe: vira janela gótica do dormitório sob o luar.
+		rect(295, 2, 50, 38, INK)
+		rect(298, 5, 44, 32, "191d36")
+		for sx in [304, 312, 326, 334]:
+			rect(sx, 8 + (sx % 7), 1, 1, "dcd6ea")
+		rect(300, 24, 14, 12, "121428")
+		rect(316, 20, 12, 16, "121428")
+		rect(330, 25, 10, 11, "121428")
+		rect(305, 28, 2, 2, "f4ba72")
+		rect(322, 26, 2, 2, "8de5ff")
+		rect(319, 5, 2, 32, "4a4464")
+		rect(298, 19, 44, 2, "4a4464")
+		rect(293, 37, 54, 4, "6d6487")
+
+	room_perimeter_walls(shift)
+
+	if shift == 0:
+		window(166)
+		window(442)
+		# Cortinas leves nas duas janelas matinais.
+		for wx in [166, 442]:
+			rect(wx - 4, 8, 6, 24, INK)
+			rect(wx + 38, 8, 6, 24, INK)
+			rect(wx - 3, 9, 4, 21, "a4565a")
+			rect(wx + 39, 9, 4, 21, "a4565a")
+		corkboard(228, 9)
+		rpg_poster(368, 8)
+		rug(208, 144, 224, 84)
+		# Tapete acolhedor próximo à entrada sul.
+		rect(284, 320, 72, 20, INK)
+		rect(286, 322, 68, 16, "7d4f4d")
+		rect(289, 325, 62, 10, "a66e63")
+		# Cama desfeita + criado-mudo com despertador + pantufas.
+		rect(23, 21, 90, 62, INK)
+		for y in range(22, 82, 6):
+			timber(25, y, 86, 5)
+		rect(28, 24, 80, 49, "384456")
+		rect(31, 25, 74, 14, "cfc0b2")
+		rect(32, 26, 72, 3, "efe0c9")
+		rect(28, 40, 80, 32, "45636a")
+		for y in range(42, 71, 6):
+			rect(30, y, 76, 2, "65858a")
+		rect(114, 40, 22, 20, INK)
+		timber(115, 41, 20, 18)
+		rect(118, 35, 8, 7, "b54854")
+		rect(120, 37, 4, 3, "faf0dd")
+		rect(128, 37, 5, 5, "81e6c0")
+		rect(117, 74, 5, 8, "5e4457")
+		rect(124, 75, 5, 8, "5e4457")
+		desk(526, 38, false)
+		book_stack(566, 94)
+		paper_scatter(468, 282, 1, false)
+		paper_scatter(204, 294, 2, false)
+		potted_plant(20, 286, false)
+		potted_plant(594, 288, true)
+	elif shift == 1:
+		for x in [18, 94, 378, 456, 538]:
+			bookcase(x, 9)
+		window(176)
+		whiteboard(228, 8)
+		wall_clock(354, 12, 2, 1)
+		# Brasão discreto do laboratório e trilha central em pedra polida.
+		for y in range(44, 130, 22):
+			blend_rect_tint(292, y, 56, 18, Color("6c7694"), 0.14)
+		blend_radial_tint(320, 194, 42.0, Color("5a6684"), 0.16)
+		for tick in 12:
+			var a := TAU * tick / 12.0
+			rect(320 + roundi(cos(a) * 32.0), 194 + roundi(sin(a) * 24.0), 2, 2, "525673")
+		# Cabos de rede/energia ligando as bancadas dos cantos.
+		for cy in [109, 196]:
+			rect(76, cy + 4, 18, 2, "1e1e30")
+			rect(92, cy + 2, 4, 4, "3d4059")
+			rect(93, cy + 3, 2, 2, "81e6c0")
+			rect(546, cy + 4, 18, 2, "1e1e30")
+			rect(544, cy + 2, 4, 4, "3d4059")
+			rect(545, cy + 3, 2, 2, "81e6c0")
+		for y in [91, 178]:
+			desk(10, y, true, "76dce8")
+			desk(562, y, true, "f4ba72")
+			blend_radial_tint(44, y + 10, 28.0, Color("5cd5e8"), 0.12)
+			blend_radial_tint(596, y + 10, 28.0, Color("f4ba72"), 0.12)
+		paper_scatter(236, 288, 3, false)
+		paper_scatter(414, 124, 4, false)
+		book_stack(404, 46)
+		potted_plant(22, 288, true)
+		potted_plant(592, 290, false)
+	else:
+		# Janela noturna com lua + cortinas e relógio marcando 03h.
+		rect(78, 5, 76, 32, INK)
+		rect(80, 7, 72, 27, "1f213b")
+		for i in 24:
+			rect(rng.randi_range(82, 149), rng.randi_range(8, 31), 1, 1, "c4bfce")
+		for y in range(-7, 8):
+			var half := roundi(sqrt(49 - y * y))
+			rect(128 - half, 19 + y, 2 * half + 1, 1, "ddcfb0")
+		for y in range(-5, 6):
+			var half := roundi(sqrt(25 - y * y))
+			rect(131 - half, 16 + y, 2 * half + 1, 1, "1f213b")
+		rect(115, 6, 2, 29, "574858")
+		wall_clock(224, 12, 3, 0)
+		book_stack(376, 36)
+		book_stack(396, 38)
+		desk(490, 36, true, "988cff")
+		rect(475, 22, 3, 18, "967453")
+		for y in 10:
+			rect(470 - y / 3, 14 + y, 12 + 2 * (y / 3), 1, "d69b66" if y < 8 else "f3c583")
+		blend_radial_tint(476, 24, 38.0, Color("f4ba72"), 0.22)
+		# Base rúnica para os 3 Pilares e conexões até o selo central do Burnout.
+		ley_line(Vector2i(320, 175), Vector2i(320, 116), "547994", "2a314c")
+		ley_line(Vector2i(320, 175), Vector2i(158, 270), "4f7c66", "283344")
+		ley_line(Vector2i(320, 175), Vector2i(482, 270), "8b724d", "362c3d")
+		pillar_dais(320, 116, Color("5ec8e8"), "5b84a6")
+		pillar_dais(158, 270, Color("6bd994"), "548a6b")
+		pillar_dais(482, 270, Color("f4ba72"), "997b52")
+		# Selo rúnico central onde o Burnout surge.
+		blend_radial_tint(320, 178, 56.0, Color("141024"), 0.25)
+		for ring in [54, 63, 65, 72]:
+			for degree in 720:
+				var a := deg_to_rad(degree * 0.5)
+				rect(320 + roundi(cos(a) * ring), 178 + roundi(sin(a) * ring * 0.64),
+						1, 1, "70678c" if ring == 65 else "454160")
+		for i in 12:
+			var a := TAU * i / 12.0
+			var x := 320 + roundi(cos(a) * 57)
+			var y := 178 + roundi(sin(a) * 35)
+			rect(x, y, 1, 5, "9683a3")
+			rect(x + 1, y + 1, 2, 1, "786988")
+			rect(x + 3, y - 1, 1, 3, "786988")
+		# Velas e papéis amassados da madrugada.
+		for candle_pos: Vector2i in [
+			Vector2i(24, 298), Vector2i(596, 298), Vector2i(24, 98), Vector2i(596, 102),
+		]:
+			candle_sconce(candle_pos.x, candle_pos.y)
+		paper_scatter(110, 298, 5, true)
+		paper_scatter(526, 296, 6, true)
+
+	# Feixes de luz das janelas com mistura 100% opaca.
+	if shift < 2:
+		var origins: Array = [168, 444] if shift == 0 else [178]
+		for origin: int in origins:
+			for y in range(46, 118):
+				var depth := y - 46
+				for x in range(origin + depth / 2, origin + depth / 2 + 38):
+					if (x - origin - depth / 2) % 19 < 2 or depth in [20, 21]:
+						continue
+					var amount := (1.0 - float(depth) / 72.0) * (0.14 if shift == 0 else 0.11)
+					blend_pixel_tint(x, y, Color("f2ba77"), amount)
+	else:
+		# Luar descendo pela janela norte até o Pilar Mente.
+		for y in range(44, 114):
+			var depth := y - 44
+			for x in range(300 - depth / 6, 340 + depth / 6):
+				if ((x + y) & 1) == 0:
+					var amount := (1.0 - float(depth) / 76.0) * 0.14
+					blend_pixel_tint(x, y, Color("92b9f0"), amount)
+
 	if shift == 0:
 		for row in 3:
 			for col in 4:
-				var x := 288+col*16
-				var y := 46+row*8
-				rect(x,y,15,7,"695859" if (row+col)%2 else "645254")
-				rect(x,y,14,1,"7f6761")
+				var x := 288 + col * 16
+				var y := 46 + row * 8
+				rect(x, y, 15, 7, "695859" if (row + col) % 2 else "645254")
+				rect(x, y, 14, 1, "7f6761")
 
 
 func draw_title_screen() -> void:
