@@ -26,6 +26,13 @@ const EFFECT_SCORES: Dictionary[StringName, Array] = {
 	&"console_boot": [Vector3i(60, 48, 1), Vector3i(67, 55, 1), Vector3i(72, 60, 1), Vector3i(84, 60, 3)],
 	&"victory": [Vector3i(72, 48, 2), Vector3i(76, 48, 2), Vector3i(79, 55, 2), Vector3i(84, 48, 7)],
 	&"game_over": [Vector3i(71, 47, 2), Vector3i(67, 43, 2), Vector3i(63, 39, 3), Vector3i(59, 35, 7)],
+	&"ui_hover": [Vector3i(79, 0, 1)],
+	&"enemy_hit": [Vector3i(58, 46, 1), Vector3i(53, 41, 1)],
+	&"enemy_defeat": [Vector3i(69, 57, 1), Vector3i(76, 64, 2)],
+	&"station_care": [Vector3i(65, 53, 1), Vector3i(69, 57, 1), Vector3i(72, 60, 2), Vector3i(76, 64, 3)],
+	&"golden_pickup": [Vector3i(72, 60, 1), Vector3i(76, 64, 1), Vector3i(79, 67, 1), Vector3i(86, 74, 3)],
+	&"ally_pulse": [Vector3i(67, 55, 2), Vector3i(74, 62, 3)],
+	&"pillar_block": [Vector3i(62, 38, 1), Vector3i(55, 31, 1)],
 }
 
 const BOSSA_MENU: Array[Dictionary] = [
@@ -243,12 +250,41 @@ func play_ui_cue() -> void:
 	_play_effect(&"habit_select")
 
 
+func play_hover_cue() -> void:
+	_play_effect(&"ui_hover", -17.0)
+
+
 func play_voice_blip() -> void:
 	_play_effect(&"voice_blip", -16.0)
 
 
 func play_pickup() -> void:
 	_play_effect(&"pickup", -9.0)
+
+
+func play_golden_pickup() -> void:
+	_play_effect(&"golden_pickup", -7.5)
+
+
+func play_station_care() -> void:
+	_play_effect(&"station_care", -8.5)
+
+
+func play_enemy_hit(is_clarity: bool = false) -> void:
+	var pitch: float = 1.08 if is_clarity else randf_range(0.95, 1.05)
+	play_sfx(_effects.get(&"enemy_hit") as AudioStreamWAV, -7.5 if is_clarity else -10.5, pitch)
+
+
+func play_enemy_defeat() -> void:
+	play_sfx(_effects.get(&"enemy_defeat") as AudioStreamWAV, -10.0, randf_range(0.96, 1.06))
+
+
+func play_ally_pulse() -> void:
+	_play_effect(&"ally_pulse", -14.0)
+
+
+func play_pillar_block() -> void:
+	play_sfx(_effects.get(&"pillar_block") as AudioStreamWAV, -14.5, randf_range(0.94, 1.06))
 
 
 func play_door_open() -> void:
@@ -457,7 +493,11 @@ func _generate_audio() -> void:
 	for effect: StringName in EFFECT_SCORES:
 		var score: Array[Vector3i] = []
 		score.assign(EFFECT_SCORES[effect])
-		var sfx_timbre: StringName = &"pad" if effect == &"heartbeat" else (&"rhodes" if effect in [&"player_hit", &"core_hit", &"attack", &"dash"] else &"nylon")
+		var sfx_timbre: StringName = &"nylon"
+		if effect in [&"heartbeat", &"ally_pulse"]:
+			sfx_timbre = &"pad"
+		elif effect in [&"player_hit", &"core_hit", &"attack", &"dash", &"enemy_hit", &"pillar_block"]:
+			sfx_timbre = &"rhodes"
 		_effects[effect] = await _render_score(score, 0.036, sfx_timbre, false)
 
 	await _generate_bossa_track(&"menu", BOSSA_MENU, 0.235, &"rhodes", &"bossa")

@@ -19,6 +19,8 @@ func _initialize() -> void:
 	if "--title-only" in OS.get_cmdline_user_args():
 		draw_title_screen()
 		save("title_bg")
+		generate_game_logo()
+		generate_game_icon()
 		quit(1 if failed else 0)
 		return
 	if "--rooms-only" in OS.get_cmdline_user_args():
@@ -45,6 +47,8 @@ func _initialize() -> void:
 	save("room_respite")
 	draw_title_screen()
 	save("title_bg")
+	generate_game_logo()
+	generate_game_icon()
 	generate_cutscene_assets()
 	quit(1 if failed else 0)
 
@@ -1322,6 +1326,17 @@ func draw_title_screen() -> void:
 			rect(fx + 2, fy + 1, 28, 1, "4c3b5c" if fx < 320 else "644c63")
 			rect(fx + 1, fy + 8, 30, 1, "1d1527")
 
+	# Vaso de planta, banco de madeira no terraço e reflexo quente da janela na balaustrada.
+	potted_plant(18, 244, false)
+	rect(288, 252, 46, 5, INK)
+	timber(289, 253, 44, 3)
+	rect(293, 257, 4, 11, INK)
+	rect(294, 257, 2, 10, "5b3d31")
+	rect(325, 257, 4, 11, INK)
+	rect(326, 257, 2, 10, "5b3d31")
+	rect(291, 248, 40, 4, INK)
+	timber(292, 249, 38, 2)
+
 	# Poste de luz no canto direito iluminando o terraço.
 	rect(594, 174, 6, 94, INK)
 	rect(595, 175, 4, 92, "3d3a52")
@@ -1338,6 +1353,252 @@ func draw_title_screen() -> void:
 			if d < 145.0 and ((x + y) & 1) == 0:
 				var glow := pow(clampf(1.0 - d / 145.0, 0.0, 1.0), 1.6) * 0.24
 				art.set_pixel(x, y, art.get_pixel(x, y).lerp(Color("f4ba72"), glow))
+
+
+func _logo_glyph_rows(ch: String) -> Array[String]:
+	match ch:
+		"T":
+			return [
+				"#######",
+				"#######",
+				"..###..",
+				"..###..",
+				"..###..",
+				"..###..",
+				"..###..",
+				"..###..",
+				"..###..",
+				"..###..",
+			]
+		"R":
+			return [
+				"######.",
+				"#######",
+				"##...##",
+				"##...##",
+				"######.",
+				"#####..",
+				"##..##.",
+				"##...##",
+				"##...##",
+				"##...##",
+			]
+		"E":
+			return [
+				".######",
+				"#######",
+				"##.....",
+				"##.....",
+				"######.",
+				"######.",
+				"##.....",
+				"##.....",
+				"#######",
+				".######",
+			]
+		"S":
+			return [
+				".#####.",
+				"#######",
+				"##...##",
+				"##.....",
+				".#####.",
+				"..#####",
+				".....##",
+				"##...##",
+				"#######",
+				".#####.",
+			]
+		"U":
+			return [
+				"##...##",
+				"##...##",
+				"##...##",
+				"##...##",
+				"##...##",
+				"##...##",
+				"##...##",
+				"##...##",
+				"#######",
+				".#####.",
+			]
+		"N":
+			return [
+				"##...##",
+				"###..##",
+				"###..##",
+				"####.##",
+				"##.####",
+				"##..###",
+				"##..###",
+				"##...##",
+				"##...##",
+				"##...##",
+			]
+		"O":
+			return [
+				".#####.",
+				"#######",
+				"##...##",
+				"##...##",
+				"##...##",
+				"##...##",
+				"##...##",
+				"##...##",
+				"#######",
+				".#####.",
+			]
+	return []
+
+
+func _draw_logo_glyph(gx0: int, gy0: int, ch: String, shine_sweep: float, has_hat: bool = false) -> void:
+	var rows: Array[String] = _logo_glyph_rows(ch)
+	var grad: Array[String] = ["fff8d6", "ffe491", "f4ba72", "d98245", "9e4d34"]
+	var pts: Array[Vector2i] = []
+	for ry in rows.size():
+		var row_str: String = rows[ry]
+		for rx in row_str.length():
+			if row_str[rx] == "#":
+				pts.append(Vector2i(rx * 2, ry * 2))
+				pts.append(Vector2i(rx * 2 + 1, ry * 2))
+				pts.append(Vector2i(rx * 2, ry * 2 + 1))
+				pts.append(Vector2i(rx * 2 + 1, ry * 2 + 1))
+	if has_hat:
+		for hpt: Vector2i in [
+			Vector2i(5, -5), Vector2i(6, -5), Vector2i(7, -5), Vector2i(8, -5),
+			Vector2i(3, -3), Vector2i(4, -4), Vector2i(9, -4), Vector2i(10, -3),
+		]:
+			pts.append(hpt)
+			pts.append(Vector2i(hpt.x, hpt.y + 1))
+
+	# Sombra profunda inclinada + contorno INK em 2px.
+	for pt: Vector2i in pts:
+		rect(gx0 + pt.x + 2, gy0 + pt.y + 3, 2, 2, "2a1934")
+	for pt: Vector2i in pts:
+		rect(gx0 + pt.x - 1, gy0 + pt.y - 1, 3, 3, INK)
+	for pt: Vector2i in pts:
+		var band: int = clampi(floori(float(maxi(0, pt.y)) / 4.0), 0, grad.size() - 1)
+		var col: String = grad[band]
+		if pt.y <= 1 or pt.y == -5:
+			col = "ffffff"
+		if shine_sweep >= 0.0:
+			var d: float = float(pt.x + pt.y)
+			if absf(d - shine_sweep) <= 3.0:
+				col = "ffffff"
+		rect(gx0 + pt.x, gy0 + pt.y, 1, 1, col)
+
+
+func _draw_logo_frame(ox: int, frame_idx: int) -> void:
+	# 1. Brasão astral dos Três Turnos (cx = ox + 130, y = 3..30).
+	var cx: int = ox + 130
+	rect(cx - 26, 13, 52, 12, INK)
+	rect(cx - 24, 14, 48, 10, "342442")
+	rect(cx - 22, 15, 44, 8, "734a46")
+	rect(cx - 20, 16, 40, 6, "d99d56")
+	# Sol da Manhã à esquerda + Lua da Noite à direita.
+	_paint_outlined_circle(art, cx - 18, 18, 6.0, 6.0, Color("f4ba72"), Color("b86f44"), Color("fff2c4"))
+	rect(cx - 27, 17, 4, 2, "ffd978" if frame_idx == 1 else "d99d56")
+	rect(cx - 19, 8, 2, 4, "ffd978" if frame_idx == 1 else "d99d56")
+	_paint_outlined_circle(art, cx + 18, 18, 6.0, 6.0, Color("e6e4f2"), Color("9ba3c4"), Color("ffffff"))
+	_paint_outlined_circle(art, cx + 21, 17, 4.0, 4.0, Color("1c162e"), Color("1c162e"), Color("1c162e"))
+	# Espada da Clareza central apontada para cima.
+	rect(cx - 2, 3, 4, 24, INK)
+	rect(cx - 1, 4, 2, 20, "8de5ff" if frame_idx == 0 else "e8ffff")
+	rect(cx - 1, 5, 1, 14, "ffffff")
+	rect(cx - 6, 22, 12, 3, INK)
+	rect(cx - 5, 23, 10, 1, "ffe082")
+	rect(cx - 2, 25, 4, 4, INK)
+	rect(cx - 1, 25, 2, 3, "80f1a8")
+	if frame_idx == 1:
+		rect(cx - 1, 1, 2, 2, "ffffff")
+		rect(cx - 4, 6, 2, 1, "8de5ff")
+		rect(cx + 3, 6, 2, 1, "8de5ff")
+
+	# 2. Tipografia 32-bit esculpida "TRÊS TURNOS" (altura y = 33..68).
+	var sweep: float = 16.0 if frame_idx == 1 else -99.0
+	var gx: int = ox + 45
+	for item: Array in [
+		["T", false], ["R", false], ["E", true], ["S", false],
+	]:
+		_draw_logo_glyph(gx, 40, String(item[0]), sweep, bool(item[1]))
+		gx += 16
+	# Separador diamante entre "TRÊS" e "TURNOS".
+	rect(gx + 1, 47, 6, 6, INK)
+	rect(gx + 2, 48, 4, 4, "80f1a8")
+	rect(gx + 3, 49, 2, 2, "ffffff")
+	gx += 12
+	for ch: String in ["T", "U", "R", "N", "O", "S"]:
+		_draw_logo_glyph(gx, 40, ch, sweep, false)
+		gx += 16
+
+	# 3. Faixa inferior com as Três Gemas dos Pilares (y = 72..89).
+	rect(ox + 42, 73, 176, 17, INK)
+	rect(ox + 34, 76, 10, 11, INK)
+	rect(ox + 216, 76, 10, 11, INK)
+	rect(ox + 36, 77, 8, 9, "5c3c42")
+	rect(ox + 216, 77, 8, 9, "5c3c42")
+	rect(ox + 44, 74, 172, 15, "6e4c4b")
+	rect(ox + 45, 75, 170, 13, "231b33")
+	rect(ox + 45, 75, 170, 2, "d99d56")
+	rect(ox + 45, 86, 170, 2, "9c6638")
+	var gems: Array = [
+		[ox + 72, "80f1a8", "d6ffea"],
+		[ox + 130, "8de5ff", "e8ffff"],
+		[ox + 188, "ffe091", "fff7db"],
+	]
+	for g: Array in gems:
+		var gx_c: int = int(g[0])
+		rect(gx_c - 5, 77, 10, 9, INK)
+		rect(gx_c - 4, 78, 8, 7, String(g[1]))
+		rect(gx_c - 2, 79, 4, 3, String(g[2]) if frame_idx == 1 else String(g[1]))
+		rect(gx_c - 2, 79, 2, 2, "ffffff")
+
+
+func generate_game_logo() -> void:
+	art = Image.create_empty(520, 96, false, Image.FORMAT_RGBA8)
+	_draw_logo_frame(0, 0)
+	_draw_logo_frame(260, 1)
+	save("game_logo")
+
+
+func generate_game_icon() -> void:
+	art = Image.create_empty(64, 64, false, Image.FORMAT_RGBA8)
+	art.fill(Color("181224"))
+	rect(2, 2, 60, 60, "d99d56")
+	rect(3, 3, 58, 58, "f5d282")
+	rect(5, 5, 54, 54, INK)
+	var bands: Array[Color] = [
+		Color("1a1430"), Color("2a1f4a"), Color("4a2e5c"),
+		Color("824364"), Color("cf7461"), Color("f0b470"),
+	]
+	var bayer: Array[float] = [0.0, 0.5, 0.75, 0.25]
+	for y in range(7, 57):
+		var ny: float = float(y - 7) / 50.0
+		var level: float = ny * float(bands.size() - 1)
+		var base_i: int = mini(int(level), bands.size() - 2)
+		var frac: float = level - float(base_i)
+		for x in range(7, 57):
+			var idx: int = base_i + (1 if frac > bayer[((x & 1) * 2) + (y & 1)] else 0)
+			art.set_pixel(x, y, bands[idx])
+	# Lua à direita + Sol à esquerda + Espada central + 3 Gemas na base.
+	_paint_outlined_circle(art, 47, 18, 5.5, 5.5, Color("faf0dd"), Color("b3b8d6"), Color("ffffff"))
+	_paint_outlined_circle(art, 49, 17, 4.0, 4.0, Color("201838"), Color("201838"), Color("201838"))
+	_paint_outlined_circle(art, 17, 18, 5.0, 5.0, Color("ffd978"), Color("c97b3e"), Color("fff8db"))
+	rect(29, 10, 6, 32, INK)
+	rect(30, 11, 4, 28, "8de5ff")
+	rect(31, 12, 2, 24, "e8ffff")
+	rect(22, 34, 20, 4, INK)
+	rect(23, 35, 18, 2, "ffe082")
+	rect(29, 38, 6, 7, INK)
+	rect(30, 38, 4, 6, "704c3b")
+	for gem: Array in [
+		[17, "80f1a8"], [32, "8de5ff"], [47, "ffe091"],
+	]:
+		var gx: int = int(gem[0])
+		rect(gx - 4, 48, 8, 7, INK)
+		rect(gx - 3, 49, 6, 5, String(gem[1]))
+		rect(gx - 2, 50, 2, 2, "ffffff")
+	save("game_icon")
 
 func generate_legacy() -> void:
 	arena()
@@ -3266,8 +3527,122 @@ func generate_cutscene_assets() -> void:
 	_draw_bedroom_scene(&"happy_sleep", student_happy)
 	save("cutscene_happy_sleep")
 
-	# 10. cutscene_portraits.png (192x48 = 4 quadros 48x48, transparente RGBA8)
-	art = Image.create_empty(192, 48, false, Image.FORMAT_RGBA8)
+	# 10. cutscene_portraits.png (240x48 = 5 quadros 48x48, transparente RGBA8)
+	art = Image.create_empty(240, 48, false, Image.FORMAT_RGBA8)
 	for cycle in 4:
 		_draw_student_portrait(cycle * 48, cycle)
+	_draw_classmate_portrait(192)
 	save("cutscene_portraits")
+
+
+func _draw_classmate_portrait(ox: int) -> void:
+	var skin_lit := "ffd3a1"
+	var skin_mid := "e4a078"
+	var skin_sh := "bf7d5e"
+	var skin_deep := "945b47"
+	var h_deep := "56384a"
+	var h_mid := "705268"
+	var h_lit := "94687a"
+	var h_hi := "b98da0"
+
+	# 1. Casaco verde-azulado (paleta do Colega) sobre blusa creme e crachá/caderno.
+	var chest_spans: Array[Vector3i] = [
+		Vector3i(15, 31, 18), Vector3i(12, 32, 24), Vector3i(9, 33, 30),
+		Vector3i(7, 34, 34), Vector3i(6, 35, 36),
+	]
+	for span: Vector3i in chest_spans:
+		rect(ox + span.x, span.y, span.z, 2, INK)
+	rect(ox + 6, 36, 36, 12, INK)
+	rect(ox + 7, 35, 34, 13, "295659")
+	rect(ox + 9, 35, 30, 13, "3d8081")
+	rect(ox + 12, 35, 24, 3, "5aa6a1")
+	# Gola redonda creme e pingente/cordão lilás da UFAC.
+	rect(ox + 18, 34, 12, 4, "d1c3b1")
+	rect(ox + 19, 35, 10, 5, "e8cfa9")
+	rect(ox + 20, 39, 8, 9, "e8cfa9")
+	rect(ox + 16, 34, 2, 14, "665585")
+	rect(ox + 30, 34, 2, 14, "665585")
+	rect(ox + 29, 41, 4, 4, INK)
+	rect(ox + 30, 42, 2, 2, "aa94c2")
+
+	# 2. Cabelo traseiro longo em camadas (atrás do pescoço e ombros).
+	rect(ox + 9, 14, 30, 22, INK)
+	rect(ox + 10, 15, 28, 21, h_deep)
+	rect(ox + 11, 17, 4, 18, h_mid)
+	rect(ox + 33, 17, 4, 18, h_mid)
+
+	# 3. Pescoço e rosto acolhedor.
+	rect(ox + 19, 28, 10, 7, INK)
+	rect(ox + 20, 29, 8, 6, skin_sh)
+	rect(ox + 20, 29, 8, 2, skin_deep)
+	var jaw_rows: Array[Vector3i] = [
+		Vector3i(13, 12, 22), Vector3i(13, 13, 22), Vector3i(13, 14, 22), Vector3i(13, 15, 22),
+		Vector3i(13, 16, 22), Vector3i(13, 17, 22), Vector3i(13, 18, 22), Vector3i(13, 19, 22),
+		Vector3i(13, 20, 22), Vector3i(13, 21, 22), Vector3i(13, 22, 22), Vector3i(13, 23, 22),
+		Vector3i(14, 24, 20), Vector3i(14, 25, 20), Vector3i(15, 26, 18), Vector3i(16, 27, 16),
+		Vector3i(18, 28, 12), Vector3i(20, 29, 8),
+	]
+	for jr: Vector3i in jaw_rows:
+		rect(ox + jr.x - 1, jr.y, jr.z + 2, 2, INK)
+	for jr: Vector3i in jaw_rows:
+		rect(ox + jr.x, jr.y, jr.z, 1, skin_mid)
+		if jr.y <= 21:
+			rect(ox + jr.x + 1, jr.y, jr.z - 2, 1, skin_lit)
+		if jr.y >= 26:
+			rect(ox + jr.x, jr.y, jr.z, 1, skin_sh)
+	rect(ox + 13, 17, 2, 7, skin_sh)
+	rect(ox + 33, 17, 2, 7, skin_sh)
+	rect(ox + 15, 16, 18, 2, skin_sh)
+	rect(ox + 24, 22, 1, 2, skin_sh)
+	rect(ox + 23, 23, 2, 1, skin_lit)
+
+	# 4. Expressão gentil e encorajadora (olhos serenos + sorriso aberto).
+	var ey := 19
+	rect(ox + 16, ey - 2, 4, 1, h_deep)
+	rect(ox + 28, ey - 2, 4, 1, h_deep)
+	rect(ox + 14, ey + 4, 3, 2, "eba198")
+	rect(ox + 31, ey + 4, 3, 2, "eba198")
+	rect(ox + 16, ey, 5, 4, INK)
+	rect(ox + 27, ey, 5, 4, INK)
+	rect(ox + 16, ey + 1, 2, 2, "fff6e8")
+	rect(ox + 30, ey + 1, 2, 2, "fff6e8")
+	rect(ox + 18, ey + 1, 3, 2, INK)
+	rect(ox + 27, ey + 1, 3, 2, INK)
+	rect(ox + 19, ey + 2, 1, 1, "5aa6a1")
+	rect(ox + 28, ey + 2, 1, 1, "5aa6a1")
+	rect(ox + 18, ey + 1, 1, 1, "ffffff")
+	rect(ox + 27, ey + 1, 1, 1, "ffffff")
+	rect(ox + 21, 26, 6, 1, "8c4c53")
+	rect(ox + 20, 25, 1, 1, "8c4c53")
+	rect(ox + 27, 25, 1, 1, "8c4c53")
+
+	# 5. Coroa de cabelo repartida e mechas laterais emoldurando o rosto.
+	var crown: Array[Vector3i] = [
+		Vector3i(15, 4, 18), Vector3i(12, 5, 24), Vector3i(10, 6, 28),
+		Vector3i(9, 7, 30), Vector3i(8, 8, 32), Vector3i(8, 9, 32),
+		Vector3i(9, 10, 30), Vector3i(10, 11, 28), Vector3i(11, 12, 26),
+		Vector3i(11, 13, 26), Vector3i(12, 14, 24),
+	]
+	for hr: Vector3i in crown:
+		rect(ox + hr.x - 1, hr.y - 1, hr.z + 2, 2, INK)
+	for hr: Vector3i in crown:
+		rect(ox + hr.x, hr.y, hr.z, 1, h_mid)
+	rect(ox + 13, 6, 10, 3, h_lit)
+	rect(ox + 25, 6, 10, 3, h_lit)
+	rect(ox + 15, 7, 6, 1, h_hi)
+	rect(ox + 27, 7, 6, 1, h_hi)
+	# Fivela turquesa lateral e franja dividida em arco suave.
+	rect(ox + 12, 11, 4, 2, "9dc6c3")
+	rect(ox + 13, 14, 22, 1, INK)
+	rect(ox + 13, 15, 7, 2, h_lit)
+	rect(ox + 28, 15, 7, 2, h_lit)
+	rect(ox + 14, 17, 5, 1, INK)
+	rect(ox + 29, 17, 5, 1, INK)
+	for side_row in range(15, 31):
+		var inset: int = 0 if side_row < 24 else 1
+		rect(ox + 9 + inset, side_row, 1, 1, INK)
+		rect(ox + 10 + inset, side_row, 3, 1, h_mid)
+		rect(ox + 13 + inset, side_row, 1, 1, INK)
+		rect(ox + 34 - inset, side_row, 1, 1, INK)
+		rect(ox + 35 - inset, side_row, 3, 1, h_mid)
+		rect(ox + 38 - inset, side_row, 1, 1, INK)

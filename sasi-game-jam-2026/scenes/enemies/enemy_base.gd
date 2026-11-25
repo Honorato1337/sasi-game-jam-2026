@@ -46,6 +46,9 @@ var _drain_visual: float = 0.0
 var _drain_origin: Vector2
 var _next_pillar: int = 0
 var _hit_flash: float = 0.0
+var _spawn_reveal: float = 0.0
+var _phase_two_announced: bool = false
+var _phase_burst: float = 0.0
 var _step_time: float = 0.0
 var _motion_time: float = 0.0
 var _trail_remaining: float = 0.0
@@ -62,9 +65,11 @@ func _ready() -> void:
 	var cycle: int = GameManager.get_cycle()
 	if is_boss():
 		_max_hp = MAX_HP[enemy_type]
+		_spawn_reveal = 0.0
 	else:
 		var hp_mult: float = 1.0 if cycle == 1 else (1.32 if cycle == 2 else 1.58)
 		_max_hp = int(roundf(float(MAX_HP[enemy_type]) * hp_mult))
+		_spawn_reveal = 0.22
 	hp = _max_hp
 	_sprite.texture = SPRITES[enemy_type]
 	if player == null:
@@ -95,6 +100,10 @@ func _physics_process(delta: float) -> void:
 	if GameManager.current_state != GameManager.GameState.PLAYING or is_queued_for_deletion():
 		return
 
+	if _spawn_reveal > 0.0:
+		_spawn_reveal = maxf(0.0, _spawn_reveal - delta)
+	if _phase_burst > 0.0:
+		_phase_burst = maxf(0.0, _phase_burst - delta)
 	if _hit_flash > 0.0:
 		_hit_flash = maxf(0.0, _hit_flash - delta)
 		if _hit_flash == 0.0:
@@ -266,6 +275,20 @@ func _update_sprite(target: Vector2) -> void:
 			sway = step * 0.05
 		EnemyType.SELF_CRITICISM:
 			bob = -3.0 + sin(_motion_time * TAU / 0.95) * 3.0
+	if is_phase_two():
+		var pulse_wave: float = sin(_motion_time * 8.0) * 0.045
+		sway += sin(_motion_time * 9.0) * 0.045
+		scale_factor *= Vector2(1.0 + pulse_wave, 1.0 - pulse_wave)
+	if _hit_flash > 0.0:
+		var hit_t: float = _hit_flash / HIT_FLASH_DURATION
+		scale_factor *= Vector2.ONE.lerp(Vector2(1.22, 0.80), hit_t)
+	var base_alpha: float = 1.0 if (boss or GameManager.get_cycle() >= 3) else 0.96
+	if _spawn_reveal > 0.0:
+		var reveal_t: float = 1.0 - (_spawn_reveal / 0.22)
+		scale_factor *= Vector2(lerpf(0.45, 1.0, reveal_t), lerpf(1.42, 1.0, reveal_t))
+		modulate.a = lerpf(0.25, base_alpha, reveal_t)
+	else:
+		modulate.a = base_alpha
 	_sprite.rotation = sway
 	_sprite.scale = scale_factor
 	var warning_color := Color("#ff586d")
@@ -279,7 +302,8 @@ func _update_sprite(target: Vector2) -> void:
 			6.0 + size.y - global_position.round().y)
 	_sprite.position = pixel + Vector2(0, ground_y - size.y * 0.5 + bob)
 	_shadow.position = pixel + Vector2(0, ground_y - 2.0)
-	_shadow.scale = Vector2(size.x / 28.0, 1.35 if boss else 0.75)
+	var bob_scale: float = clampf(1.0 + bob * 0.04, 0.76, 1.08)
+	_shadow.scale = Vector2((size.x / 28.0) * bob_scale, (1.35 if boss else 0.75) * bob_scale)
 	if target.x != global_position.x:
 		_sprite.flip_h = target.x < global_position.x
 
@@ -319,6 +343,9 @@ func take_damage(amount: int, is_clarity: bool = false,
 	hp = maxi(0, hp - effective_damage)
 	_hit_flash = HIT_FLASH_DURATION
 	_flash_material.set_shader_parameter(&"hit_flash", 1.0)
+	if is_phase_two() and not _phase_two_announced:
+		_phase_two_announced = true
+		_phase_burst = 0.55
 	queue_redraw()
 	if hp == 0:
 		if enemy_type == EnemyType.PROCRASTINATION:
@@ -355,6 +382,22 @@ func _draw() -> void:
 			var offset: Vector2 = Vector2(cos(phase) * 9.0, sin(phase * 1.4) * 5.0 - 4.0).round()
 			draw_rect(Rect2(offset, Vector2(2, 2)), Color(0.02, 0.015, 0.03, 0.78))
 	var warning: float = _warning_strength()
+	if boss and is_phase_two():
+		var corona_r: float = 34.0 + sin(_motion_time * 7.0) * 3.0
+		draw_arc(_sprite.position, corona_r, 0.0, TAU, 48, Color(1.0, 0.28, 0.34, 0.24), 2.0)
+		for ember: int in range(6):
+			var angle: float = _motion_time * 2.6 + float(ember) * TAU / 6.0
+			var radial: float = corona_r + sin(_motion_time * 5.0 + float(ember)) * 4.0
+			var pos: Vector2 = (_sprite.position + Vector2.from_angle(angle) * radial).round()
+			var ember_col := Color("#ff6e54") if ember % 2 == 0 else Color("#ffd27a")
+			ember_col.a = 0.85
+			draw_rect(Rect2(pos - Vector2(1, 1), Vector2(3, 3)), ember_col)
+	if _phase_burst > 0.0:
+		var burst_t: float = 1.0 - (_phase_burst / 0.55)
+		draw_arc(_sprite.position, lerpf(16.0, 96.0, burst_t), 0.0, TAU, 56,
+				Color(1.0, 0.42, 0.32, (1.0 - burst_t) * 0.9), 3.5)
+		draw_arc(_sprite.position, lerpf(10.0, 70.0, burst_t), 0.0, TAU, 48,
+				Color(1.0, 0.88, 0.55, (1.0 - burst_t) * 0.85), 2.0)
 	if warning > 0.0:
 		if boss:
 			var remaining: float = _attack_interval() - _attack_elapsed

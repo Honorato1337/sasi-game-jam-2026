@@ -2,6 +2,7 @@ extends CanvasLayer
 
 const Retro = preload("res://scenes/ui/retro_window.gd")
 const TITLE_BG: Texture2D = preload("res://assets/sprites/title_bg.png")
+const GAME_LOGO: Texture2D = preload("res://assets/sprites/game_logo.png")
 const STUDENT_SHEET: Texture2D = preload("res://assets/sprites/student_sheet.png")
 const CLASSMATE_SHEET: Texture2D = preload("res://assets/sprites/classmate_sheet.png")
 const WINDOW_WIDTH: int = 450
@@ -43,6 +44,8 @@ var _end_heading: Label
 var _end_message: Label
 var _stats: Label
 var _cursor: Label
+var _logo_rect: TextureRect
+var _logo_atlas: AtlasTexture = AtlasTexture.new()
 var _student_atlas: AtlasTexture = AtlasTexture.new()
 var _classmate_atlas: AtlasTexture = AtlasTexture.new()
 var _preview_time: float
@@ -87,14 +90,18 @@ func _build_title() -> void:
 	_character_actor(_title_window, Rect2(364, 198, 96, 96), STUDENT_SHEET, 8, _student_atlas)
 	_character_actor(_title_window, Rect2(464, 200, 96, 96), CLASSMATE_SHEET, 2, _classmate_atlas)
 
-	var hero: Label = Retro.label(_title_window, Rect2(38, 36, 290, 40), "TRÊS TURNOS", 32, Retro.GOLD)
-	hero.add_theme_font_override(&"font", Retro.FONT_BOLD)
-	hero.add_theme_color_override(&"font_shadow_color", Color(0.08, 0.05, 0.12, 0.72))
-	hero.add_theme_constant_override(&"shadow_offset_x", 2)
-	hero.add_theme_constant_override(&"shadow_offset_y", 2)
-	Retro.label(_title_window, Rect2(40, 78, 250, 20), "Manhã, Tarde e Noite",
-			14, Retro.MINT)
-	Retro.divider(_title_window, Rect2(40, 104, 212, 1))
+	_logo_atlas.atlas = GAME_LOGO
+	_logo_atlas.region = Rect2(0, 0, 260, 96)
+	_logo_atlas.filter_clip = true
+	_logo_rect = TextureRect.new()
+	_logo_rect.texture = _logo_atlas
+	_logo_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_logo_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_logo_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	Retro.place(_logo_rect, _title_window, Rect2(16, 10, 260, 96))
+
+	Retro.label(_title_window, Rect2(36, 98, 220, 16), "Manhã  •  Tarde  •  Noite",
+			11, Retro.MINT, HORIZONTAL_ALIGNMENT_CENTER)
 
 	var play: Button = _action(_title_window, Rect2(40, 120, 212, 30), "JOGAR",
 			GameManager.start_intro_cutscene)
@@ -139,6 +146,7 @@ func _draw_title_fx() -> void:
 				Color(0.08, 0.05, 0.12, 0.55))
 		_title_fx.draw_rect(Rect2(shadow_center - Vector2(14, 5), Vector2(28, 10)),
 				Color(0.08, 0.05, 0.12, 0.35))
+	_title_fx.draw_circle(Vector2(462, 250), 72.0, Color(0.96, 0.78, 0.48, 0.04))
 
 	var pulse: float = 0.5 + 0.5 * sin(_preview_time * 3.0)
 	for radius: float in [42.0, 28.0, 16.0]:
@@ -156,6 +164,13 @@ func _draw_title_fx() -> void:
 			_title_fx.draw_rect(Rect2(pos - Vector2(1, 0), Vector2(3, 1)), Color(0.8, 0.78, 0.9, glow * 0.45))
 			_title_fx.draw_rect(Rect2(pos - Vector2(0, 1), Vector2(1, 3)), Color(0.8, 0.78, 0.9, glow * 0.45))
 
+	var shoot_phase: float = fposmod(_preview_time * 0.35, 3.0)
+	if shoot_phase < 0.45:
+		var t: float = shoot_phase / 0.45
+		var head: Vector2 = Vector2(lerpf(320.0, 495.0, t), lerpf(24.0, 74.0, t)).round()
+		_title_fx.draw_line(head - Vector2(12, 3), head, Color(0.96, 0.92, 1.0, (1.0 - t) * 0.75), 1.5)
+		_title_fx.draw_rect(Rect2(head, Vector2(2, 2)), Color(1.0, 0.96, 0.86, 1.0 - t * 0.5))
+
 	for idx: int in range(6):
 		var phase: float = float(idx) * 1.15
 		var mote: Vector2 = Vector2(
@@ -170,6 +185,11 @@ func _process(delta: float) -> void:
 	if not visible or _active_window != _title_window:
 		return
 	_preview_time = fposmod(_preview_time + delta, TAU * 10.0)
+	if _logo_rect != null:
+		var logo_region: Rect2 = _logo_atlas.region
+		logo_region.position.x = 260.0 * (int(_preview_time * 1.8) % 2)
+		_logo_atlas.region = logo_region
+		_logo_rect.position.y = 10.0 + roundf(sin(_preview_time * 2.2) * 1.5)
 	var student_region: Rect2 = _student_atlas.region
 	student_region.position.x = student_region.size.x * (int(_preview_time * 2.4) % 2)
 	_student_atlas.region = student_region
@@ -201,9 +221,9 @@ func _build_help() -> void:
 
 	var topics: Array[String] = ["CORPO", "MENTE", "DESCANSO"]
 	var explanations: Array[String] = [
-		"Corpo baixo encurta a espada e deixa o passo lento.\nBeba água [E] e recolha gotas dos inimigos.",
-		"Com a Mente baixa, a visão se fecha. Segure [R]\npara carregar Clareza ou peça ajuda ao colega [E].",
-		"Espada e dash gastam energia. Dê uma pausa para\nrecuperá-la. Na última sala, reacenda os pilares [E].",
+		"Corpo baixo encurta a espada e reduz o passo.\nBeba água [E], pegue gotas e use pilastras de abrigo.",
+		"Mente baixa fecha a visão. Segure [R] para Clareza\n(gera Gotas Douradas!) e aguente os Turnos de 28s.",
+		"Ataques e dash gastam fôlego. Nos Terraços de Respiro,\nescolha Hábitos [E]; no fim, reacenda os pilares [E].",
 	]
 	for index: int in range(topics.size()):
 		var y: int = 122 + index * 43
@@ -257,7 +277,7 @@ func _build_credits() -> void:
 	_credits_window = _window(252, "CRÉDITOS & SAÚDE")
 	_centered(_credits_window, 36, 20, "SASI: GAME JAM 2026  •  UFAC", 14, Retro.MINT)
 	_centered(_credits_window, 58, 34,
-			"Arte pixel e áudio chiptune criados para o jogo.\nDesenvolvimento com apoio de Antigravity e OpenAI Codex.",
+			"Arte pixel 32-bit e Bossa Nova procedural originais.\nDesenvolvimento com apoio de Antigravity e OpenAI Codex.",
 			11, Retro.CREAM)
 	_centered(_credits_window, 94, 24,
 			"Poemas em Domínio Público: Álvaro de Campos (F. Pessoa)\ne Emily Dickinson (tradução livre).",
@@ -323,6 +343,8 @@ func _action(parent: Panel, rect: Rect2, caption: String, callback: Callable = C
 
 func _on_button_hovered(button: Button) -> void:
 	if not button.disabled and button.get_parent() == _active_window:
+		if visible and get_viewport().gui_get_focus_owner() != button:
+			AudioManager.play_hover_cue()
 		button.grab_focus()
 
 
@@ -362,8 +384,12 @@ func _show_window(window: Panel) -> void:
 		return
 	_title_art.visible = (GameManager.current_state == GameManager.GameState.MENU)
 	_backdrop.visible = (window != _title_window)
+	window.modulate.a = 1.0 if window == _title_window else 0.0
 	window.show()
 	show()
+	if window != _title_window:
+		var fade: Tween = window.create_tween()
+		fade.tween_property(window, "modulate:a", 1.0, 0.10)
 	_focus_active_window()
 
 
@@ -425,13 +451,16 @@ func _input(event: InputEvent) -> void:
 
 func _move_focus(step: int) -> void:
 	var actions: Array = _buttons[_active_window]
-	var index: int = actions.find(get_viewport().gui_get_focus_owner())
+	var current_owner: Button = get_viewport().gui_get_focus_owner() as Button
+	var index: int = actions.find(current_owner)
 	if index == -1:
 		index = -1 if step > 0 else 0
 	for _attempt: int in range(actions.size()):
 		index = posmod(index + step, actions.size())
 		var button: Button = actions[index]
 		if not button.disabled:
+			if visible and button != current_owner:
+				AudioManager.play_hover_cue()
 			button.grab_focus()
 			return
 

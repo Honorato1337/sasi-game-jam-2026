@@ -4,6 +4,7 @@ const Retro = preload("res://scenes/ui/retro_window.gd")
 const Story = preload("res://scripts/data/story_dialogues.gd")
 const STUDENT = preload("res://assets/sprites/student_sheet.png")
 const CLASSMATE = preload("res://assets/sprites/classmate_sheet.png")
+const PORTRAITS = preload("res://assets/sprites/cutscene_portraits.png")
 
 var active_sequence: String = ""
 var _lines: Array = []
@@ -13,8 +14,10 @@ var _letter_count: int
 var _finishing: bool
 var _on_finished: Callable
 var _atlas: AtlasTexture = AtlasTexture.new()
+var _portrait_rect: TextureRect
 var _speaker: Label
 var _text: Label
+var _continue_arrow: Label
 
 
 func _ready() -> void:
@@ -24,14 +27,15 @@ func _ready() -> void:
 	portrait_frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	portrait_frame.add_theme_stylebox_override(&"panel", Retro.pixel_card_box(Retro.INK, Retro.FRAME))
 	Retro.place(portrait_frame, panel, Rect2(12, 11, 64, 66))
-	var portrait: TextureRect = TextureRect.new()
-	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_portrait_rect = TextureRect.new()
+	_portrait_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_portrait_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_portrait_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_atlas.filter_clip = true
-	portrait.texture = _atlas
-	Retro.place(portrait, panel, Rect2(14, 13, 60, 62))
+	_atlas.atlas = PORTRAITS
+	_portrait_rect.texture = _atlas
+	Retro.place(_portrait_rect, panel, Rect2(14, 13, 60, 62))
 	_speaker = Retro.label(panel, Rect2(86, 10, 446, 17), "", 13, Retro.GOLD)
 	_text = Retro.label(panel, Rect2(86, 28, 446, 36), "", 13)
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -39,7 +43,9 @@ func _ready() -> void:
 	_text.clip_text = true
 	_text.max_lines_visible = 2
 	_text.visible_characters_behavior = TextServer.VC_CHARS_AFTER_SHAPING
-	Retro.label(panel, Rect2(86, 68, 446, 14), "[ESPAÇO / CLIQUE] Próximo    •    [ESC] Pular", 10, Retro.MUTED)
+	Retro.label(panel, Rect2(86, 68, 410, 14), "[ESPAÇO / CLIQUE] Próximo    •    [ESC] Pular", 10, Retro.MUTED)
+	_continue_arrow = Retro.label(panel, Rect2(500, 67, 32, 15), "▼", 11, Retro.GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	_continue_arrow.hide()
 	GameManager.state_changed.connect(_on_state_changed)
 	hide()
 
@@ -67,18 +73,28 @@ func _show_line() -> void:
 	_text.visible_characters = 0
 	_elapsed = 0.0
 	_letter_count = 0
+	_continue_arrow.hide()
+	_portrait_rect.position.y = 13.0
 	var classmate: bool = entry["portrait"] == "classmate"
-	_atlas.atlas = CLASSMATE if classmate else STUDENT
-	_atlas.region = Rect2(0, 0, _atlas.atlas.get_width() / (2.0 if classmate else 8.0), _atlas.atlas.get_height())
+	var frame_idx: int = 4 if classmate else (
+			3 if (active_sequence == "victory" or GameManager.in_respite_room)
+			else clampi(GameManager.get_cycle() - 1, 0, 2))
+	_atlas.atlas = PORTRAITS
+	_atlas.region = Rect2(frame_idx * 48, 0, 48, 48)
 
 
 func _process(delta: float) -> void:
 	if active_sequence.is_empty() or _finishing:
 		return
 	_elapsed += delta
-	var region: Rect2 = _atlas.region
-	region.position.x = region.size.x * (int(_elapsed * 4.0) % 2)
-	_atlas.region = region
+	var typing: bool = _text.visible_characters < _text.text.length()
+	if typing:
+		_portrait_rect.position.y = 13.0 - (1.0 if int(_elapsed * 14.0) % 2 == 1 else 0.0)
+	else:
+		_portrait_rect.position.y = 13.0
+	_continue_arrow.visible = not typing
+	if _continue_arrow.visible:
+		_continue_arrow.position.y = 67.0 + roundf(sin(_elapsed * 7.0) * 1.5)
 	var target: int = mini(int(_elapsed * 45.0), _text.text.length())
 	for index: int in range(_text.visible_characters, target):
 		if _text.text[index].to_lower() != _text.text[index].to_upper():

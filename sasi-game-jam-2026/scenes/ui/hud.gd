@@ -29,6 +29,10 @@ var _breathing: Panel
 var _breath: ProgressBar
 var _clarity: Panel
 var _vignette: ShaderMaterial
+var _transition_veil: ColorRect
+var _banner_box: Panel
+var _banner_lbl: Label
+var _banner_timer: float = 0.0
 var _player_ref: Player
 var _pulse: float
 
@@ -40,6 +44,9 @@ func _ready() -> void:
 	_vignette = ShaderMaterial.new()
 	_vignette.shader = shader
 	shade.material = _vignette
+
+	_transition_veil = Retro.block(self, Rect2(0, 0, 640, 360), Color(0.06, 0.04, 0.11, 0.0))
+	_transition_veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var vitals: Panel = Retro.panel(self, Rect2(8, 8, 192, 82), true)
 	for index: int in range(NAMES.size()):
@@ -66,6 +73,12 @@ func _ready() -> void:
 	set_meta(&"_survival_lbl", survival_lbl)
 	set_meta(&"_survival_bar", survival_bar)
 
+	_banner_box = Retro.panel(self, Rect2(190, 94, 260, 24), true)
+	_banner_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_banner_lbl = Retro.label(_banner_box, Rect2(8, 4, 244, 16), "", 10, Retro.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	_banner_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_banner_box.hide()
+
 	_breathing = Retro.panel(self, Rect2(8, 320, 174, 32), true)
 	Retro.label(_breathing, Rect2(8, 4, 158, 14), "Segure [R] Respirar", 10)
 	_breath = Retro.meter(_breathing, Rect2(8, 21, 158, 5), Retro.MINT)
@@ -83,6 +96,7 @@ func _ready() -> void:
 	GameManager.score_changed.connect(_on_score_changed)
 	GameManager.combo_changed.connect(_on_combo_changed)
 	GameManager.ally_activated.connect(_on_ally_activated)
+	GameManager.habits_updated.connect(_on_habits_updated)
 	GameManager.clarity_ready_changed.connect(_on_clarity_ready_changed)
 	_on_hp_changed(GameManager.hp, GameManager.max_hp)
 	_on_pillars_changed(GameManager.body, GameManager.mind, GameManager.rest)
@@ -175,9 +189,34 @@ func _on_combo_changed(_combo: int) -> void:
 	_on_score_changed(GameManager.score)
 
 
-func _on_ally_activated(active: bool) -> void:
-	_ally.text = "Apoio: ATIVO" if active else "Apoio: Sozinho"
-	_ally.modulate = Retro.MINT if active else Color.WHITE
+func _refresh_ally_status() -> void:
+	var status: String = "Apoio: ATIVO" if GameManager.ally_active else "Apoio: Sozinho"
+	if GameManager.sleep_rank + GameManager.nutrition_rank + GameManager.ally_count > 0:
+		status += "  •  S%d N%d R%d" % [GameManager.sleep_rank, GameManager.nutrition_rank, GameManager.ally_count]
+	_ally.text = status
+	_ally.modulate = Retro.MINT if GameManager.ally_active else Color.WHITE
+
+
+func _on_ally_activated(_active: bool) -> void:
+	_refresh_ally_status()
+
+
+func _on_habits_updated(_sleep_rank: int, _nutrition_rank: int, _ally_count: int) -> void:
+	_refresh_ally_status()
+
+
+func show_room_transition(banner_text: String) -> void:
+	if not is_inside_tree():
+		return
+	_transition_veil.color.a = 0.36
+	if banner_text.is_empty():
+		_banner_box.hide()
+		_banner_timer = 0.0
+		return
+	_banner_lbl.text = banner_text
+	_banner_box.modulate.a = 1.0
+	_banner_box.show()
+	_banner_timer = 1.85
 
 
 func _on_breathing_progressed(progress: float, _breathing: bool) -> void:
@@ -187,6 +226,17 @@ func _on_breathing_progressed(progress: float, _breathing: bool) -> void:
 func _process(delta: float) -> void:
 	if not visible:
 		return
+	if _transition_veil != null and _transition_veil.color.a > 0.0:
+		_transition_veil.color.a = maxf(0.0, _transition_veil.color.a - delta * 0.95)
+	if _banner_timer > 0.0:
+		if GameManager.current_state not in [GameManager.GameState.PLAYING, GameManager.GameState.DIALOGUE]:
+			_banner_timer = 0.0
+			_banner_box.hide()
+		else:
+			_banner_timer = maxf(0.0, _banner_timer - delta)
+			_banner_box.modulate.a = clampf(_banner_timer / 0.45, 0.0, 1.0)
+			if _banner_timer == 0.0:
+				_banner_box.hide()
 	_pulse = fposmod(_pulse + delta, 2.0)
 	var blink: bool = fmod(_pulse, 0.6) < 0.3
 	var low: bool = false

@@ -37,6 +37,8 @@ var _dash_cooldown: float = 0.0
 var _last_dash_frame: int = -1
 var _dash_remaining: float = 0.0
 var _dash_direction: Vector2 = Vector2.ZERO
+var _attack_buffer: float = 0.0
+var _dash_buffer: float = 0.0
 var _hit_cooldown: float = 0.0
 var _hit_push_remaining: float = 0.0
 var _hit_direction: Vector2 = Vector2.ZERO
@@ -86,6 +88,8 @@ func _start_standalone_run() -> void:
 func _physics_process(delta: float) -> void:
 	if GameManager.current_state != GameManager.GameState.PLAYING:
 		velocity = Vector2.ZERO
+		_attack_buffer = 0.0
+		_dash_buffer = 0.0
 		_reset_breathing()
 		if _breathing_visual:
 			_breathing_visual = false
@@ -94,6 +98,8 @@ func _physics_process(delta: float) -> void:
 
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_dash_cooldown = maxf(0.0, _dash_cooldown - delta)
+	_attack_buffer = maxf(0.0, _attack_buffer - delta)
+	_dash_buffer = maxf(0.0, _dash_buffer - delta)
 	_hit_cooldown = maxf(0.0, _hit_cooldown - delta)
 	_debuff_slow_remaining = maxf(0.0, _debuff_slow_remaining - delta)
 	if _hit_flash > 0.0:
@@ -116,7 +122,12 @@ func _physics_process(delta: float) -> void:
 		GameManager.spend_rest(6.0 * delta)
 	if Input.is_action_just_pressed(&"interact"):
 		_interact()
-	if Input.is_action_just_pressed(&"dash") and _dash_cooldown <= 0.0 and not GameManager.is_exhausted:
+	if Input.is_action_just_pressed(&"dash"):
+		_dash_buffer = 0.12
+	if Input.is_action_just_pressed(&"attack"):
+		_attack_buffer = 0.12
+	if _dash_buffer > 0.0 and _dash_cooldown <= 0.0 and not GameManager.is_exhausted:
+		_dash_buffer = 0.0
 		_dash_direction = facing_direction
 		_dash_remaining = DASH_DURATION
 		_ghost_remaining = 0.0
@@ -124,7 +135,8 @@ func _physics_process(delta: float) -> void:
 		GameManager.spend_rest(16.0)
 		dashed.emit(_dash_direction)
 
-	if Input.is_action_just_pressed(&"attack") and _attack_cooldown <= 0.0:
+	if _attack_buffer > 0.0 and _attack_cooldown <= 0.0:
+		_attack_buffer = 0.0
 		_attack()
 
 	var slow_mult: float = 0.78 if _debuff_slow_remaining > 0.0 else 1.0
@@ -153,6 +165,8 @@ func reset_run() -> void:
 	_attack_flash = 0.0
 	_dash_cooldown = 0.0
 	_dash_remaining = 0.0
+	_attack_buffer = 0.0
+	_dash_buffer = 0.0
 	_last_dash_frame = -1
 	_hit_cooldown = 0.0
 	_hit_push_remaining = 0.0
@@ -168,6 +182,8 @@ func reset_run() -> void:
 	_sprite.frame = 0
 	_sprite.flip_h = false
 	_sprite.scale = Vector2.ONE
+	_sprite.rotation = 0.0
+	_shadow.scale = Vector2.ONE
 	_flash_material.set_shader_parameter(&"hit_flash", 0.0)
 	_update_visual_tremor()
 	_visual.queue_redraw()
@@ -304,21 +320,38 @@ func _update_visual_animation(delta: float, moving: bool, breathe_held: bool = f
 	_sprite.frame = (2 if walking else 0) + int(alternate)
 	var pose_direction: Vector2 = _attack_direction if _attack_flash > 0.0 else facing_direction
 	var target_scale: Vector2 = Vector2.ONE
+	var lean_sign: float = -1.0 if pose_direction.x < 0.0 else 1.0
+	var target_rot: float = 0.0
+	var shadow_target: Vector2 = Vector2.ONE
 	if dashing:
 		_sprite.frame = 6
 		pose_direction = _dash_direction
+		lean_sign = -1.0 if _dash_direction.x < 0.0 else 1.0
 		target_scale = Vector2(1.22, 0.84)
+		target_rot = lean_sign * 0.16
+		shadow_target = Vector2(1.20, 0.84)
 	elif _attack_flash > 0.0:
 		_sprite.frame = 4 if _attack_flash > ATTACK_FLASH_DURATION * 0.60 else 5
 		target_scale = Vector2(0.94, 1.07) if _sprite.frame == 4 else Vector2(1.15, 0.92)
+		target_rot = lean_sign * (0.10 if _sprite.frame == 5 else -0.06)
+		shadow_target = Vector2(1.08, 0.94)
 	elif breathe_held:
 		_sprite.frame = 7
 		target_scale.y += sin(_visual_time * 5.0) * 0.035
+		var b_pulse: float = 1.0 + sin(_visual_time * 5.0) * 0.06
+		shadow_target = Vector2(b_pulse, b_pulse)
 	elif walking:
 		target_scale = Vector2(1.04, 0.96) if alternate else Vector2(0.98, 1.04)
+		target_rot = lean_sign * (0.045 if alternate else 0.015)
+		shadow_target = Vector2(1.06, 0.94) if alternate else Vector2(0.96, 1.02)
+	else:
+		var idle_breath: float = sin(_visual_time * 2.8) * 0.028
+		target_scale = Vector2(1.0 - idle_breath * 0.6, 1.0 + idle_breath)
 	if pose_direction.x != 0.0:
 		_sprite.flip_h = pose_direction.x < 0.0
 	_sprite.scale = _sprite.scale.lerp(target_scale, 1.0 - exp(-delta * 22.0))
+	_sprite.rotation = lerpf(_sprite.rotation, target_rot, 1.0 - exp(-delta * 18.0))
+	_shadow.scale = _shadow.scale.lerp(shadow_target, 1.0 - exp(-delta * 20.0))
 	if dashing:
 		_ghost_remaining -= delta
 		if _ghost_remaining <= 0.0:
@@ -374,6 +407,10 @@ func _draw_visual() -> void:
 			var point := Vector2((index - 1) * (10.0 + phase * 6.0), -19.0 + phase * 9.0)
 			_visual.draw_rect(Rect2(point.round(), Vector2(2, 3)), Color(0.55, 0.9, 1.0, 1.0 - phase))
 	if _breathing_visual:
+		for ring: int in range(2):
+			var r_phase: float = fposmod(_visual_time * 1.1 + float(ring) * 0.5, 1.0)
+			_visual.draw_arc(Vector2(0, 1), lerpf(8.0, 28.0, r_phase), 0.0, TAU, 32,
+					Color(0.56, 1.0, 0.86, (1.0 - r_phase) * 0.45), 1.5)
 		for index: int in range(9):
 			var phase: float = fposmod(_visual_time * 1.4 + index / 9.0, 1.0)
 			var angle: float = index * TAU / 9.0 + phase * 0.65
@@ -405,10 +442,17 @@ func _draw_attack_arc() -> void:
 	var width: float = 14.0 if _attack_is_clarity else 9.0
 	var glow: Color = Color("#39dcec") if _attack_is_clarity else Color("#fca34d")
 	var edge: Color = Color("#ffe298") if _attack_is_clarity else Color("#fff3c8")
+	if _attack_is_clarity:
+		var wave_r: float = _attack_range * lerpf(0.55, 1.28, 1.0 - life)
+		_attack_arc.draw_arc(Vector2.ZERO, wave_r, 0.0, TAU, 44, Color(0.55, 0.96, 1.0, life * 0.55), 2.5)
 	_attack_arc.draw_arc(Vector2.ZERO, maxf(2.0, radius - width * 0.35), 0.0, TAU, 36,
 			Color(glow.r, glow.g, glow.b, life * 0.35), width * 0.7)
 	_attack_arc.draw_arc(Vector2.ZERO, radius, 0.0, TAU, 36,
 			Color(edge.r, edge.g, edge.b, life * 0.85), 2.0 if _attack_is_clarity else 1.5)
+	for glint: int in range(4):
+		var g_ang: float = -spin + float(glint) * PI * 0.5
+		var g_pos: Vector2 = (Vector2.from_angle(g_ang) * (radius + 2.0)).round()
+		_attack_arc.draw_rect(Rect2(g_pos - Vector2(1, 1), Vector2(2, 2)), Color(edge.r, edge.g, edge.b, life))
 	glow.a = life * 0.9
 	edge.a = life
 	_draw_slash_layer(spin, radius, width, glow, PI * 0.82)

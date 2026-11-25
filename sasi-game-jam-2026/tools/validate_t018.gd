@@ -56,6 +56,7 @@ func _run() -> void:
 func _check_menu() -> void:
 	await _wait(0.10)
 	_check(GameManager.current_state == GameManager.GameState.MENU and _screens.visible, "Menu inicial")
+	_check(_screens._logo_rect != null and _screens._logo_rect.visible, "Logo 32-bit visível no menu inicial")
 	if not _headless:
 		_check(get_window().size == Vector2i(1280, 720), "Janela desktop 1280×720")
 	await _capture("menu")
@@ -141,6 +142,7 @@ func _check_morning() -> void:
 	var sfx_index: int = AudioManager._next_sfx_player_index
 	await _wait(0.3)
 	_check(AudioManager._next_sfx_player_index != sfx_index, "Typewriter toca blips de voz")
+	_check(_story._atlas.atlas == StoryDialog.PORTRAITS, "Diálogo exibe retrato 48×48 expressivo")
 	_check(_story._text.visible_characters > 0 and _story._text.visible_characters < _story._text.text.length(),
 			"Efeito typewriter")
 	await _tap(KEY_SPACE)

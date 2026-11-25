@@ -295,7 +295,16 @@ func _setup_room(room_index: int) -> void:
 	if GameManager.ally_active:
 		_spawn_ally(_player.position)
 	_refresh_objective()
+	_hud.show_room_transition(_room_banner_text(room_index))
 	_story.play_sequence(ROOM_DIALOGUES[room_index - 1])
+
+
+func _room_banner_text(room_index: int) -> String:
+	const TURNS: Array[String] = ["MANHÃ", "TARDE", "NOITE"]
+	var turn_name: String = TURNS[(room_index - 1) % 3]
+	var cycle_num: int = clampi((room_index - 1) / 3 + 1, 1, 3)
+	var tag: String = " (28s)" if room_index in [5, 8] else (" (Chefe)" if room_index == 9 else "")
+	return "Ciclo %d • Sala %d • %s%s" % [cycle_num, room_index, turn_name, tag]
 
 
 func _setup_respite_room(next_room: int) -> void:
@@ -323,6 +332,7 @@ func _setup_respite_room(next_room: int) -> void:
 	_add_prop_pillar(Vector2(220, 435), 0)
 	_add_prop_pillar(Vector2(740, 435), 0)
 	_refresh_objective()
+	_hud.show_room_transition("RESPIRO %d • Terraço de Hábitos" % (1 if next_room == 4 else 2))
 	_story.play_sequence("respite_1" if next_room == 4 else "respite_2")
 
 
@@ -542,6 +552,7 @@ func _on_enemy_defeated(enemy: Enemy) -> void:
 		_unlock_stations()
 	GameManager.increment_combo()
 	GameManager.add_score(100 * GameManager.combo)
+	AudioManager.play_enemy_defeat()
 	_burst(enemy.position, Enemy.COLORS[enemy.enemy_type], 13)
 	if enemy.is_boss():
 		_finish_boss.call_deferred()
@@ -793,8 +804,8 @@ func _update_drops(delta: float) -> void:
 		drop.position = drop.position.move_toward(_player.position, 185.0 * delta)
 		if drop.position.distance_squared_to(_player.position) <= 8.0 * 8.0:
 			_drops.remove_at(index)
-			AudioManager.play_pickup()
 			if drop.is_golden:
+				AudioManager.play_golden_pickup()
 				GameManager.modify_body(18.0)
 				GameManager.modify_mind(12.0)
 				GameManager.modify_rest(16.0)
@@ -802,6 +813,7 @@ func _update_drops(delta: float) -> void:
 				GameManager.add_score(60)
 				_float_text(_player.position + Vector2(0, -16), "+18 CORPO · +12 MENTE · +6 HP", Color("#ffd978"))
 			else:
+				AudioManager.play_pickup()
 				GameManager.modify_body(14.0)
 				GameManager.heal_player(3)
 				GameManager.add_score(25)
@@ -811,6 +823,7 @@ func _update_drops(delta: float) -> void:
 func _on_enemy_hit(point: Vector2, damage: int, clarity: bool, _is_boss: bool) -> void:
 	_last_hit_clarity = clarity
 	_last_hit_point = point
+	AudioManager.play_enemy_hit(clarity)
 	_float_text(point + Vector2(0, -15), ("FOCO! " if clarity else "") + ("-%d" % damage),
 			Color("#89ffe0") if clarity else Color("#fff2ce"))
 	_burst(point, Color("#89ffe0") if clarity else Color("#f4ba72"), 8)
@@ -824,7 +837,9 @@ func _on_player_hit(_mind_damage: float) -> void:
 		_start_shake(3.0, 0.16)
 
 
-func _on_interacted(_station_name: String, feedback: String) -> void:
+func _on_interacted(station_name: String, feedback: String) -> void:
+	if station_name not in ["Sono Profundo", "Nutrição & Corpo", "Rede de Apoio"]:
+		AudioManager.play_station_care()
 	_float_text(_player.position + Vector2(0, -16), feedback.to_upper(), Color("#afffbb"))
 
 

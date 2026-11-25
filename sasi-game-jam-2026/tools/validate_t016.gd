@@ -21,7 +21,9 @@ const LAYOUTS := {
 	"cutscene_happy_class": Vector3i(208, 103, 1), "cutscene_happy_lunch": Vector3i(208, 103, 1),
 	"cutscene_happy_sunset": Vector3i(208, 103, 1), "cutscene_happy_sleep": Vector3i(208, 103, 1),
 	"cutscene_console": Vector3i(282, 116, 1), "cutscene_dawn": Vector3i(320, 180, 1),
-	"cutscene_portraits": Vector3i(48, 48, 4),
+	"cutscene_portraits": Vector3i(48, 48, 5),
+	"game_logo": Vector3i(260, 96, 2),
+	"game_icon": Vector3i(64, 64, 1),
 }
 var failures: int = 0
 
