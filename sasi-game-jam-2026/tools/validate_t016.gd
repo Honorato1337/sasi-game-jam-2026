@@ -4,18 +4,22 @@ const Manager := preload("res://scripts/autoload/game_manager.gd")
 const SPRITES := "res://assets/sprites/"
 # Largura e altura de cada quadro, seguidas do número de quadros.
 const LAYOUTS := {
-	"student_sheet": Vector3i(32, 32, 8), "classmate_sheet": Vector3i(32, 32, 2),
+	"student_sheet": Vector3i(32, 32, 8), "student_cutscene_sheet": Vector3i(32, 32, 4),
+	"classmate_sheet": Vector3i(32, 32, 2),
 	"stations_sheet": Vector3i(48, 48, 4), "enemy_procrastination_sheet": Vector3i(32, 32, 2),
 	"enemy_deadline_sheet": Vector3i(32, 32, 2), "enemy_selfcriticism_sheet": Vector3i(34, 36, 2),
 	"boss_burnout_sheet": Vector3i(80, 80, 2),
-	"room_morning": Vector3i(640, 360, 1), "room_afternoon": Vector3i(640, 360, 1), "room_night": Vector3i(640, 360, 1),
-	"room_c2_morning": Vector3i(640, 360, 1), "room_c2_afternoon": Vector3i(640, 360, 1), "room_c2_night": Vector3i(640, 360, 1),
-	"room_c3_morning": Vector3i(640, 360, 1), "room_c3_afternoon": Vector3i(640, 360, 1), "room_c3_night": Vector3i(640, 360, 1),
+	"room_morning": Vector3i(960, 540, 1), "room_afternoon": Vector3i(960, 540, 1), "room_night": Vector3i(960, 540, 1),
+	"room_c2_morning": Vector3i(960, 540, 1), "room_c2_afternoon": Vector3i(960, 540, 1), "room_c2_night": Vector3i(960, 540, 1),
+	"room_c3_morning": Vector3i(960, 540, 1), "room_c3_afternoon": Vector3i(960, 540, 1), "room_c3_night": Vector3i(960, 540, 1),
 	"cutscene_wake": Vector3i(208, 103, 1), "cutscene_bus_day": Vector3i(208, 103, 1),
 	"cutscene_class": Vector3i(208, 103, 1), "cutscene_lunch": Vector3i(208, 103, 1),
 	"cutscene_bus_night": Vector3i(208, 103, 1), "cutscene_sleep": Vector3i(208, 103, 1),
+	"cutscene_happy_wake": Vector3i(208, 103, 1), "cutscene_happy_bus": Vector3i(208, 103, 1),
+	"cutscene_happy_class": Vector3i(208, 103, 1), "cutscene_happy_lunch": Vector3i(208, 103, 1),
+	"cutscene_happy_sunset": Vector3i(208, 103, 1), "cutscene_happy_sleep": Vector3i(208, 103, 1),
 	"cutscene_console": Vector3i(282, 116, 1), "cutscene_dawn": Vector3i(320, 180, 1),
-	"cutscene_portraits": Vector3i(36, 36, 3),
+	"cutscene_portraits": Vector3i(48, 48, 4),
 }
 var failures: int = 0
 
@@ -91,7 +95,15 @@ func run() -> void:
 	check(gm.get_breathe_duration() == 1.35 and gm.mind == 62.5 and gm.rest == 25 and not gm.is_exhausted, "respiração completa")
 	check(gm.get_attack_range() == 64 and gm.get_attack_damage() == 70 and gm.consume_clarity_strike() and not gm.consume_clarity_strike(), "clareza consumida uma vez")
 	gm.enter_room(5)
+	gm.modify_body(50.0)
 	check(gm.room == 5 and gm.get_cycle() == 2 and gm.get_turn() == 2 and not gm.is_final_room(), "ciclo e turno sala 5")
+	gm.modify_mind(-20.0)
+	check(is_equal_approx(gm.get_attack_cooldown_multiplier(), 1.25), "debuff de ataque ansioso")
+	gm.modify_mind(-20.0)
+	check(is_equal_approx(gm.get_attack_cooldown_multiplier(), 1.50) and is_equal_approx(gm.get_dash_cooldown_multiplier(), 1.35) and is_equal_approx(gm.get_move_speed_multiplier(), 0.85), "debuff de sobrecarga")
+	var mind_before_c2: float = gm.mind
+	gm.tick_pillars(1.0)
+	check(gm.mind < mind_before_c2, "desgaste mental passivo no ciclo 2")
 	gm.enter_room(12)
 	gm.increment_combo()
 	gm.add_score(10)

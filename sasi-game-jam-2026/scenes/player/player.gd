@@ -49,6 +49,7 @@ var _alternate_frame: bool = false
 var _walking: bool = false
 var _visual_time: float = 0.0
 var _ghost_remaining: float = 0.0
+var _debuff_slow_remaining: float = 0.0
 var _breathing_visual: bool = false
 var _effects: Node2D
 
@@ -94,6 +95,7 @@ func _physics_process(delta: float) -> void:
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_dash_cooldown = maxf(0.0, _dash_cooldown - delta)
 	_hit_cooldown = maxf(0.0, _hit_cooldown - delta)
+	_debuff_slow_remaining = maxf(0.0, _debuff_slow_remaining - delta)
 	if _hit_flash > 0.0:
 		_hit_flash = maxf(0.0, _hit_flash - delta)
 		if _hit_flash == 0.0:
@@ -109,20 +111,24 @@ func _physics_process(delta: float) -> void:
 	var breathe_held: bool = Input.is_action_pressed(&"breathe")
 	GameManager.tick_pillars(delta, breathe_held, _near_ally())
 	_update_breathing(delta, breathe_held)
+	var ground_mult: float = _ground_speed_multiplier()
+	if ground_mult < 1.0:
+		GameManager.spend_rest(6.0 * delta)
 	if Input.is_action_just_pressed(&"interact"):
 		_interact()
 	if Input.is_action_just_pressed(&"dash") and _dash_cooldown <= 0.0 and not GameManager.is_exhausted:
 		_dash_direction = facing_direction
 		_dash_remaining = DASH_DURATION
 		_ghost_remaining = 0.0
-		_dash_cooldown = DASH_COOLDOWN
+		_dash_cooldown = DASH_COOLDOWN * GameManager.get_dash_cooldown_multiplier()
 		GameManager.spend_rest(16.0)
 		dashed.emit(_dash_direction)
 
 	if Input.is_action_just_pressed(&"attack") and _attack_cooldown <= 0.0:
 		_attack()
 
-	var speed: float = BASE_SPEED * GameManager.get_move_speed_multiplier() * _ground_speed_multiplier()
+	var slow_mult: float = 0.78 if _debuff_slow_remaining > 0.0 else 1.0
+	var speed: float = BASE_SPEED * GameManager.get_move_speed_multiplier() * ground_mult * slow_mult
 	if breathe_held:
 		speed *= 0.40
 	velocity = move_input * speed
@@ -155,6 +161,7 @@ func reset_run() -> void:
 	_alternate_frame = false
 	_walking = false
 	_visual_time = 0.0
+	_debuff_slow_remaining = 0.0
 	_breathing_visual = false
 	for effect: Node in _effects.get_children():
 		effect.queue_free()
@@ -168,7 +175,8 @@ func reset_run() -> void:
 	_attack_arc.queue_redraw()
 
 
-func apply_enemy_contact(from_position: Vector2, hp_damage: int, mind_damage: float, body_damage: float) -> bool:
+func apply_enemy_contact(from_position: Vector2, hp_damage: int, mind_damage: float,
+		body_damage: float, rest_damage: float = 0.0, slow_duration: float = 0.0) -> bool:
 	if _hit_cooldown > 0.0 or _dash_remaining > 0.0 or Engine.get_physics_frames() == _last_dash_frame or GameManager.current_state != GameManager.GameState.PLAYING:
 		return false
 	_hit_cooldown = HIT_INVULNERABILITY
@@ -180,15 +188,23 @@ func apply_enemy_contact(from_position: Vector2, hp_damage: int, mind_damage: fl
 		_hit_direction = -facing_direction
 	GameManager.modify_mind(-mind_damage)
 	GameManager.modify_body(-body_damage)
+	if rest_damage > 0.0:
+		GameManager.spend_rest(rest_damage)
+	if slow_duration > 0.0:
+		_debuff_slow_remaining = maxf(_debuff_slow_remaining, slow_duration)
 	GameManager.damage_player(hp_damage)
 	hit_taken.emit(mind_damage)
 	return true
 
 
+func has_slow_debuff() -> bool:
+	return _debuff_slow_remaining > 0.0 or _ground_speed_multiplier() < 1.0
+
+
 func _attack() -> void:
 	if GameManager.is_exhausted:
 		return
-	_attack_cooldown = ATTACK_COOLDOWN
+	_attack_cooldown = ATTACK_COOLDOWN * GameManager.get_attack_cooldown_multiplier()
 	var damage: int = GameManager.get_attack_damage()
 	_attack_range = GameManager.get_attack_range()
 	_attack_is_clarity = GameManager.consume_clarity_strike()

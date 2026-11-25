@@ -2,7 +2,7 @@ extends Node2D
 
 const RADIUS: float = 13.0
 const LIFETIME: float = 2.8
-const slow_multiplier: float = 0.65
+const slow_multiplier: float = 0.60
 
 var _remaining: float = LIFETIME
 

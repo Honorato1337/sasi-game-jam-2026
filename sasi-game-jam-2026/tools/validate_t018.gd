@@ -20,7 +20,7 @@ var _headless: bool = DisplayServer.get_name() == "headless"
 
 func _ready() -> void:
 	_player.attacked.connect(_on_attack)
-	get_tree().create_timer(65.0).timeout.connect(_on_timeout)
+	get_tree().create_timer(85.0).timeout.connect(_on_timeout)
 	_run.call_deferred()
 
 
@@ -32,7 +32,7 @@ func _on_timeout() -> void:
 
 func _run() -> void:
 	# A síntese procedural é distribuída entre frames no desktop e na Web.
-	var deadline: int = Time.get_ticks_msec() + 16000
+	var deadline: int = Time.get_ticks_msec() + 25000
 	while AudioManager._music.size() < 7 and Time.get_ticks_msec() < deadline:
 		await get_tree().process_frame
 	_check(AudioManager._music.size() == 7, "Trilhas procedurais carregadas")
@@ -129,7 +129,8 @@ func _check_intro_cutscene() -> void:
 
 
 func _check_morning() -> void:
-	_check_room(1, "room_1_morning", 2, 4)
+	_check_room(1, "room_1_morning", 3, 6)
+	_check(_arena._camera.limit_right == 960 and _arena._camera.limit_bottom == 540, "Câmera cobre mapa 960×540")
 	_check(GameManager.body == 35.0 and GameManager.get_attack_range() == 26.0
 			and GameManager.get_attack_damage() == 16 and GameManager.get_move_speed_multiplier() == 0.75,
 			"Sinal de Corpo na Manhã")
@@ -165,7 +166,7 @@ func _check_morning() -> void:
 	await _tap(KEY_E)
 	_check(GameManager.body > 79.0 and GameManager.get_attack_damage() == 26, "Água pelo E recupera Corpo")
 	var target: Enemy = _first_enemy()
-	_check(is_equal_approx(target._fog_amount, 0.80), "Inimigos no Ciclo 1 iniciam ofuscados")
+	_check(is_equal_approx(target._fog_amount, 1.0), "Inimigos no Ciclo 1 iniciam 100% pretos")
 	target.position = _player.position + Vector2(21, 0)
 	_player.facing_direction = Vector2.RIGHT
 	var hp_before: int = target.hp
@@ -189,7 +190,7 @@ func _check_morning() -> void:
 
 
 func _check_afternoon() -> void:
-	_check_room(2, "room_2_afternoon", 2, 5)
+	_check_room(2, "room_2_afternoon", 3, 7)
 	_check(_arena._stations.get_child_count() == 4, "Água, colega e duas bancadas físicas")
 	await _tap(KEY_ESCAPE)
 	_check(GameManager.current_state == GameManager.GameState.PLAYING, "Esc pula sem pausar")
@@ -233,7 +234,7 @@ func _check_afternoon() -> void:
 
 func _check_cycle_progression() -> void:
 	# Sala 3 (Noite Ciclo 1)
-	_check_room(3, "room_3_night", 2, 5)
+	_check_room(3, "room_3_night", 4, 8)
 	_check(AudioManager.music_player.stream == AudioManager._music.get(&"night"), "Trilha da Noite C1")
 	await _tap(KEY_ESCAPE)
 	await _clear_combat()
@@ -247,24 +248,24 @@ func _check_cycle_progression() -> void:
 	await _walk_through_door(4)
 
 	# Sala 4 (Manhã Ciclo 2)
-	_check_room(4, "room_4_c2_morning", 2, 5)
+	_check_room(4, "room_4_c2_morning", 4, 8)
 	await _tap(KEY_ESCAPE)
 	await _wait(0.08)
-	_check(is_equal_approx(_first_enemy()._fog_amount, 0.44), "Ciclo 2 revela parcialmente o jogador nos inimigos")
+	_check(is_equal_approx(_first_enemy()._fog_amount, 0.50), "Ciclo 2 revela parcialmente o jogador nos inimigos")
 	await _capture("ciclo2-manha")
 	await _clear_combat()
 	GameManager.modify_body(100.0)
 	await _walk_through_door(5)
 
 	# Sala 5 (Tarde Ciclo 2) e Sala 6 (Noite Ciclo 2)
-	_check_room(5, "room_5_c2_afternoon", 3, 6)
+	_check_room(5, "room_5_c2_afternoon", 4, 9)
 	await _tap(KEY_ESCAPE)
 	await _clear_combat()
 	GameManager.modify_body(100.0)
 	GameManager.modify_mind(100.0)
 	await _walk_through_door(6)
 
-	_check_room(6, "room_6_c2_night", 3, 6)
+	_check_room(6, "room_6_c2_night", 5, 10)
 	await _tap(KEY_ESCAPE)
 	await _clear_combat()
 	GameManager.modify_body(100.0)
@@ -273,16 +274,16 @@ func _check_cycle_progression() -> void:
 	await _walk_through_door(7)
 
 	# Sala 7 (Manhã Ciclo 3) e Sala 8 (Tarde Ciclo 3)
-	_check_room(7, "room_7_c3_morning", 3, 6)
+	_check_room(7, "room_7_c3_morning", 5, 10)
 	await _tap(KEY_ESCAPE)
 	await _wait(0.08)
-	_check(is_equal_approx(_first_enemy()._fog_amount, 0.10), "Ciclo 3 quase dissipa névoa revelando o próprio rosto")
+	_check(is_equal_approx(_first_enemy()._fog_amount, 0.08), "Ciclo 3 quase dissipa névoa revelando o próprio rosto")
 	await _capture("ciclo3-manha")
 	await _clear_combat()
 	GameManager.modify_body(100.0)
 	await _walk_through_door(8)
 
-	_check_room(8, "room_8_c3_afternoon", 3, 7)
+	_check_room(8, "room_8_c3_afternoon", 6, 12)
 	await _tap(KEY_ESCAPE)
 	await _clear_combat()
 	GameManager.modify_body(100.0)
@@ -299,19 +300,19 @@ func _check_night() -> void:
 	await _tap(KEY_ESCAPE)
 	_check(AudioManager.music_player.stream == AudioManager._music.get(&"boss"), "Trilha do Boss Final")
 	var boss: Enemy = _arena._boss
-	_check(boss.hp == 340 and is_equal_approx(boss._fog_amount, 0.0) and not boss.is_phase_two(),
+	_check(boss.hp == 380 and is_equal_approx(boss._fog_amount, 0.0) and not boss.is_phase_two(),
 			"Boss final inicia nítido na fase 1")
 	var pillar: Station = _find_station(Station.StationType.ROOM_PILLAR, "CORPO")
 	GameManager.modify_body(-100.0)
 	_player.position = pillar.position + Vector2(0, 18)
 	await _tap(KEY_E)
 	_check(GameManager.body >= 41.0, "E reacende o pilar Corpo")
-	_player.position = Vector2(320, 270)
+	_player.position = Vector2(480, 390)
 	boss._attack_elapsed = boss._attack_interval() - 0.01
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	_check(get_tree().get_nodes_in_group(&"stress_projectiles").size() == 3, "Fase 1 dispara três projéteis")
-	boss.take_damage(180)
+	boss.take_damage(210)
 	_check(boss.is_phase_two(), "Boss entra na fase 2 com vida abaixo da metade")
 	boss._next_pillar = 1
 	boss._drain_elapsed = 5.99
@@ -321,6 +322,7 @@ func _check_night() -> void:
 	await get_tree().physics_frame
 	_check(get_tree().get_nodes_in_group(&"stress_projectiles").size() >= 8
 			and GameManager.mind < previous_mind - 16.0, "Fase 2 aumenta leque e drena Mente")
+	await _wait(0.14)
 	await _capture("noite")
 	for projectile: Node in get_tree().get_nodes_in_group(&"stress_projectiles"):
 		projectile.queue_free()
@@ -333,17 +335,39 @@ func _check_night() -> void:
 	_player.facing_direction = Vector2.UP
 	boss._spawn_projectile(Vector2.DOWN)
 	await _tap(KEY_SPACE)
-	_check(boss.hp == 45 and not GameManager.clarity_ready and _arena._hitstop > 0.0,
-			"Clareza causa 115 de dano no Boss com hitstop")
+	_check(boss.hp == 50 and not GameManager.clarity_ready and _arena._hitstop > 0.0,
+			"Clareza causa 120 de dano no Boss com hitstop")
 	await _wait(0.14)
 	_check(get_tree().get_nodes_in_group(&"stress_projectiles").is_empty(), "Clareza corta projétil de estresse")
-	boss.take_damage(45)
+	boss.take_damage(50)
 	await _wait(0.06)
 	_check(_story.active_sequence == "victory" and GameManager.hp > 0, "Vitória começa pelo diálogo")
 
 
 func _check_endings() -> void:
 	await _tap(KEY_ESCAPE)
+	await _wait(0.08)
+	_check(GameManager.current_state == GameManager.GameState.CUTSCENE
+			and _cutscene.get_phase_name() == "CONSOLE_EXIT", "Vitória inicia saída da TV")
+	await _wait(0.65)
+	await _capture("cutscene-saida-tv")
+	await _tap(KEY_SPACE)
+	await _wait(0.08)
+	_check(_cutscene.get_phase_name() == "CONSOLE_EXIT" and _cutscene._console_step == 1
+			and AudioManager.music_player.stream == AudioManager._music.get(&"morning"),
+			"Reflexão no quarto após sair da TV")
+	await _capture("cutscene-reflexao")
+	await _tap(KEY_SPACE)
+	await _wait(0.06)
+	await _tap(KEY_SPACE)
+	await _wait(0.08)
+	_check(_cutscene.get_phase_name() == "HAPPY_MONTAGE"
+			and _cutscene._montage_fatigue_lbl.text == "FELIZ E EM PAZ",
+			"Retorno à rotina feliz antes do poema final")
+	await _wait(1.36)
+	_check(_cutscene._scene_idx >= 1, "Rotina feliz avança cenas normalmente")
+	await _capture("cutscene-rotina-feliz")
+	await _tap(KEY_SPACE)
 	await _wait(0.08)
 	_check(GameManager.current_state == GameManager.GameState.CUTSCENE
 			and _cutscene.get_phase_name() == "ENDING_POEM"
@@ -359,7 +383,7 @@ func _check_endings() -> void:
 			and _screens._stats.text.begins_with("Ciclo 3/3 (Noite)"), "Resumo de vitória após poema")
 	await _capture("vitoria")
 	await _tap(KEY_ENTER)
-	_check_room(1, "room_1_morning", 2, 4)
+	_check_room(1, "room_1_morning", 3, 6)
 	_check(GameManager.hp == 100 and GameManager.score == 0 and not GameManager.ally_active, "Reinício limpa partida")
 	await _tap(KEY_ESCAPE)
 	GameManager.damage_player(100)
@@ -388,7 +412,7 @@ func _clear_combat() -> void:
 
 
 func _walk_through_door(next_room: int) -> void:
-	_player.position = Vector2(320, 88)
+	_player.position = _arena._door.position + Vector2(0, 50)
 	await _wait(0.06)
 	_check(_arena._door_open and _arena._door_sign.text == "AVANÇAR ↑", "Porta abre após cumprir objetivos")
 	await _capture("porta-%d" % GameManager.room)

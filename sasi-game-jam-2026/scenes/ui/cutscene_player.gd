@@ -2,6 +2,7 @@ extends CanvasLayer
 
 const Retro = preload("res://scenes/ui/retro_window.gd")
 const STUDENT_SHEET: Texture2D = preload("res://assets/sprites/student_sheet.png")
+const STUDENT_CUTSCENE_SHEET: Texture2D = preload("res://assets/sprites/student_cutscene_sheet.png")
 const ROOM_MORNING_TEX: Texture2D = preload("res://assets/sprites/room_morning.png")
 const PORTRAITS_TEX: Texture2D = preload("res://assets/sprites/cutscene_portraits.png")
 const CONSOLE_TEX: Texture2D = preload("res://assets/sprites/cutscene_console.png")
@@ -14,8 +15,16 @@ const SCENE_TEXTURES: Array[Texture2D] = [
 	preload("res://assets/sprites/cutscene_bus_night.png"),
 	preload("res://assets/sprites/cutscene_sleep.png"),
 ]
+const HAPPY_SCENE_TEXTURES: Array[Texture2D] = [
+	preload("res://assets/sprites/cutscene_happy_wake.png"),
+	preload("res://assets/sprites/cutscene_happy_bus.png"),
+	preload("res://assets/sprites/cutscene_happy_class.png"),
+	preload("res://assets/sprites/cutscene_happy_lunch.png"),
+	preload("res://assets/sprites/cutscene_happy_sunset.png"),
+	preload("res://assets/sprites/cutscene_happy_sleep.png"),
+]
 
-enum Phase { NONE, MONTAGE, INTRO_POEM, CONSOLE_ENTRY, ENDING_POEM }
+enum Phase { NONE, MONTAGE, INTRO_POEM, CONSOLE_ENTRY, CONSOLE_EXIT, HAPPY_MONTAGE, ENDING_POEM }
 
 const CYCLE_TITLES: Array[String] = [
 	"SEMANA 1  •  ROTINA",
@@ -27,6 +36,23 @@ const CYCLE_PITCHES: Array[float] = [1.00, 1.14, 1.30]
 const CYCLE_BEAT_STEP: Array[float] = [1.28, 1.28, 0.64]
 const SCENE_NAMES: Array[String] = [
 	"ACORDAR", "BUSÃO LOTADO", "SALA DE AULA", "ALMOÇO NO RU", "BUSÃO DE VOLTA", "DORMIR TARDE",
+]
+const HAPPY_SCENE_NAMES: Array[String] = [
+	"ACORDAR BEM", "CAMINHO LEVE", "SALA DE AULA", "ALMOÇO COM CALMA", "FIM DE TARDE", "DORMIR EM PAZ",
+]
+const HAPPY_TIMES: Array[String] = ["07:00", "07:35", "08:30", "12:15", "17:45", "22:30"]
+const HAPPY_CAPTIONS: Array[String] = [
+	"Sol na janela, um copo d'água logo ao acordar e tempo para respirar.",
+	"No mesmo trajeto de antes, agora há espaço para olhar o céu e ir no seu ritmo.",
+	"Anotações em dia, pausas curtas e apoio dos colegas — sem se destruir por prazos.",
+	"Almoço tranquilo no RU com um amigo. Comer e conversar também faz parte do dia.",
+	"O entardecer volta dourado pela janela do ônibus. O dia termina em paz.",
+	"Computador desligado no horário. Dormir cedo para cuidar de quem você é.",
+]
+const EXIT_CAPTIONS: Array[String] = [
+	"Saio da tela no susto, ofegante no chão do meu quarto... tudo aquilo foi uma alucinação.",
+	"Fui eu quem ignorou cada sinal do corpo e da mente. A culpa por isso era minha.",
+	"Comer, beber água, descansar e dormir em paz... a partir de hoje, eu mudo a minha rotina.",
 ]
 const SCENE_TIMES: Array[Array] = [
 	["06:00", "06:40", "08:00", "12:30", "18:30", "23:30"],
@@ -119,6 +145,7 @@ var _montage_cycle_lbl: Label
 var _montage_scene_lbl: Label
 var _montage_caption: Label
 var _montage_fatigue_lbl: Label
+var _montage_sub_lbl: Label
 var _montage_bar_fill: ColorRect
 var _montage_stage: Node2D
 var _portrait_stage: Node2D
@@ -194,8 +221,8 @@ func _build_montage_ui() -> void:
 
 	_portrait_stage = Node2D.new()
 	_portrait_stage.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_portrait_stage.position = Vector2(484, 66)
-	_portrait_stage.scale = Vector2(3, 3)
+	_portrait_stage.position = Vector2(490, 72)
+	_portrait_stage.scale = Vector2(2, 2)
 	_portrait_stage.draw.connect(_draw_portrait_face)
 	_montage_root.add_child(_portrait_stage)
 
@@ -203,8 +230,8 @@ func _build_montage_ui() -> void:
 			HORIZONTAL_ALIGNMENT_CENTER)
 	Retro.block(_montage_root, Rect2(484, 206, 108, 10), Retro.INK)
 	_montage_bar_fill = Retro.block(_montage_root, Rect2(486, 208, 104, 6), Retro.MINT)
-	Retro.label(_montage_root, Rect2(476, 224, 124, 16), "Cansaço acumulado", 10, Retro.MUTED,
-			HORIZONTAL_ALIGNMENT_CENTER)
+	_montage_sub_lbl = Retro.label(_montage_root, Rect2(476, 224, 124, 16), "Cansaço acumulado", 10,
+			Retro.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 
 	var caption_box: Panel = Retro.panel(_montage_root, Rect2(32, 266, 576, 80), false, false)
 	_montage_caption = Retro.label(caption_box, Rect2(14, 10, 548, 40), "", 13, Retro.CREAM)
@@ -318,6 +345,15 @@ func play_intro(on_finished: Callable = Callable()) -> void:
 	_enter_phase(Phase.MONTAGE)
 
 
+func play_outro(on_finished: Callable = Callable()) -> void:
+	_finishing = false
+	_on_finished = on_finished
+	_elapsed = 0.0
+	show()
+	GameManager.set_state(GameManager.GameState.CUTSCENE)
+	_enter_phase(Phase.CONSOLE_EXIT)
+
+
 func play_ending_poem(on_finished: Callable = Callable()) -> void:
 	_finishing = false
 	_on_finished = on_finished
@@ -332,15 +368,17 @@ func get_phase_name() -> String:
 		Phase.MONTAGE: return "MONTAGE"
 		Phase.INTRO_POEM: return "INTRO_POEM"
 		Phase.CONSOLE_ENTRY: return "CONSOLE_ENTRY"
+		Phase.CONSOLE_EXIT: return "CONSOLE_EXIT"
+		Phase.HAPPY_MONTAGE: return "HAPPY_MONTAGE"
 		Phase.ENDING_POEM: return "ENDING_POEM"
 		_: return "NONE"
 
 
 func _enter_phase(next_phase: Phase) -> void:
 	_phase = next_phase
-	_montage_root.visible = (next_phase == Phase.MONTAGE)
+	_montage_root.visible = next_phase in [Phase.MONTAGE, Phase.HAPPY_MONTAGE]
 	_intro_poem_root.visible = (next_phase == Phase.INTRO_POEM)
-	_console_root.visible = (next_phase == Phase.CONSOLE_ENTRY)
+	_console_root.visible = next_phase in [Phase.CONSOLE_ENTRY, Phase.CONSOLE_EXIT]
 	_ending_poem_root.visible = (next_phase == Phase.ENDING_POEM)
 	match next_phase:
 		Phase.MONTAGE:
@@ -364,6 +402,20 @@ func _enter_phase(next_phase: Phase) -> void:
 			_console_step = 0
 			_console_elapsed = 0.0
 			_console_caption.text = CONSOLE_CAPTIONS[0]
+		Phase.CONSOLE_EXIT:
+			AudioManager.stop_music()
+			_console_step = 0
+			_console_elapsed = 0.0
+			_console_caption.text = EXIT_CAPTIONS[0]
+		Phase.HAPPY_MONTAGE:
+			_cycle = 0
+			_scene_idx = 0
+			_beat_elapsed = 0.0
+			_pause_before_poem = false
+			_pause_elapsed = 0.0
+			if AudioManager.music_player.stream != AudioManager._music.get(&"morning") or not AudioManager.music_player.playing:
+				AudioManager.play_track(&"morning", -8.0, 1.0)
+			_refresh_montage_labels()
 		Phase.ENDING_POEM:
 			AudioManager.play_track(&"hope", -7.5, 1.0)
 			_poem_elapsed = 0.0
@@ -374,6 +426,18 @@ func _enter_phase(next_phase: Phase) -> void:
 
 
 func _refresh_montage_labels() -> void:
+	if _phase == Phase.HAPPY_MONTAGE:
+		_montage_cycle_lbl.text = "NOVA ROTINA  •  EQUILÍBRIO"
+		_montage_cycle_lbl.add_theme_color_override(&"font_color", Retro.MINT)
+		_montage_scene_lbl.text = "%s  •  %s" % [HAPPY_TIMES[_scene_idx], HAPPY_SCENE_NAMES[_scene_idx]]
+		_montage_caption.text = HAPPY_CAPTIONS[_scene_idx]
+		_montage_fatigue_lbl.text = "FELIZ E EM PAZ"
+		_montage_fatigue_lbl.add_theme_color_override(&"font_color", Retro.MINT)
+		_montage_bar_fill.size = Vector2(104.0, 6.0)
+		_montage_bar_fill.set_deferred(&"size", Vector2(104.0, 6.0))
+		_montage_bar_fill.color = Retro.MINT
+		_montage_sub_lbl.text = "Bem-estar cultivado"
+		return
 	_montage_cycle_lbl.text = CYCLE_TITLES[_cycle]
 	_montage_cycle_lbl.add_theme_color_override(&"font_color", CYCLE_COLORS[_cycle])
 	var time_str: String = (SCENE_TIMES[_cycle] as Array)[_scene_idx]
@@ -386,6 +450,7 @@ func _refresh_montage_labels() -> void:
 	_montage_bar_fill.size = Vector2(fill_w, 6.0)
 	_montage_bar_fill.set_deferred(&"size", Vector2(fill_w, 6.0))
 	_montage_bar_fill.color = CYCLE_COLORS[_cycle]
+	_montage_sub_lbl.text = "Cansaço acumulado"
 
 
 func _process(delta: float) -> void:
@@ -397,10 +462,17 @@ func _process(delta: float) -> void:
 			_tick_montage(delta)
 			_montage_stage.queue_redraw()
 			_portrait_stage.queue_redraw()
+		Phase.HAPPY_MONTAGE:
+			_tick_happy_montage(delta)
+			_montage_stage.queue_redraw()
+			_portrait_stage.queue_redraw()
 		Phase.INTRO_POEM:
 			_tick_poem(delta, _intro_poem_labels, _intro_poem_author)
 		Phase.CONSOLE_ENTRY:
 			_tick_console(delta)
+			_console_stage.queue_redraw()
+		Phase.CONSOLE_EXIT:
+			_tick_console_exit(delta)
 			_console_stage.queue_redraw()
 		Phase.ENDING_POEM:
 			_tick_poem(delta, _ending_poem_labels, _ending_poem_author)
@@ -434,6 +506,24 @@ func _tick_montage(delta: float) -> void:
 		_refresh_montage_labels()
 
 
+func _tick_happy_montage(delta: float) -> void:
+	if _pause_before_poem:
+		_pause_elapsed += delta
+		if _pause_elapsed >= 0.35:
+			_enter_phase(Phase.ENDING_POEM)
+		return
+	_beat_elapsed += delta
+	if _beat_elapsed >= 1.32:
+		_beat_elapsed -= 1.32
+		_scene_idx += 1
+		if _scene_idx >= 6:
+			_scene_idx = 5
+			_pause_before_poem = true
+			_pause_elapsed = 0.0
+			return
+		_refresh_montage_labels()
+
+
 func _tick_poem(delta: float, labels: Array[Label], author: Label) -> void:
 	_poem_elapsed += delta
 	var target: int = mini(labels.size() + 1, int(_poem_elapsed / 0.34) + 1)
@@ -461,6 +551,23 @@ func _advance_console() -> void:
 	_console_caption.text = CONSOLE_CAPTIONS[_console_step]
 	if _console_step == 1:
 		AudioManager.play_console_boot()
+
+
+func _tick_console_exit(delta: float) -> void:
+	_console_elapsed += delta
+	if _console_elapsed >= 2.7:
+		_advance_console_exit()
+
+
+func _advance_console_exit() -> void:
+	_console_step += 1
+	_console_elapsed = 0.0
+	if _console_step >= 3:
+		_enter_phase(Phase.HAPPY_MONTAGE)
+		return
+	_console_caption.text = EXIT_CAPTIONS[_console_step]
+	if _console_step == 1:
+		AudioManager.play_track(&"morning", -8.0, 1.0)
 
 
 func _input(event: InputEvent) -> void:
@@ -495,6 +602,10 @@ func _advance() -> void:
 				_enter_phase(Phase.CONSOLE_ENTRY)
 		Phase.CONSOLE_ENTRY:
 			_advance_console()
+		Phase.CONSOLE_EXIT:
+			_advance_console_exit()
+		Phase.HAPPY_MONTAGE:
+			_enter_phase(Phase.ENDING_POEM)
 		Phase.ENDING_POEM:
 			if _poem_reveal_count <= _ending_poem_labels.size():
 				_poem_reveal_count = _ending_poem_labels.size() + 1
@@ -534,13 +645,50 @@ func _on_state_changed(state: GameManager.GameState) -> void:
 func _draw_montage_scene() -> void:
 	const W: float = 208.0
 	const H: float = 103.0
-	var beat: float = sin(_elapsed * TAU * (2.6 + float(_cycle) * 0.6))
-	var jitter_y: float = roundf(beat) if _scene_idx in [1, 4] else 0.0
-	_montage_stage.draw_texture_rect(SCENE_TEXTURES[_scene_idx], Rect2(0.0, jitter_y, W, H), false)
+	var happy: bool = _phase == Phase.HAPPY_MONTAGE
+	var beat: float = sin(_elapsed * TAU * (1.8 if happy else (2.6 + float(_cycle) * 0.6)))
+	var jitter_y: float = roundf(beat * (0.4 if happy else 1.0)) if _scene_idx in [1, 4] else 0.0
+	var tex: Texture2D = HAPPY_SCENE_TEXTURES[_scene_idx] if happy else SCENE_TEXTURES[_scene_idx]
+	_montage_stage.draw_texture_rect(tex, Rect2(0.0, jitter_y, W, H), false)
+
+	if happy:
+		match _scene_idx:
+			0:
+				var sun_a: float = 0.09 + 0.04 * beat
+				_montage_stage.draw_colored_polygon(PackedVector2Array([
+					Vector2(138, 12), Vector2(182, 12), Vector2(126, 98), Vector2(70, 98),
+				]), Color(1.0, 0.92, 0.65, sun_a))
+			1, 4:
+				var scroll: float = fmod(_elapsed * 54.0, 240.0)
+				for idx: int in range(5):
+					var cx: float = fposmod(float(idx) * 52.0 - scroll, 240.0) - 18.0
+					var col: Color = Color(1.0, 0.88, 0.72, 0.38) if _scene_idx == 4 else Color(1.0, 1.0, 1.0, 0.55)
+					_montage_stage.draw_rect(Rect2(roundf(cx), 22 + (idx % 2) * 8, 16, 4), col)
+				for strap_x: int in range(28, 190, 32):
+					var sway: float = roundf(sin(_elapsed * 3.0 + float(strap_x)) * 1.2)
+					_montage_stage.draw_rect(Rect2(strap_x, 14 + jitter_y, 2, 7), Color("#d49b39"))
+					_montage_stage.draw_rect(Rect2(strap_x - 2 + sway, 21 + jitter_y, 6, 5), Color("#f4cf6e"))
+			2:
+				_montage_stage.draw_circle(Vector2(186, 18), 3.0, Color(0.55, 1.0, 0.86, 0.25 + 0.15 * beat))
+			3:
+				for steam: int in range(4):
+					var phase: float = fmod(_elapsed * 0.9 + float(steam) * 0.25, 1.0)
+					var sx: float = 76.0 + float(steam % 2) * 52.0 + sin(_elapsed * 3.0 + float(steam)) * 2.0
+					var sy: float = 54.0 - phase * 12.0
+					_montage_stage.draw_rect(Rect2(roundf(sx), roundf(sy), 2, 2), Color(1.0, 0.96, 0.88, (1.0 - phase) * 0.65))
+			5:
+				for z_idx: int in range(3):
+					var t: float = fmod(_elapsed * 0.55 + float(z_idx) * 0.33, 1.0)
+					var zx: float = 42.0 + float(z_idx) * 6.0 + t * 8.0
+					var zy: float = 38.0 - t * 18.0
+					var zcol: Color = Color(0.65, 0.96, 0.92, sin(t * PI) * 0.85)
+					_montage_stage.draw_rect(Rect2(roundf(zx), roundf(zy), 4, 1), zcol)
+					_montage_stage.draw_rect(Rect2(roundf(zx + 2), roundf(zy + 1), 1, 1), zcol)
+					_montage_stage.draw_rect(Rect2(roundf(zx), roundf(zy + 2), 4, 1), zcol)
+		return
 
 	match _scene_idx:
 		0:
-			# Despertador vibrando sobre o criado-mudo em pixel art.
 			var shake_x: float = roundf(beat * 1.4)
 			_montage_stage.draw_rect(Rect2(117 + shake_x, 45, 14, 11), Retro.INK)
 			_montage_stage.draw_rect(Rect2(118 + shake_x, 46, 12, 9), Color("#d64256"))
@@ -566,25 +714,21 @@ func _draw_montage_scene() -> void:
 					var rx: float = fmod(float(drop) * 19.0 + _elapsed * 48.0, W)
 					var ry: float = fmod(float(drop) * 11.0 + _elapsed * 68.0, 42.0) + 18.0
 					_montage_stage.draw_rect(Rect2(roundf(rx), roundf(ry), 1, 3), Color(0.62, 0.78, 0.98, 0.55))
-			# Alças amarelas do ônibus balançando na batida.
 			for strap_x: int in range(28, 190, 32):
 				var sway: float = roundf(sin(_elapsed * 5.0 + float(strap_x)) * 2.0)
 				_montage_stage.draw_rect(Rect2(strap_x, 14 + jitter_y, 2, 7), Color("#c48f31"))
 				_montage_stage.draw_rect(Rect2(strap_x - 2 + sway, 21 + jitter_y, 6, 5), Color("#f4cf6e"))
 		2:
-			# Pilha crescente de tarefas nos ciclos 1 e 2 sobre a carteira direita.
 			var paper_count: int = 1 + _cycle * 4
 			for paper: int in range(paper_count):
-				_montage_stage.draw_rect(Rect2(148, 66 - paper * 2, 18, 2),
+				_montage_stage.draw_rect(Rect2(142, 63 - paper * 2, 18, 2),
 						Color("#faf0dd") if paper % 2 == 0 else Color("#d2c4b4"))
 		3:
-			# Celular piscando com notificações urgentes na mesa do RU.
-			_montage_stage.draw_rect(Rect2(132, 57, 10, 6), Retro.INK)
-			_montage_stage.draw_rect(Rect2(133, 58, 8, 4), Color("#26293d"))
+			_montage_stage.draw_rect(Rect2(128, 57, 10, 6), Retro.INK)
+			_montage_stage.draw_rect(Rect2(129, 58, 8, 4), Color("#26293d"))
 			if _cycle > 0 and fmod(_elapsed, 0.5) < 0.25:
-				_montage_stage.draw_rect(Rect2(134, 54, 6, 3), Color("#ff6e84"))
+				_montage_stage.draw_rect(Rect2(130, 54, 6, 3), Color("#ff6e84"))
 		5:
-			# Olhos abertos na escuridão / insônia nos ciclos 1 e 2.
 			if _cycle >= 1:
 				_montage_stage.draw_rect(Rect2(32, 49, 2, 2), Retro.INK)
 				_montage_stage.draw_rect(Rect2(37, 49, 2, 2), Retro.INK)
@@ -600,16 +744,19 @@ func _draw_montage_scene() -> void:
 
 
 func _draw_portrait_face() -> void:
-	var tremor_x: float = roundf(sin(_elapsed * 26.0)) if _cycle == 2 else 0.0
-	var src := Rect2(float(_cycle * 36), 0.0, 36.0, 36.0)
-	_portrait_stage.draw_texture_rect_region(PORTRAITS_TEX, Rect2(tremor_x, 0.0, 36.0, 36.0), src)
+	var frame_idx: int = 3 if _phase == Phase.HAPPY_MONTAGE else _cycle
+	var tremor_x: float = roundf(sin(_elapsed * 26.0)) if (_phase == Phase.MONTAGE and _cycle == 2) else 0.0
+	var src := Rect2(float(frame_idx * 48), 0.0, 48.0, 48.0)
+	_portrait_stage.draw_texture_rect_region(PORTRAITS_TEX, Rect2(tremor_x, 0.0, 48.0, 48.0), src)
 	# Piscar sutil sincronizado ao relógio.
 	if fmod(_elapsed, 3.2) > 3.04:
-		var ey: float = 15.0 + float(_cycle)
-		_portrait_stage.draw_rect(Rect2(13.0 + tremor_x, ey, 3.0, 2.0), Color("#d6aa9a"))
-		_portrait_stage.draw_rect(Rect2(20.0 + tremor_x, ey, 3.0, 2.0), Color("#d6aa9a"))
-		_portrait_stage.draw_rect(Rect2(13.0 + tremor_x, ey + 1.0, 3.0, 1.0), Retro.INK)
-		_portrait_stage.draw_rect(Rect2(20.0 + tremor_x, ey + 1.0, 3.0, 1.0), Retro.INK)
+		var droop: int = 0 if frame_idx in [0, 3] else (1 if frame_idx == 1 else 2)
+		var ey: float = 19.0 + float(droop)
+		var lid_col: Color = Color("#ffd9b3") if frame_idx == 3 else Color("#d6aa9a")
+		_portrait_stage.draw_rect(Rect2(17.0 + tremor_x, ey, 4.0, 3.0), lid_col)
+		_portrait_stage.draw_rect(Rect2(27.0 + tremor_x, ey, 4.0, 3.0), lid_col)
+		_portrait_stage.draw_rect(Rect2(17.0 + tremor_x, ey + 2.0, 4.0, 1.0), Retro.INK)
+		_portrait_stage.draw_rect(Rect2(27.0 + tremor_x, ey + 2.0, 4.0, 1.0), Retro.INK)
 
 
 func _draw_console_scene() -> void:
@@ -619,8 +766,48 @@ func _draw_console_scene() -> void:
 
 	var tv_rect: Rect2 = Rect2(185, 27, 40, 30)
 	var tv_center: Vector2 = tv_rect.get_center()
+
+	if _phase == Phase.CONSOLE_EXIT:
+		var student_pos: Vector2 = Vector2(78, 74)
+		var pose_frame: int = 1
+		if _console_step == 0:
+			var emerge: float = clampf(_console_elapsed / 1.9, 0.0, 1.0)
+			student_pos = tv_center.lerp(Vector2(78, 74), 1.0 - pow(1.0 - emerge, 2.0))
+			_console_stage.draw_texture_rect(ROOM_MORNING_TEX, tv_rect, false, Color("#d4fff8"))
+			for ring: int in range(5):
+				var phase: float = fmod(_console_elapsed * 1.7 + float(ring) * 0.2, 1.0)
+				var radius: float = lerpf(8.0, 74.0, phase)
+				var ring_col: Color = Retro.GOLD if ring % 2 == 0 else Retro.MINT
+				ring_col.a = sin(phase * PI) * (1.0 - emerge * 0.5) * 0.85
+				_console_stage.draw_arc(tv_center, radius, 0.0, TAU, 32, ring_col, 2.0)
+			_console_stage.draw_colored_polygon(PackedVector2Array([
+				Vector2(185, 27), Vector2(185, 57), Vector2(44, 108), Vector2(44, 44),
+			]), Color(0.58, 0.96, 0.92, (1.0 - emerge * 0.65) * 0.25))
+		elif _console_step == 1:
+			pose_frame = 0
+			_console_stage.draw_rect(tv_rect, Color("#151a26"))
+			_console_stage.draw_colored_polygon(PackedVector2Array([
+				Vector2(20, 14), Vector2(68, 14), Vector2(150, 114), Vector2(12, 114),
+			]), Color(0.95, 0.84, 0.58, 0.12))
+		else:
+			pose_frame = 3
+			_console_stage.draw_rect(tv_rect, Color("#151a26"))
+			var sun_alpha: float = clampf(0.16 + _console_elapsed * 0.04, 0.16, 0.28)
+			_console_stage.draw_rect(Rect2(20, 14, 48, 34), Color(0.55, 0.80, 0.96, 0.45))
+			_console_stage.draw_colored_polygon(PackedVector2Array([
+				Vector2(20, 14), Vector2(68, 14), Vector2(170, 116), Vector2(10, 116),
+			]), Color(1.0, 0.90, 0.58, sun_alpha))
+			_console_stage.draw_circle(student_pos + Vector2(6, 0), 16.0, Color(0.56, 1.0, 0.86, 0.24))
+
+		_console_stage.draw_texture_rect_region(
+				STUDENT_CUTSCENE_SHEET,
+				Rect2((student_pos - Vector2(16.0, 18.0)).round(), Vector2(32, 32)),
+				Rect2(pose_frame * 32, 0, 32, 32)
+		)
+		return
+
 	if _console_step >= 1:
-		# Tela CRT liga exibindo miniatura 32-bit da Sala da Manhã + scanlines + LED verde.
+		# Tela CRT liga exibindo miniatura da Sala da Manhã + scanlines + LED verde.
 		_console_stage.draw_texture_rect(ROOM_MORNING_TEX, tv_rect, false, Color("#d4fff8"))
 		for sy: int in range(int(tv_rect.position.y), int(tv_rect.end.y), 3):
 			_console_stage.draw_rect(Rect2(tv_rect.position.x, float(sy), tv_rect.size.x, 1),
@@ -631,8 +818,7 @@ func _draw_console_scene() -> void:
 			Vector2(185, 27), Vector2(185, 57), Vector2(40, 108), Vector2(40, 44),
 		]), Color(0.45, 0.94, 0.96, glow_strength * 0.35))
 
-	# Estudante real do jogo (colunas 0..21 sem espada) sentado no tapete com controle.
-	var student_pos: Vector2 = Vector2(78, 76)
+	var student_pos: Vector2 = Vector2(78, 74)
 	if _console_step == 2:
 		var pull: float = clampf(_console_elapsed / 2.2, 0.0, 1.0)
 		student_pos = student_pos.lerp(tv_center, pull * pull)
@@ -649,9 +835,9 @@ func _draw_console_scene() -> void:
 			_console_stage.draw_rect(Rect2(mp, Vector2(2, 2)), Color(0.75, 1.0, 0.95, 1.0 - t * 0.4))
 
 	_console_stage.draw_texture_rect_region(
-			STUDENT_SHEET,
-			Rect2((student_pos - Vector2(10.0, 16.0)).round(), Vector2(21, 32)),
-			Rect2(0, 0, 21, 32)
+			STUDENT_CUTSCENE_SHEET,
+			Rect2((student_pos - Vector2(16.0, 18.0)).round(), Vector2(32, 32)),
+			Rect2(32 if _console_step == 0 else 64, 0, 32, 32)
 	)
 	_console_stage.draw_rect(Rect2(roundf(student_pos.x + 8.0), roundf(student_pos.y + 3.0), 8, 4),
 			Color("#2c3448"))

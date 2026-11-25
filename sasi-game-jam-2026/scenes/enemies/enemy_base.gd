@@ -13,7 +13,7 @@ enum EnemyType {
 const Player = preload("res://scenes/player/player.gd")
 const Projectile = preload("res://scenes/enemies/enemy_projectile.gd")
 const Puddle = preload("res://scenes/enemies/slow_puddle.gd")
-const MAX_HP: Array[int] = [34, 30, 44, 340]
+const MAX_HP: Array[int] = [34, 30, 44, 380]
 const SPEEDS: Array[float] = [39.0, 68.0, 47.0, 25.0]
 const COLORS: Array[Color] = [
 	Color("#9c75ba"), Color("#ff9b52"), Color("#ca83ff"), Color("#ff586d"),
@@ -73,15 +73,15 @@ func _update_fog() -> void:
 		modulate.a = 1.0
 		return
 	var cycle: int = GameManager.get_cycle()
-	_fog_amount = 0.80 if cycle == 1 else (0.44 if cycle == 2 else 0.10)
-	var fog_tint: Color = Color("#261d3a")
-	if enemy_type == EnemyType.DEADLINE:
-		fog_tint = Color("#4a2936")
-	elif enemy_type == EnemyType.SELF_CRITICISM:
-		fog_tint = Color("#36224b")
+	_fog_amount = 1.0 if cycle == 1 else (0.50 if cycle == 2 else 0.08)
+	var fog_tint: Color = Color("#030206")
+	if cycle == 2:
+		fog_tint = Color("#161024")
+	elif cycle >= 3:
+		fog_tint = Color("#221833")
 	_flash_material.set_shader_parameter(&"fog_amount", _fog_amount)
 	_flash_material.set_shader_parameter(&"fog_color", fog_tint)
-	modulate.a = 0.88 if cycle == 1 else (0.94 if cycle == 2 else 1.0)
+	modulate.a = 0.96 if cycle <= 2 else 1.0
 
 
 func _physics_process(delta: float) -> void:
@@ -146,9 +146,9 @@ func _check_contact() -> void:
 		return
 	match enemy_type:
 		EnemyType.PROCRASTINATION:
-			player.apply_enemy_contact(global_position, 7, 0.0, 8.0)
+			player.apply_enemy_contact(global_position, 8, 0.0, 10.0, 8.0, 0.0)
 		EnemyType.DEADLINE:
-			player.apply_enemy_contact(global_position, 8, 7.0, 0.0)
+			player.apply_enemy_contact(global_position, 9, 10.0, 0.0, 10.0, 1.4)
 
 
 func _attack_interval() -> float:
@@ -156,7 +156,7 @@ func _attack_interval() -> float:
 
 
 func is_phase_two() -> bool:
-	return is_boss() and hp <= 170
+	return is_boss() and hp <= 190
 
 
 func _update_attack(delta: float, target: Vector2) -> void:
@@ -275,7 +275,7 @@ func _warning_strength() -> float:
 
 func get_effective_damage(amount: int, is_clarity: bool) -> int:
 	if amount > 0 and is_clarity and is_boss():
-		return 115
+		return 120
 	return maxi(0, amount)
 
 func take_damage(amount: int, is_clarity: bool = false,
@@ -311,9 +311,16 @@ func _draw() -> void:
 		var source: Rect2 = Rect2(Vector2(_sprite.frame * size.x, 0), size)
 		for index: int in range(_trail.size() - 1, -1, -1):
 			draw_set_transform(to_local(_trail[index]), 0.0, Vector2(-1 if _sprite.flip_h else 1, 1))
-			draw_texture_rect_region(_sprite.texture, Rect2(-size * 0.5, size), source,
-					Color(0.78, 0.49, 1.0, 0.20 - index * 0.045), false, true)
+			var trail_col: Color = Color(0.02, 0.015, 0.03, 0.28 - index * 0.06) if _fog_amount >= 0.95 else (
+					Color(0.16, 0.10, 0.24, 0.22 - index * 0.05) if _fog_amount >= 0.35
+					else Color(0.78, 0.49, 1.0, 0.20 - index * 0.045))
+			draw_texture_rect_region(_sprite.texture, Rect2(-size * 0.5, size), source, trail_col, false, true)
 		draw_set_transform(Vector2.ZERO)
+	if not boss and _fog_amount >= 0.95:
+		for mote: int in range(3):
+			var phase: float = _motion_time * 3.1 + float(mote) * TAU / 3.0
+			var offset: Vector2 = Vector2(cos(phase) * 9.0, sin(phase * 1.4) * 5.0 - 4.0).round()
+			draw_rect(Rect2(offset, Vector2(2, 2)), Color(0.02, 0.015, 0.03, 0.78))
 	var warning: float = _warning_strength()
 	if warning > 0.0:
 		if boss:

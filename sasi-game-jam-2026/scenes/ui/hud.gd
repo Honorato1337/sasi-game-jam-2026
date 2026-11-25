@@ -29,6 +29,7 @@ var _breathing: Panel
 var _breath: ProgressBar
 var _clarity: Panel
 var _vignette: ShaderMaterial
+var _player_ref: Player
 var _pulse: float
 
 
@@ -81,6 +82,7 @@ func _ready() -> void:
 
 
 func bind_player(player: Player) -> void:
+	_player_ref = player
 	player.breathing_progressed.connect(_on_breathing_progressed)
 
 
@@ -148,7 +150,21 @@ func _process(delta: float) -> void:
 		low = low or critical
 		_meters[row].modulate.a = 0.45 if critical and blink else 1.0
 		_names[row].modulate = Color("#ff8c9d") if critical and blink else Color.WHITE
-	_alert.text = "OFEGANTE!" if GameManager.is_exhausted else ("PILAR BAIXO" if low else "")
+	var status_msg: String = ""
+	var slowed: bool = is_instance_valid(_player_ref) and _player_ref.has_slow_debuff()
+	if GameManager.is_exhausted:
+		status_msg = "OFEGANTE! [R]"
+	elif GameManager.mind_state == GameManager.MindState.OVERLOAD:
+		status_msg = "SOBRECARGA • LENTO"
+	elif GameManager.body < 40.0:
+		status_msg = "CORPO FRACO • DANO -"
+	elif GameManager.mind_state == GameManager.MindState.ANXIOUS:
+		status_msg = "ANSIOSO • ATAQUE -"
+	elif slowed:
+		status_msg = "LENTIDÃO"
+	elif low:
+		status_msg = "PILAR BAIXO"
+	_alert.text = status_msg
 	_alert.modulate.a = 1.0 if blink else 0.62
 	var glow: float = 1.03 + 0.16 * sin(_pulse * TAU)
 	_clarity.modulate = Color(glow, glow, 1.0)

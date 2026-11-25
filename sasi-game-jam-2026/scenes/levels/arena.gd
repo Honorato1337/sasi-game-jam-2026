@@ -28,43 +28,53 @@ const ROOM_DIALOGUES: Array[String] = [
 ]
 const ROOM_LIGHT: Array[Color] = [Color("#ffc370"), Color("#f1a875"), Color("#9599ff")]
 const MORNING_C1: Array[Enemy.EnemyType] = [
-	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.DEADLINE,
-	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.DEADLINE,
+	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
+	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.SELF_CRITICISM,
 ]
 const AFTERNOON_C1: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.SELF_CRITICISM,
-	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.SELF_CRITICISM,
+	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE,
+	Enemy.EnemyType.PROCRASTINATION,
 ]
 const NIGHT_C1: Array[Enemy.EnemyType] = [
+	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE,
 ]
 const MORNING_C2: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
+	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE,
 ]
 const AFTERNOON_C2: Array[Enemy.EnemyType] = [
+	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.PROCRASTINATION,
 ]
 const NIGHT_C2: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
+	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
+	Enemy.EnemyType.SELF_CRITICISM,
 ]
 const MORNING_C3: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.SELF_CRITICISM,
 	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.PROCRASTINATION,
+	Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.SELF_CRITICISM,
+	Enemy.EnemyType.DEADLINE,
 ]
 const AFTERNOON_C3: Array[Enemy.EnemyType] = [
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
 	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.SELF_CRITICISM,
-	Enemy.EnemyType.PROCRASTINATION,
+	Enemy.EnemyType.PROCRASTINATION, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
+	Enemy.EnemyType.SELF_CRITICISM, Enemy.EnemyType.DEADLINE, Enemy.EnemyType.PROCRASTINATION,
 ]
 const SPAWN_POINTS: Array[Vector2] = [
-	Vector2(178, 127), Vector2(485, 147), Vector2(322, 102), Vector2(498, 245),
-	Vector2(150, 241), Vector2(461, 104), Vector2(197, 98),
+	Vector2(250, 345), Vector2(710, 350), Vector2(345, 225), Vector2(615, 225),
+	Vector2(480, 145), Vector2(210, 165), Vector2(750, 165), Vector2(820, 275),
+	Vector2(140, 275), Vector2(620, 430), Vector2(340, 430), Vector2(480, 460),
 ]
-const ENTRY: Vector2 = Vector2(320, 247)
+const ENTRY: Vector2 = Vector2(480, 310)
 
 
 class Drop:
@@ -90,10 +100,12 @@ class Spark:
 
 var _door_open: bool = false
 var _remaining: int
+var _first_wave_count: int = 0
 var _second_wave_delay: float
 var _second_wave: Array[Enemy.EnemyType] = []
 var _boss: Enemy
 var _ally: Ally
+var _decor_obstacles: Node2D
 var _reinforcement_delay: float
 var _hitstop: float
 var _hitstop_pending: bool
@@ -124,12 +136,16 @@ var _effects_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	_decor_obstacles = Node2D.new()
+	_decor_obstacles.name = "DecorObstacles"
+	add_child(_decor_obstacles)
+	move_child(_decor_obstacles, _stations.get_index())
 	var dust_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	dust_rng.seed = 1212
-	for index: int in range(18):
-		var cell: Vector2 = Vector2(index % 6, floori(index / 6.0))
-		_dust_origins.append(Vector2(38, 67) + cell * Vector2(94, 85)
-				+ Vector2(dust_rng.randf_range(12, 78), dust_rng.randf_range(10, 62)))
+	for index: int in range(28):
+		var cell: Vector2 = Vector2(index % 7, floori(index / 7.0))
+		_dust_origins.append(Vector2(42, 74) + cell * Vector2(126, 106)
+				+ Vector2(dust_rng.randf_range(12, 98), dust_rng.randf_range(10, 82)))
 	_atmosphere.draw.connect(_draw_atmosphere)
 	_effects.draw.connect(_draw_effects)
 	_effects_rng.randomize()
@@ -149,81 +165,97 @@ func _play_intro_cutscene() -> void:
 	_cutscene.play_intro(GameManager.start_new_run)
 
 
+func _snap_camera() -> void:
+	_camera.position = _player.position.clamp(Vector2(320, 180), Vector2(640, 360)).round()
+
+
 func _setup_room(room_index: int) -> void:
 	_clear_room()
 	GameManager.enter_room(room_index)
 	_courtyard.texture = ROOM_ART[room_index - 1]
-	_player.position = ENTRY
+	_player.position = Vector2(480, 390) if GameManager.is_final_room() else ENTRY
 	_player.reset_run()
+	_snap_camera()
 	var is_final: bool = GameManager.is_final_room()
 	_door.visible = not is_final
 	$NorthDoor/CollisionShape2D.set_deferred(&"disabled", is_final)
 	_door_open = false
 	_update_door_visual()
-	_reinforcement_delay = 16.0
+	_reinforcement_delay = 10.0
 	match room_index:
 		1:
-			_add_station(Station.StationType.WATER_SNACK, Vector2(133, 131))
-			_add_station(Station.StationType.REST_SPOT, Vector2(520, 150))
-			_start_waves(MORNING_C1, 2)
+			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 250))
+			_add_station(Station.StationType.REST_SPOT, Vector2(680, 250))
+			_add_obstacle(Vector2(77, 67), Vector2(98, 58), Vector2.ZERO, _decor_obstacles)
+			_add_obstacle(Vector2(858, 67), Vector2(68, 18), Vector2.ZERO, _decor_obstacles)
+			_start_waves(MORNING_C1, 3)
 		2:
-			_add_station(Station.StationType.WATER_SNACK, Vector2(143, 127))
-			var colleague: Station = _add_station(Station.StationType.CLASSMATE_NPC, Vector2(502, 210))
+			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 235))
+			var colleague: Station = _add_station(Station.StationType.CLASSMATE_NPC, Vector2(680, 300))
 			colleague.classmate_recruited.connect(_on_classmate_recruited.bind(colleague.position))
-			_add_obstacle(Vector2(44, 100), Vector2(68, 18), Vector2(0, 87))
-			_add_obstacle(Vector2(596, 100), Vector2(68, 18), Vector2(0, 87))
-			_start_waves(AFTERNOON_C1, 2)
+			_add_obstacle(Vector2(98, 158), Vector2(68, 20), Vector2(0, 180))
+			_add_obstacle(Vector2(862, 158), Vector2(68, 20), Vector2(0, 180))
+			_start_waves(AFTERNOON_C1, 3)
 		3:
-			_add_station(Station.StationType.WATER_SNACK, Vector2(138, 138))
-			_add_station(Station.StationType.REST_SPOT, Vector2(502, 146))
-			_start_waves(NIGHT_C1, 2)
+			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 250))
+			_add_station(Station.StationType.REST_SPOT, Vector2(680, 250))
+			_add_obstacle(Vector2(696, 63), Vector2(68, 18), Vector2.ZERO, _decor_obstacles)
+			_start_waves(NIGHT_C1, 4)
 		4:
-			_add_station(Station.StationType.WATER_SNACK, Vector2(133, 131))
-			_add_station(Station.StationType.REST_SPOT, Vector2(520, 150))
-			_start_waves(MORNING_C2, 2)
+			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 250))
+			_add_station(Station.StationType.REST_SPOT, Vector2(680, 250))
+			_add_obstacle(Vector2(77, 67), Vector2(98, 58), Vector2.ZERO, _decor_obstacles)
+			_add_obstacle(Vector2(858, 67), Vector2(68, 18), Vector2.ZERO, _decor_obstacles)
+			_start_waves(MORNING_C2, 4)
 		5:
-			_add_station(Station.StationType.WATER_SNACK, Vector2(143, 127))
-			_add_station(Station.StationType.REST_SPOT, Vector2(502, 210))
-			_add_obstacle(Vector2(44, 100), Vector2(68, 18), Vector2(0, 87))
-			_add_obstacle(Vector2(596, 100), Vector2(68, 18), Vector2(0, 87))
-			_start_waves(AFTERNOON_C2, 3)
+			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 235))
+			_add_station(Station.StationType.REST_SPOT, Vector2(680, 300))
+			_add_obstacle(Vector2(98, 158), Vector2(68, 20), Vector2(0, 180))
+			_add_obstacle(Vector2(862, 158), Vector2(68, 20), Vector2(0, 180))
+			_start_waves(AFTERNOON_C2, 4)
 		6:
-			_add_station(Station.StationType.WATER_SNACK, Vector2(138, 138))
-			_add_station(Station.StationType.REST_SPOT, Vector2(502, 146))
-			_start_waves(NIGHT_C2, 3)
+			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 250))
+			_add_station(Station.StationType.REST_SPOT, Vector2(680, 250))
+			_add_obstacle(Vector2(696, 63), Vector2(68, 18), Vector2.ZERO, _decor_obstacles)
+			_start_waves(NIGHT_C2, 5)
 		7:
-			_add_station(Station.StationType.WATER_SNACK, Vector2(133, 131))
-			_add_station(Station.StationType.REST_SPOT, Vector2(520, 150))
-			_start_waves(MORNING_C3, 3)
+			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 250))
+			_add_station(Station.StationType.REST_SPOT, Vector2(680, 250))
+			_add_obstacle(Vector2(77, 67), Vector2(98, 58), Vector2.ZERO, _decor_obstacles)
+			_add_obstacle(Vector2(858, 67), Vector2(68, 18), Vector2.ZERO, _decor_obstacles)
+			_start_waves(MORNING_C3, 5)
 		8:
-			_add_station(Station.StationType.WATER_SNACK, Vector2(143, 127))
-			_add_station(Station.StationType.REST_SPOT, Vector2(502, 210))
-			_add_obstacle(Vector2(44, 100), Vector2(68, 18), Vector2(0, 87))
-			_add_obstacle(Vector2(596, 100), Vector2(68, 18), Vector2(0, 87))
-			_start_waves(AFTERNOON_C3, 3)
+			_add_station(Station.StationType.WATER_SNACK, Vector2(280, 235))
+			_add_station(Station.StationType.REST_SPOT, Vector2(680, 300))
+			_add_obstacle(Vector2(98, 158), Vector2(68, 20), Vector2(0, 180))
+			_add_obstacle(Vector2(862, 158), Vector2(68, 20), Vector2(0, 180))
+			_start_waves(AFTERNOON_C3, 6)
 		9:
-			_add_station(Station.StationType.ROOM_PILLAR, Vector2(320, 116), "MENTE")
-			_add_station(Station.StationType.ROOM_PILLAR, Vector2(158, 270), "CORPO")
-			_add_station(Station.StationType.ROOM_PILLAR, Vector2(482, 270), "DESCANSO")
+			_add_station(Station.StationType.ROOM_PILLAR, Vector2(480, 145), "MENTE")
+			_add_station(Station.StationType.ROOM_PILLAR, Vector2(265, 375), "CORPO")
+			_add_station(Station.StationType.ROOM_PILLAR, Vector2(695, 375), "DESCANSO")
 			_remaining = 1
-			_boss = _spawn_enemy(Enemy.EnemyType.BURNOUT_BOSS, Vector2(320, 175))
+			_boss = _spawn_enemy(Enemy.EnemyType.BURNOUT_BOSS, Vector2(480, 255))
 			_boss.pillar_drained.connect(_on_pillar_drained)
 			_boss.boss_pulsed.connect(_start_shake.bind(2.0, 0.18))
 	if GameManager.ally_active:
-		_spawn_ally(ENTRY)
+		_spawn_ally(_player.position)
 	_refresh_objective()
 	_story.play_sequence(ROOM_DIALOGUES[room_index - 1])
 
 
 func _clear_room() -> void:
 	_set_hitstop(0.0)
-	for container: Node2D in [_enemy_container, _ally_container, _stations]:
+	for container: Node2D in [_enemy_container, _ally_container, _stations, _decor_obstacles]:
+		if container == null:
+			continue
 		for child: Node in container.get_children():
 			container.remove_child(child)
 			child.queue_free()
 	_boss = null
 	_ally = null
 	_remaining = 0
+	_first_wave_count = 0
 	_second_wave.clear()
 	_drops.clear()
 	_messages.clear()
@@ -234,10 +266,11 @@ func _clear_room() -> void:
 
 func _start_waves(types: Array[Enemy.EnemyType], first_wave_size: int) -> void:
 	_remaining = types.size()
+	_first_wave_count = first_wave_size
 	_second_wave.assign(types.slice(first_wave_size))
 	_second_wave_delay = 5.0
 	for index: int in range(first_wave_size):
-		_spawn_enemy(types[index], SPAWN_POINTS[index])
+		_spawn_enemy(types[index], SPAWN_POINTS[index % SPAWN_POINTS.size()])
 
 
 func _add_station(type: Station.StationType, point: Vector2, pillar: String = "CORPO") -> Station:
@@ -260,7 +293,8 @@ func _add_station(type: Station.StationType, point: Vector2, pillar: String = "C
 	return station
 
 
-func _add_obstacle(point: Vector2, dimensions: Vector2, second_offset: Vector2 = Vector2.ZERO) -> void:
+func _add_obstacle(point: Vector2, dimensions: Vector2, second_offset: Vector2 = Vector2.ZERO,
+		parent_node: Node2D = null) -> void:
 	var body: StaticBody2D = StaticBody2D.new()
 	body.position = point
 	var rectangle: RectangleShape2D = RectangleShape2D.new()
@@ -273,7 +307,7 @@ func _add_obstacle(point: Vector2, dimensions: Vector2, second_offset: Vector2 =
 		second.shape = rectangle
 		second.position = second_offset
 		body.add_child(second)
-	_stations.add_child(body)
+	(parent_node if parent_node != null else _stations).add_child(body)
 
 
 func _spawn_enemy(type: Enemy.EnemyType, point: Vector2) -> Enemy:
@@ -304,12 +338,12 @@ func _finish_boss() -> void:
 				node.queue_free()
 		for projectile: Node in get_tree().get_nodes_in_group(&"enemy_projectiles"):
 			projectile.queue_free()
-		_story.play_sequence("victory", _play_ending_poem)
+		_story.play_sequence("victory", _play_outro)
 
 
-func _play_ending_poem() -> void:
+func _play_outro() -> void:
 	if GameManager.hp > 0:
-		_cutscene.play_ending_poem(_win)
+		_cutscene.play_outro(_win)
 
 
 func _win() -> void:
@@ -345,7 +379,7 @@ func _physics_process(delta: float) -> void:
 	for node: Node in _enemy_container.get_children():
 		var enemy: Enemy = node as Enemy
 		if enemy != null:
-			enemy.position = enemy.position.clamp(Vector2(22, 22), Vector2(618, 338))
+			enemy.position = enemy.position.clamp(Vector2(30, 56), Vector2(930, 512))
 	_update_drops(delta)
 	if not GameManager.is_final_room():
 		_update_waves(delta)
@@ -362,7 +396,7 @@ func _update_waves(delta: float) -> void:
 	if _second_wave_delay <= 0.0 or _remaining == _second_wave.size():
 		var index: int = 0
 		for type: Enemy.EnemyType in _second_wave:
-			_spawn_enemy(type, SPAWN_POINTS[3 + index])
+			_spawn_enemy(type, SPAWN_POINTS[(_first_wave_count + index) % SPAWN_POINTS.size()])
 			index += 1
 		_second_wave.clear()
 
@@ -371,10 +405,10 @@ func _update_reinforcements(delta: float) -> void:
 	if not is_instance_valid(_boss) or _boss.is_queued_for_deletion() or not _boss.is_phase_two():
 		return
 	_reinforcement_delay = maxf(0.0, _reinforcement_delay - delta)
-	if _reinforcement_delay == 0.0 and _remaining < 2:
+	if _reinforcement_delay == 0.0 and _remaining < 3:
 		_remaining += 1
 		_spawn_enemy(Enemy.EnemyType.PROCRASTINATION, SPAWN_POINTS[0])
-		_reinforcement_delay = 18.0
+		_reinforcement_delay = 12.0
 
 
 func _update_door() -> void:
@@ -390,7 +424,7 @@ func _update_door() -> void:
 		if open:
 			_float_text(_door.position + Vector2(0, 66), "PORTA ABERTA!", Color("#afff9d"))
 			AudioManager.play_door_open()
-	if _door_open and _player.position.distance_squared_to(_door.position) <= 24.0 * 24.0:
+	if _door_open and _player.position.distance_squared_to(_door.position) <= 26.0 * 26.0:
 		_setup_room(GameManager.room + 1)
 
 
@@ -512,6 +546,13 @@ func _process(delta: float) -> void:
 		if _hitstop == 0.0:
 			_set_hitstop(0.0)
 	_ambient_time = fposmod(_ambient_time + delta, TAU * 5.0)
+	if is_instance_valid(_player) and GameManager.current_state in [
+			GameManager.GameState.PLAYING, GameManager.GameState.DIALOGUE, GameManager.GameState.PAUSED]:
+		var target_cam: Vector2 = _player.position.clamp(Vector2(320, 180), Vector2(640, 360))
+		if _camera.position.distance_squared_to(target_cam) > 90.0 * 90.0:
+			_camera.position = target_cam.round()
+		else:
+			_camera.position = _camera.position.lerp(target_cam, 1.0 - exp(-delta * 10.0)).round()
 	_shake_remaining = maxf(0.0, _shake_remaining - delta) if GameManager.screen_shake_enabled else 0.0
 	var phase: int = ceili(_shake_remaining * 30.0)
 	var strength: float = minf(_shake_strength, float(phase))
@@ -543,42 +584,50 @@ func _draw_atmosphere() -> void:
 	match turn:
 		1:
 			var beam_col: Color = Color("#ffd38a") if cycle == 1 else (Color("#d2b0c2") if cycle == 2 else Color("#bd9eff"))
-			for beam_x: float in [186.0, 462.0]:
-				_draw_sunbeam(beam_x, 46.0, 72.0, beam_col, 0.032 + shimmer * 0.015)
-			_draw_halo(Vector2(122, 42), 24.0, beam_col, 0.025 + shimmer * 0.010)
-			_draw_halo(Vector2(558, 44), 32.0, beam_col, 0.026 + shimmer * 0.010)
+			for beam_x: float in [194.0, 620.0]:
+				_draw_sunbeam(beam_x, 54.0, 86.0, beam_col, 0.032 + shimmer * 0.015)
+			_draw_halo(Vector2(142, 52), 28.0, beam_col, 0.025 + shimmer * 0.010)
+			_draw_halo(Vector2(858, 60), 34.0, beam_col, 0.026 + shimmer * 0.010)
 		2:
 			var beam_col: Color = Color("#f2b872") if cycle == 1 else (Color("#d98b88") if cycle == 2 else Color("#b880ff"))
-			_draw_sunbeam(196.0, 46.0, 74.0, beam_col, 0.026 + shimmer * 0.012)
+			for beam_x: float in [188.0, 596.0]:
+				_draw_sunbeam(beam_x, 54.0, 86.0, beam_col, 0.026 + shimmer * 0.012)
 			for screen_pos: Vector2 in [
-				Vector2(44, 92), Vector2(44, 179), Vector2(596, 92), Vector2(596, 179),
+				Vector2(98, 148), Vector2(98, 328), Vector2(862, 148), Vector2(862, 328),
 			]:
-				var screen_tint: Color = Color("#74e5ff") if screen_pos.x < 320.0 else Color("#ffcb80")
+				var screen_tint: Color = Color("#74e5ff") if screen_pos.x < 480.0 else Color("#ffcb80")
 				if cycle == 2:
-					screen_tint = Color("#ffa354") if screen_pos.x < 320.0 else Color("#ff6f69")
+					screen_tint = Color("#ffa354") if screen_pos.x < 480.0 else Color("#ff6f69")
 				elif cycle == 3:
-					screen_tint = Color("#ff5a76") if screen_pos.x < 320.0 else Color("#ca83ff")
-				_draw_halo(screen_pos, 32.0, screen_tint, 0.028 + shimmer * 0.012)
+					screen_tint = Color("#ff5a76") if screen_pos.x < 480.0 else Color("#ca83ff")
+				_draw_halo(screen_pos, 36.0, screen_tint, 0.028 + shimmer * 0.012)
 		3:
-			_draw_halo(Vector2(476, 22), 36.0, Color("#f8c170"), 0.038 + 0.015 * sin(_ambient_time * 5.0))
+			_draw_halo(Vector2(648, 30), 42.0, Color("#f8c170"), 0.038 + 0.015 * sin(_ambient_time * 5.0))
 			if GameManager.is_final_room():
-				for step: int in range(6):
-					var frac: float = float(step) / 6.0
-					var width: float = 34.0 + frac * 14.0
+				for step: int in range(7):
+					var frac: float = float(step) / 7.0
+					var width: float = 48.0 + frac * 18.0
 					var moon_color := Color(0.58, 0.74, 0.96, (1.0 - frac) * (0.045 + shimmer * 0.015))
-					_atmosphere.draw_rect(Rect2(320.0 - width * 0.5, 44.0 + frac * 70.0, width, 12.0), moon_color)
-				for idx: int in range(4):
-					var candle: Vector2 = [Vector2(30, 300), Vector2(600, 300), Vector2(30, 102), Vector2(600, 106)][idx]
+					_atmosphere.draw_rect(Rect2(480.0 - width * 0.5, 50.0 + frac * 98.0, width, 14.0), moon_color)
+				for idx: int in range(6):
+					var candle: Vector2 = [
+						Vector2(34, 134), Vector2(922, 134),
+						Vector2(34, 292), Vector2(922, 292),
+						Vector2(34, 462), Vector2(922, 462),
+					][idx]
 					var flicker: float = 0.032 + 0.014 * sin(_ambient_time * 7.0 + float(idx) * 1.7)
-					_draw_halo(candle, 28.0, Color("#ffbd6b"), flicker)
+					_draw_halo(candle, 30.0, Color("#ffbd6b"), flicker)
 				_draw_ley_pulses()
 			else:
-				for candle_idx: int in range(2):
-					var candle: Vector2 = [Vector2(30, 300), Vector2(600, 300)][candle_idx]
-					_draw_halo(candle, 26.0, Color("#ffbd6b"), 0.032 + 0.012 * sin(_ambient_time * 6.0))
+				for idx: int in range(4):
+					var candle: Vector2 = [
+						Vector2(34, 180), Vector2(922, 180),
+						Vector2(34, 462), Vector2(922, 462),
+					][idx]
+					_draw_halo(candle, 28.0, Color("#ffbd6b"), 0.032 + 0.012 * sin(_ambient_time * 6.0 + float(idx)))
 
 	if _door.visible and _door_open:
-		_draw_halo(_door.position + Vector2(0, 14), 36.0, Color("#c9ff7a"),
+		_draw_halo(_door.position + Vector2(0, 14), 40.0, Color("#c9ff7a"),
 				0.045 + 0.014 * sin(_ambient_time * 4.0))
 	for index: int in range(_dust_origins.size()):
 		var phase: float = index * 2.39996
@@ -598,11 +647,11 @@ func _draw_sunbeam(origin_x: float, start_y: float, length: float, color: Color,
 
 
 func _draw_ley_pulses() -> void:
-	var center := Vector2(320, 175)
+	var center := Vector2(480, 255)
 	var conduits: Array = [
-		[Vector2(320, 116), GameManager.mind, Color("#8de5ff")],
-		[Vector2(158, 270), GameManager.body, Color("#80f1a8")],
-		[Vector2(482, 270), GameManager.rest, Color("#ffe091")],
+		[Vector2(480, 145), GameManager.mind, Color("#8de5ff")],
+		[Vector2(265, 375), GameManager.body, Color("#80f1a8")],
+		[Vector2(695, 375), GameManager.rest, Color("#ffe091")],
 	]
 	for entry_idx: int in range(conduits.size()):
 		var entry: Array = conduits[entry_idx]
@@ -639,7 +688,7 @@ func _draw_effects() -> void:
 	for floating: FloatingText in _messages:
 		var width: float = font.get_string_size(floating.content, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 		var point: Vector2 = (floating.point - Vector2(width / 2.0, 0)).round()
-		point.x = clampf(point.x, 10.0, 630.0 - width)
+		point.x = clampf(point.x, 22.0, 938.0 - width)
 		var opacity: float = minf(1.0, floating.remaining * 3.0)
 		_effects.draw_string_outline(font, point, floating.content, HORIZONTAL_ALIGNMENT_LEFT, -1, 12,
 				4, Color(0.10, 0.06, 0.14, opacity))

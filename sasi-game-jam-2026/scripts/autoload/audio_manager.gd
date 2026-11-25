@@ -5,7 +5,7 @@ const Player = preload("res://scenes/player/player.gd")
 const SFX_POOL_SIZE: int = 8
 const SAMPLE_RATE: int = 22050
 const WAVE_SIZE: int = 1024
-const SYNTHESIS_BUDGET_US: int = 2500
+const SYNTHESIS_BUDGET_US: int = 5000
 const SYNTHESIS_BLOCK_SIZE: int = 512
 const MUSIC_VOLUME_DB: float = -7.5
 

@@ -14,23 +14,23 @@
 blend_mode = 1
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal"]
-size = Vector2(640, 16)
+size = Vector2(960, 16)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_vertical"]
-size = Vector2(16, 360)
+size = Vector2(20, 540)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_door"]
-size = Vector2(39, 14)
+size = Vector2(44, 14)
 
 [node name="Arena" type="Node2D"]
 script = ExtResource("1_arena")
 
 [node name="Backdrop" type="ColorRect" parent="."]
 z_index = -3
-offset_left = -8.0
-offset_top = -8.0
-offset_right = 648.0
-offset_bottom = 368.0
+offset_left = -16.0
+offset_top = -16.0
+offset_right = 976.0
+offset_bottom = 556.0
 mouse_filter = 2
 color = Color(0.0784314, 0.0627451, 0.109804, 1)
 
@@ -47,27 +47,31 @@ z_index = -1
 [node name="Walls" type="StaticBody2D" parent="."]
 
 [node name="North" type="CollisionShape2D" parent="Walls"]
-position = Vector2(320, 8)
+position = Vector2(480, 36)
 shape = SubResource("RectangleShape2D_horizontal")
 
 [node name="South" type="CollisionShape2D" parent="Walls"]
-position = Vector2(320, 352)
+position = Vector2(480, 532)
 shape = SubResource("RectangleShape2D_horizontal")
 
 [node name="West" type="CollisionShape2D" parent="Walls"]
-position = Vector2(8, 180)
+position = Vector2(10, 270)
 shape = SubResource("RectangleShape2D_vertical")
 
 [node name="East" type="CollisionShape2D" parent="Walls"]
-position = Vector2(632, 180)
+position = Vector2(950, 270)
 shape = SubResource("RectangleShape2D_vertical")
 
 [node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(320, 180)
+position = Vector2(480, 310)
+limit_left = 0
+limit_top = 0
+limit_right = 960
+limit_bottom = 540
 
 [node name="NorthDoor" type="StaticBody2D" parent="."]
 visible = false
-position = Vector2(320, 32)
+position = Vector2(480, 42)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="NorthDoor"]
 shape = SubResource("RectangleShape2D_door")
@@ -110,7 +114,7 @@ z_index = 5
 [node name="Enemies" type="Node2D" parent="."]
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
-position = Vector2(320, 247)
+position = Vector2(480, 310)
 
 [node name="HUD" parent="." instance=ExtResource("3_hud")]
 

@@ -193,7 +193,23 @@ func reset_game() -> void:
 func get_move_speed_multiplier() -> float:
 	if is_exhausted:
 		return 0.55
-	return 0.75 if body < 40.0 else 1.0
+	if body < 40.0:
+		return 0.75
+	if mind_state == MindState.OVERLOAD:
+		return 0.85
+	return 1.0
+
+
+func get_attack_cooldown_multiplier() -> float:
+	if mind_state == MindState.OVERLOAD:
+		return 1.50
+	if mind_state == MindState.ANXIOUS:
+		return 1.25
+	return 1.0
+
+
+func get_dash_cooldown_multiplier() -> float:
+	return 1.35 if mind_state == MindState.OVERLOAD else 1.0
 
 
 func get_breathe_duration() -> float:
@@ -231,9 +247,12 @@ func _reset_run(new_state: GameState) -> void:
 func tick_pillars(delta: float, is_breathing: bool = false, near_ally: bool = false) -> void:
 	if current_state != GameState.PLAYING or delta <= 0.0:
 		return
-	modify_body(-0.60 * delta)
+	var cycle: int = get_cycle()
+	modify_body(-(0.60 + 0.25 * float(cycle - 1)) * delta)
 	if ally_active and near_ally:
 		modify_mind(3.5 * delta)
+	elif cycle > 1 and not is_breathing:
+		modify_mind(-0.38 * float(cycle - 1) * delta)
 	var remaining: float = delta
 	if is_exhausted:
 		var spent: float = minf(remaining, _exhaustion_remaining)
