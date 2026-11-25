@@ -747,6 +747,8 @@ func _update_door() -> void:
 		_door_open = open
 		_update_door_visual()
 		if open:
+			_hud.show_door_open_notice()
+			_float_text(_player.position + Vector2(0, -24), "PORTA ABERTA ↑", Color("#afff9d"))
 			_float_text(_door.position + Vector2(0, 66), "PORTA ABERTA!", Color("#afff9d"))
 			AudioManager.play_door_open()
 	if _door_open and _player.position.distance_squared_to(_door.position) <= 26.0 * 26.0:

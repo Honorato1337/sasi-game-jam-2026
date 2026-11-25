@@ -206,17 +206,27 @@ func _on_habits_updated(_sleep_rank: int, _nutrition_rank: int, _ally_count: int
 
 
 func show_room_transition(banner_text: String) -> void:
+	_show_banner(banner_text, Retro.GOLD, 1.85, true)
+
+
+func show_door_open_notice() -> void:
+	_show_banner("PORTA ABERTA! SUBA ATÉ A SAÍDA ↑", Retro.MINT, 2.40, false)
+
+
+func _show_banner(banner_text: String, color: Color, duration: float, with_veil: bool) -> void:
 	if not is_inside_tree():
 		return
-	_transition_veil.color.a = 0.36
+	if with_veil:
+		_transition_veil.color.a = 0.36
 	if banner_text.is_empty():
 		_banner_box.hide()
 		_banner_timer = 0.0
 		return
 	_banner_lbl.text = banner_text
+	_banner_lbl.add_theme_color_override(&"font_color", color)
 	_banner_box.modulate.a = 1.0
 	_banner_box.show()
-	_banner_timer = 1.85
+	_banner_timer = duration
 
 
 func _on_breathing_progressed(progress: float, _breathing: bool) -> void:
