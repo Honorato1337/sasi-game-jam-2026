@@ -101,5 +101,5 @@ godot --headless --path sasi-game-jam-2026 tools/validate_t018.tscn
 
 - **Equipe:** Anna, Luiz Fernando, Ri Jardim e Jackieline.
 - **Tipografia:** *Pixelify Sans* (SIL OFL 1.1).
-- **Literatura (Domínio Público):** *"Cansaço"* — Álvaro de Campos (Fernando Pessoa); *"A esperança é a coisa com penas"* — Emily Dickinson (tradução livre original).
+- **Literatura:** *"Cansaço"* — Álvaro de Campos (Fernando Pessoa); *"O Tempo"* — Mário Quintana.
 - **Desenvolvimento e Uso de IA:** Documentados integralmente em [`CREDITS_AND_AI.md`](CREDITS_AND_AI.md) conforme as regras do edital da **SASI: Game Jam 2026 (UFAC)**.

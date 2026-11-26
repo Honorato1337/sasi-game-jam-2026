@@ -425,7 +425,7 @@ func _check_endings() -> void:
 	_check(GameManager.current_state == GameManager.GameState.CUTSCENE
 			and _cutscene.get_phase_name() == "ENDING_POEM"
 			and AudioManager.music_player.stream == AudioManager._music.get(&"hope"),
-			"Poema final de Emily Dickinson com trilha serena")
+			"Poema final de Mário Quintana com trilha serena")
 	await _tap(KEY_SPACE)
 	await _wait(0.06)
 	await _capture("poema-final")

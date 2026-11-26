@@ -282,7 +282,7 @@ func _build_credits() -> void:
 			"Arte pixel 32-bit e Bossa Nova procedural originais.\nDesenvolvimento com apoio de Antigravity e OpenAI Codex.",
 			11, Retro.CREAM)
 	_centered(_credits_window, 108, 24,
-			"Poemas em Domínio Público: Álvaro de Campos (F. Pessoa)\ne Emily Dickinson (tradução livre).",
+			"Poemas: Álvaro de Campos (Fernando Pessoa)\ne Mário Quintana (\"O Tempo\").",
 			10, Retro.MUTED)
 	Retro.block(_credits_window, Rect2(16, 140, 418, 72), Retro.INK)
 	_centered(_credits_window, 144, 18, "SAÚDE EM JOGO", 12, Retro.GOLD)

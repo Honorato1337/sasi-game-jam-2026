@@ -38,21 +38,21 @@ const SCENE_NAMES: Array[String] = [
 	"ACORDAR", "BUSÃO LOTADO", "SALA DE AULA", "ALMOÇO NO RU", "BUSÃO DE VOLTA", "DORMIR TARDE",
 ]
 const HAPPY_SCENE_NAMES: Array[String] = [
-	"ACORDAR BEM", "CAMINHO LEVE", "SALA DE AULA", "ALMOÇO COM CALMA", "FIM DE TARDE", "DORMIR EM PAZ",
+	"BEBENDO ÁGUA", "ACEITANDO A ROTINA", "FOCO NA AULA", "ALMOÇO COM CALMA", "HORA DO TREINO", "DORMIR BEM",
 ]
 const HAPPY_TIMES: Array[String] = ["07:00", "07:35", "08:30", "12:15", "17:45", "22:30"]
 const HAPPY_CAPTIONS: Array[String] = [
-	"Sol na janela, um copo d'água logo ao acordar e tempo para respirar.",
-	"No mesmo trajeto de antes, agora há espaço para olhar o céu e ir no seu ritmo.",
-	"Anotações em dia, pausas curtas e apoio dos colegas — sem se destruir por prazos.",
-	"Almoço tranquilo no RU com um amigo. Comer e conversar também faz parte do dia.",
-	"O entardecer volta dourado pela janela do ônibus. O dia termina em paz.",
-	"Computador desligado no horário. Dormir cedo para cuidar de quem você é.",
+	"A rotina continua cedo, mas agora começa bebendo água fresca e respirando fundo.",
+	"O ônibus e o caminho são os mesmos — a diferença é aceitar a rotina sem se cobrar além da conta.",
+	"As aulas e deveres seguem no seu tempo, um passo de cada vez e com água sempre por perto.",
+	"Pausa de verdade no RU com os amigos. Comer bem também faz parte da jornada.",
+	"Fim de tarde reservado para treinar, movimentar o corpo e descarregar a tensão do dia.",
+	"Tela desligada e mente em paz. Dormir bem na hora certa para viver o amanhã sem pressa.",
 ]
 const EXIT_CAPTIONS: Array[String] = [
 	"Saio da tela no susto, ofegante no chão do meu quarto... tudo aquilo foi uma alucinação.",
-	"Fui eu quem ignorou cada sinal do corpo e da mente. A culpa por isso era minha.",
-	"Comer, beber água, descansar e dormir em paz... a partir de hoje, eu mudo a minha rotina.",
+	"A rotina não vai desaparecer, mas fui eu quem esqueceu de cuidar de mim dentro dela.",
+	"Beber água, treinar, descansar e dormir bem... aceitar a rotina é aprender a viver em equilíbrio.",
 ]
 const SCENE_TIMES: Array[Array] = [
 	["06:00", "06:40", "08:00", "12:30", "18:30", "23:30"],
@@ -100,20 +100,14 @@ const CONSOLE_CAPTIONS: Array[String] = [
 	"E quando percebo... eu entrei dentro do jogo.",
 ]
 const HOPE_LINES: Array[String] = [
-	"\"A esperança\" é a coisa com penas —",
-	"Que pousa na alma em silêncio —",
-	"E canta a melodia sem palavras —",
-	"E jamais se cala — por completo —",
-	"",
-	"E mais doce — no vendaval — se escuta —",
-	"E cruel há de ser a tempestade —",
-	"Para abater o pequeno pássaro",
-	"Que a tantos manteve aquecidos —",
-	"",
-	"Eu a ouvi na terra mais gelada —",
-	"E sobre o mar mais estranho —",
-	"Contudo — nunca — no extremo,",
-	"Pediu de mim — uma migalha —",
+	"A vida é uns deveres que nós trouxemos para fazer em casa.",
+	"Quando se vê, já são 6 horas: há tempo...",
+	"Quando se vê, já é 6ª-feira...",
+	"Quando se vê, passaram 60 anos!",
+	"Agora, é tarde demais para ser reprovado...",
+	"E se me dessem — um dia — uma outra oportunidade,",
+	"eu nem olhava o relógio",
+	"seguia sempre em frente...",
 ]
 
 var _phase: Phase = Phase.NONE
@@ -326,30 +320,30 @@ func _build_ending_poem_ui() -> void:
 	_ending_stage.draw.connect(_draw_ending_scene)
 	_ending_poem_root.add_child(_ending_stage)
 
-	Retro.panel(_ending_poem_root, Rect2(36, 16, 424, 328), true, true)
-	var title: Label = Retro.label(_ending_poem_root, Rect2(48, 26, 400, 18),
-			"A ESPERANÇA É A COISA COM PENAS", 13, Retro.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	Retro.panel(_ending_poem_root, Rect2(20, 16, 452, 328), true, true)
+	var title: Label = Retro.label(_ending_poem_root, Rect2(32, 28, 428, 18),
+			"O TEMPO  •  SEGUIR EM FRENTE", 13, Retro.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	title.add_theme_font_override(&"font", Retro.FONT_BOLD)
-	Retro.divider(_ending_poem_root, Rect2(64, 46, 368, 1))
+	Retro.divider(_ending_poem_root, Rect2(52, 50, 388, 1))
 
 	_ending_poem_labels.clear()
-	var cursor_y: int = 54
+	var cursor_y: int = 68
 	for line: String in HOPE_LINES:
 		if line.is_empty():
 			cursor_y += 10
 			continue
-		var lbl: Label = Retro.label(_ending_poem_root, Rect2(48, cursor_y, 400, 17), line, 12,
+		var lbl: Label = Retro.label(_ending_poem_root, Rect2(28, cursor_y, 436, 18), line, 11,
 				Retro.CREAM, HORIZONTAL_ALIGNMENT_CENTER)
 		lbl.modulate.a = 0.0
 		_ending_poem_labels.append(lbl)
-		cursor_y += 16
+		cursor_y += 22
 
 	_ending_poem_schedule = _build_poem_schedule(HOPE_LINES, 0.65, 1.60, 1.05)
 
-	_ending_poem_author = Retro.label(_ending_poem_root, Rect2(48, 278, 400, 18),
-			"— Emily Dickinson (tradução livre)", 11, Retro.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	_ending_poem_author = Retro.label(_ending_poem_root, Rect2(32, 260, 428, 18),
+			"— Mário Quintana", 11, Retro.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	_ending_poem_author.modulate.a = 0.0
-	_ending_poem_prompt = Retro.label(_ending_poem_root, Rect2(48, 314, 400, 16),
+	_ending_poem_prompt = Retro.label(_ending_poem_root, Rect2(32, 314, 428, 16),
 			"[ESPAÇO / CLIQUE] Continuar    •    [ESC] Pular", 10, Retro.MUTED,
 			HORIZONTAL_ALIGNMENT_CENTER)
 
@@ -693,7 +687,7 @@ func _draw_montage_scene() -> void:
 	const H: float = 103.0
 	var happy: bool = _phase == Phase.HAPPY_MONTAGE
 	var beat: float = sin(_elapsed * TAU * (1.8 if happy else (2.6 + float(_cycle) * 0.6)))
-	var jitter_y: float = roundf(beat * (0.4 if happy else 1.0)) if _scene_idx in [1, 4] else 0.0
+	var jitter_y: float = roundf(beat * (0.4 if happy else 1.0)) if ((happy and _scene_idx == 1) or (not happy and _scene_idx in [1, 4])) else 0.0
 	var tex: Texture2D = HAPPY_SCENE_TEXTURES[_scene_idx] if happy else SCENE_TEXTURES[_scene_idx]
 	_montage_stage.draw_texture_rect(tex, Rect2(0.0, jitter_y, W, H), false)
 
@@ -704,7 +698,15 @@ func _draw_montage_scene() -> void:
 				_montage_stage.draw_colored_polygon(PackedVector2Array([
 					Vector2(138, 12), Vector2(182, 12), Vector2(126, 98), Vector2(70, 98),
 				]), Color(1.0, 0.92, 0.65, sun_a))
-			1, 4:
+				# Gotas e brilhos de hidratação subindo ao beber água fresca.
+				for drop_i: int in range(3):
+					var dt: float = fmod(_elapsed * 1.1 + float(drop_i) * 0.33, 1.0)
+					var dx: float = 96.0 + float(drop_i) * 7.0 + sin(_elapsed * 3.2 + float(drop_i)) * 1.5
+					var dy: float = 47.0 - dt * 11.0
+					var dcol := Color("#8de5ff" if drop_i % 2 == 0 else "#80f1a8")
+					dcol.a = sin(dt * PI) * 0.85
+					_montage_stage.draw_rect(Rect2(roundf(dx), roundf(dy), 2, 2), dcol)
+			1:
 				var scroll: float = fmod(_elapsed * 42.0, 220.0)
 				for pane: Vector2i in [Vector2i(9, 63), Vector2i(75, 131), Vector2i(143, 197)]:
 					for idx: int in range(3):
@@ -712,8 +714,7 @@ func _draw_montage_scene() -> void:
 						var left_x: float = clampf(roundf(raw_x), float(pane.x), float(pane.y))
 						var right_x: float = clampf(roundf(raw_x) + 12.0, float(pane.x), float(pane.y))
 						if right_x > left_x:
-							var col: Color = Color(1.0, 0.90, 0.72, 0.36) if _scene_idx == 4 else Color(1.0, 1.0, 1.0, 0.42)
-							_montage_stage.draw_rect(Rect2(left_x, 22 + (idx % 2) * 5, right_x - left_x, 3), col)
+							_montage_stage.draw_rect(Rect2(left_x, 22 + (idx % 2) * 5, right_x - left_x, 3), Color(1.0, 1.0, 1.0, 0.42))
 				for strap_x: int in range(28, 190, 32):
 					var sway: float = roundf(sin(_elapsed * 3.0 + float(strap_x)) * 1.2)
 					_montage_stage.draw_rect(Rect2(strap_x, 14 + jitter_y, 2, 7), Color("#d49b39"))
@@ -726,6 +727,21 @@ func _draw_montage_scene() -> void:
 					var sx: float = 76.0 + float(steam % 2) * 52.0 + sin(_elapsed * 3.0 + float(steam)) * 2.0
 					var sy: float = 54.0 - phase * 12.0
 					_montage_stage.draw_rect(Rect2(roundf(sx), roundf(sy), 2, 2), Color(1.0, 0.96, 0.88, (1.0 - phase) * 0.65))
+			4:
+				# Animação de treino com halteres subindo/descendo e brilhos de energia corporal.
+				var lift_y: float = roundf(sin(_elapsed * 4.8) * 2.5)
+				for hx: float in [75.0, 107.0]:
+					_montage_stage.draw_rect(Rect2(hx, 61.0 + lift_y, 8, 6), Retro.INK)
+					_montage_stage.draw_rect(Rect2(hx + 1.0, 62.0 + lift_y, 2, 4), Color("#56657a"))
+					_montage_stage.draw_rect(Rect2(hx + 5.0, 62.0 + lift_y, 2, 4), Color("#56657a"))
+					_montage_stage.draw_rect(Rect2(hx + 3.0, 63.0 + lift_y, 2, 2), Color("#c2d1de"))
+				for sp_i: int in range(4):
+					var st: float = fmod(_elapsed * 1.2 + float(sp_i) * 0.25, 1.0)
+					var spx: float = 78.0 + float(sp_i) * 11.0
+					var spy: float = 52.0 - st * 10.0
+					var scol := Color("#80f1a8" if sp_i % 2 == 0 else "#ffe091")
+					scol.a = sin(st * PI) * 0.82
+					_montage_stage.draw_rect(Rect2(roundf(spx), roundf(spy), 2, 2), scol)
 			5:
 				for z_idx: int in range(3):
 					var t: float = fmod(_elapsed * 0.55 + float(z_idx) * 0.33, 1.0)

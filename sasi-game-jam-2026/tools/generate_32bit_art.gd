@@ -2969,7 +2969,7 @@ func _draw_bedroom_scene(mode: StringName, student_sp: Image) -> void:
 		rect(42, row_y, 54, 2, "548a8c" if is_happy else ("34466b" if is_sleep else "5a7b82"))
 
 	if is_sleep:
-		desk(128, 54, true, "8de5ff" if is_happy else "6ec2de")
+		desk(128, 54, not is_happy, "1b1e2b" if is_happy else "6ec2de")
 		if is_happy:
 			rect(118, 45, 8, 10, INK)
 			rect(119, 46, 6, 8, "59e2f5")
@@ -3004,14 +3004,99 @@ func _draw_bedroom_scene(mode: StringName, student_sp: Image) -> void:
 			rect(37, 48, 3, 1, INK)
 			rect(34, 50, 4, 1, "a8565d")
 	else:
-		_stamp_32x32_on_art(student_sp, 46 if is_happy else 42, 38)
+		_stamp_32x32_on_art(student_sp, 76 if is_happy else 42, 38)
 		rect(112, 54, 26, 24, INK)
 		timber(113, 55, 24, 22)
 		if is_happy:
-			rect(118, 42, 8, 12, INK)
-			rect(119, 43, 6, 10, "59e2f5")
-			rect(120, 44, 2, 6, "ffffff")
+			# Jarra d'água sobre o criado-mudo + estudante bebendo um copo grande de água fresca.
+			rect(120, 40, 10, 14, INK)
+			rect(121, 41, 8, 12, "3898b8")
+			rect(122, 43, 6, 9, "59e2f5")
+			rect(123, 44, 2, 7, "ffffff")
+			rect(129, 43, 3, 7, INK)
+			rect(129, 44, 2, 5, "3898b8")
+			# Braço erguido e copo d'água junto ao rosto do estudante.
+			rect(98, 53, 6, 4, INK)
+			rect(99, 54, 4, 2, "f5c6a3")
+			rect(101, 47, 7, 9, INK)
+			rect(102, 48, 5, 7, "59e2f5")
+			rect(103, 48, 2, 6, "e8ffff")
+			rect(102, 47, 5, 1, "ffffff")
 		potted_plant(182, 52, false)
+
+
+func _draw_training_scene(student_sp: Image, classmate_sp: Image) -> void:
+	const TW: int = 208
+	const TH: int = 103
+	art = Image.create_empty(TW, TH, false, Image.FORMAT_RGBA8)
+	# 1. Céu de fim de tarde dourado sobre o parque/campus com dithering Bayer.
+	var sky_bands: Array[Color] = [
+		Color("2a2142"), Color("593659"), Color("9e5158"),
+		Color("db7e56"), Color("f5b66e"), Color("ffe596"),
+	]
+	var bayer: Array[float] = [0.0, 0.5, 0.75, 0.25]
+	for y in range(0, 52):
+		var ny: float = float(y) / 51.0
+		var level: float = ny * float(sky_bands.size() - 1)
+		var bi: int = mini(int(level), sky_bands.size() - 2)
+		var frac: float = level - float(bi)
+		for x in range(0, TW):
+			var idx: int = bi + (1 if frac > bayer[((x & 1) * 2) + (y & 1)] else 0)
+			art.set_pixel(x, y, sky_bands[idx])
+	# Sol poente suave e nuvens iluminadas.
+	_paint_outlined_circle(art, 168, 24, 11.0, 11.0, Color("ffe89c"), Color("f2a65e"), Color("fff8db"))
+	for cld: Vector3i in [Vector3i(24, 14, 26), Vector3i(82, 18, 32), Vector3i(136, 12, 24)]:
+		rect(cld.x, cld.y, cld.z, 4, "f5b66e")
+		rect(cld.x + 3, cld.y - 2, cld.z - 6, 3, "ffe596")
+	# Silhueta de árvores e blocos do campus ao fundo.
+	for bldg: Vector4i in [Vector4i(10, 32, 24, 20), Vector4i(38, 36, 20, 16), Vector4i(180, 34, 22, 18)]:
+		rect(bldg.x, bldg.y, bldg.z, bldg.w, "2c223d")
+		rect(bldg.x + 4, bldg.y + 4, 3, 3, "ffe091")
+		rect(bldg.x + 11, bldg.y + 4, 3, 3, "ffe091")
+	for tr: Vector3i in [Vector3i(68, 38, 12), Vector3i(118, 36, 14), Vector3i(152, 39, 11)]:
+		_paint_outlined_circle(art, tr.x, tr.y, float(tr.z), float(tr.z) * 0.75,
+				Color("477352"), Color("284538"), Color("76ab72"))
+
+	# 2. Gramado, mureta baixa e pista de treino ao ar livre.
+	rect(0, 50, TW, 3, INK)
+	rect(0, 52, TW, 14, "39634a")
+	rect(0, 53, TW, 4, "52875e")
+	rect(0, 65, TW, 3, INK)
+	rect(0, 67, TW, 36, "7d4b44")
+	rect(0, 68, TW, 4, "996054")
+	for stripe_x in range(8, TW, 22):
+		rect(stripe_x, 84, 12, 2, "b87d68")
+
+	# 3. Banco à esquerda com garrafa d'água e toalha + barras paralelas de calistenia à direita.
+	rect(14, 56, 36, 16, INK)
+	timber(16, 58, 32, 5)
+	timber(16, 64, 32, 4)
+	rect(20, 61, 10, 6, "80f1a8")
+	rect(36, 50, 6, 10, INK)
+	rect(37, 51, 4, 8, "59e2f5")
+	rect(38, 52, 2, 4, "ffffff")
+	# Barra fixa / estação de treino à direita.
+	rect(168, 34, 4, 38, INK)
+	rect(192, 34, 4, 38, INK)
+	rect(169, 35, 2, 36, "56657a")
+	rect(193, 35, 2, 36, "56657a")
+	rect(168, 34, 28, 4, INK)
+	rect(169, 35, 26, 2, "8fa8ba")
+
+	# 4. Tapete de treino central, estudante treinando com halteres e colega se exercitando ao lado.
+	_draw_cozy_mat(68, 73, 56, 18, "2c4d63", "3d6e87", "68a3ab")
+	_stamp_32x32_on_art(student_sp, 80, 50)
+	# Halteres firmes nas mãos do estudante (rosca/desenvolvimento).
+	for hx: int in [75, 107]:
+		rect(hx, 61, 8, 6, INK)
+		rect(hx + 1, 62, 2, 4, "56657a")
+		rect(hx + 5, 62, 2, 4, "56657a")
+		rect(hx + 3, 63, 2, 2, "c2d1de")
+	# Kettlebell ao lado do tapete e colega treinando junto.
+	rect(60, 74, 8, 9, INK)
+	rect(61, 77, 6, 5, "414c5e")
+	rect(62, 75, 4, 2, "8fa8ba")
+	_stamp_32x32_on_art(classmate_sp, 134, 49)
 
 
 func _draw_classroom_backdrop(desk_papers: bool, teacher: Image, student_sp: Image, classmate_sp: Image, mates: Array[Image]) -> void:
@@ -3516,12 +3601,7 @@ func generate_cutscene_assets() -> void:
 	_draw_lunch_backdrop(true, ru_cook, student_happy, classmate_f0)
 	save("cutscene_happy_lunch")
 
-	_draw_bus_scene(&"sunset", [
-		{"sprite": comm_pony, "pos": Vector2i(20, 57)},
-		{"sprite": classmate_f0, "pos": Vector2i(134, 57)},
-		{"sprite": comm_mustard, "pos": Vector2i(168, 58)},
-		{"sprite": student_happy, "pos": Vector2i(82, 56), "front": true},
-	])
+	_draw_training_scene(student_happy, classmate_f0)
 	save("cutscene_happy_sunset")
 
 	_draw_bedroom_scene(&"happy_sleep", student_happy)

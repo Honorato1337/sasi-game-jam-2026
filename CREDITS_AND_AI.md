@@ -13,7 +13,7 @@
 | :--- | :--- | :--- | :--- |
 | Fonte **Pixelify Sans** (`Regular` e `Bold`) | Stefie Justprince (Typecalism Foundryline) — Google Fonts / [eifetx/Pixelify-Sans](https://github.com/eifetx/Pixelify-Sans) | SIL Open Font License 1.1 (`OFL-1.1`, cópia em `assets/fonts/OFL.txt`) | Tipografia global do jogo (menus, HUD, diálogos, cutscenes, placas e textos flutuantes) |
 | Poema *"Cansaço"* (`"O que há em mim é sobretudo cansaço —"`, 1934) | Álvaro de Campos (Fernando Pessoa, 1888–1935) / Arquivo Pessoa | Domínio Público | Cutscene de abertura em tela preta após a sequência de rotina (`cutscene_player.gd`) |
-| Poema *"'Hope' is the thing with feathers"* (`"A esperança é a coisa com penas"`, tradução livre em português) | Emily Dickinson (1830–1886); tradução livre original produzida para o jogo | Domínio Público (texto original) | Tela poética final após a vitória e reflexão do protagonista (`cutscene_player.gd`) |
+| Poema *"O Tempo"* (`"A vida é uns deveres que nós trouxemos para fazer em casa..."`) | Mário Quintana | Uso acadêmico/educacional sem fins lucrativos (SASI: Game Jam 2026 — UFAC) | Tela poética final após a vitória e nova rotina equilibrada (`cutscene_player.gd`) |
 
 ## 3. Uso de Ferramentas de Inteligência Artificial (Item 12.4)
 > *"Os participantes deverão informar, no itch.io, a utilização de ferramentas de inteligência artificial na elaboração dos projetos, quando aplicável, indicando sua finalidade e contribuição no desenvolvimento da proposta."*
