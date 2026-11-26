@@ -30,6 +30,8 @@ var ally_active: bool = false
 var in_respite_room: bool = false
 var room: int = 1
 var combo: int = 0
+var breath_count: int = 0
+var care_count: int = 0
 var _rest_delay: float = 0.0
 
 enum SignalLevel { CALM, WARNING, OVERLOAD, EXHAUSTED }
@@ -126,6 +128,28 @@ func complete_breathing() -> void:
 	modify_mind(35.0)
 	modify_rest(25.0)
 	_set_clarity_ready(true)
+
+
+func record_breath() -> void:
+	breath_count += 1
+
+
+func record_care() -> void:
+	care_count += 1
+
+
+func get_journey_profile(won: bool = true) -> String:
+	var reflection: String
+	if breath_count > care_count:
+		reflection = "Você fez da respiração uma pausa para recuperar o foco."
+	elif care_count > breath_count:
+		reflection = "Você buscou recursos e apoio para cuidar de si."
+	elif breath_count > 0:
+		reflection = "Você combinou pausas para respirar com momentos de cuidado."
+	else:
+		reflection = "Respirar e buscar apoio são caminhos para aliviar a rotina."
+	var next_step: String = "Leve esse aprendizado para o próximo dia." if won else "Agora é hora de acolher seus limites e fazer uma pausa."
+	return "%s\n%s" % [reflection, next_step]
 
 
 func consume_clarity_strike() -> bool:
@@ -228,6 +252,8 @@ func get_breathe_duration() -> float:
 
 
 func _reset_run(new_state: GameState) -> void:
+	breath_count = 0
+	care_count = 0
 	max_hp = 100
 	sleep_rank = 0
 	nutrition_rank = 0

@@ -43,6 +43,7 @@ var _end_caption: Label
 var _end_heading: Label
 var _end_message: Label
 var _stats: Label
+var _profile_label: Label
 var _cursor: Label
 var _logo_rect: TextureRect
 var _logo_atlas: AtlasTexture = AtlasTexture.new()
@@ -274,22 +275,24 @@ func _setting_label(y: int, caption: String) -> void:
 
 
 func _build_credits() -> void:
-	_credits_window = _window(268, "CRÉDITOS & SAÚDE")
+	_credits_window = _window(320, "CRÉDITOS & SAÚDE")
 	_centered(_credits_window, 34, 20, "SASI: GAME JAM 2026  •  UFAC", 14, Retro.MINT)
-	_centered(_credits_window, 54, 16,
-			"Equipe: Anna  •  Luiz Fernando  •  Ri Jardim  •  Jackieline", 10, Retro.GOLD)
-	_centered(_credits_window, 72, 34,
+	_centered(_credits_window, 55, 66,
+			"Luiz Fernando - Programador\nAna Souza - Roteiro, Game Design e Artista\n"
+			+ "Jackeline Jansen Medeiros - Roteiro\nRi Maciel - Designer, Sonoplasta",
+			12, Retro.GOLD)
+	_centered(_credits_window, 124, 34,
 			"Arte pixel 32-bit e Bossa Nova procedural originais.\nDesenvolvimento com apoio de Antigravity e OpenAI Codex.",
 			11, Retro.CREAM)
-	_centered(_credits_window, 108, 24,
+	_centered(_credits_window, 160, 24,
 			"Poemas: Álvaro de Campos (Fernando Pessoa)\ne Mário Quintana (\"O Tempo\").",
 			10, Retro.MUTED)
-	Retro.block(_credits_window, Rect2(16, 140, 418, 72), Retro.INK)
-	_centered(_credits_window, 144, 18, "SAÚDE EM JOGO", 12, Retro.GOLD)
-	_centered(_credits_window, 166, 40,
+	Retro.block(_credits_window, Rect2(16, 192, 418, 72), Retro.INK)
+	_centered(_credits_window, 196, 18, "SAÚDE EM JOGO", 12, Retro.GOLD)
+	_centered(_credits_window, 218, 40,
 			"Cuidar também passa por perceber os sinais do corpo,\nrespeitar seus limites e dividir a rotina com quem pode ajudar.",
 			11, Retro.CREAM)
-	_back_button(_credits_window, 230)
+	_back_button(_credits_window, 282)
 
 
 func _build_pause() -> void:
@@ -302,7 +305,7 @@ func _build_pause() -> void:
 
 
 func _build_end() -> void:
-	_end_window = _window(222, "")
+	_end_window = _window(292, "")
 	_end_caption = _centered(_end_window, 8, 16, "", 11, Retro.MINT)
 	Retro.divider(_end_window, Rect2(16, 27, WINDOW_WIDTH - 32, 1))
 	_end_heading = _centered(_end_window, 35, 35, "", 24, Retro.MINT)
@@ -314,8 +317,11 @@ func _build_end() -> void:
 	stats_box.add_theme_stylebox_override(&"panel", Retro.pixel_card_box(Retro.INK, Retro.BEVEL_DARK))
 	Retro.place(stats_box, _end_window, Rect2(16, 124, 418, 28))
 	_stats = _centered(_end_window, 124, 28, "", 12, Retro.GOLD)
-	_action(_end_window, Rect2(16, 172, 236, 31), "JOGAR NOVAMENTE [ENTER]", GameManager.start_new_run)
-	_action(_end_window, Rect2(262, 172, 172, 31), "MENU PRINCIPAL", GameManager.reset_game)
+	_centered(_end_window, 164, 18, "Espelho da Sua Jornada", 14, Retro.MINT)
+	_profile_label = _centered(_end_window, 184, 50, "", 12, Retro.CREAM)
+	_profile_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_action(_end_window, Rect2(16, 242, 236, 31), "JOGAR NOVAMENTE [ENTER]", GameManager.start_new_run)
+	_action(_end_window, Rect2(262, 242, 172, 31), "MENU PRINCIPAL", GameManager.reset_game)
 
 
 func _window(height: int, caption: String) -> Panel:
@@ -675,3 +681,4 @@ func _update_summary(won: bool) -> void:
 		GameManager.get_cycle(), TURN_NAMES[GameManager.get_turn() - 1],
 		GameManager.hp, GameManager.max_hp, GameManager.score, maxi(1, GameManager.combo),
 	]
+	_profile_label.text = GameManager.get_journey_profile(won)

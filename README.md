@@ -99,7 +99,10 @@ godot --headless --path sasi-game-jam-2026 tools/validate_t018.tscn
 
 ## Créditos & Transparência
 
-- **Equipe:** Anna, Luiz Fernando, Ri Jardim e Jackieline.
+- **Luiz Fernando** — Programador
+- **Ana Souza** — Roteiro, Game Design e Artista
+- **Jackeline Jansen Medeiros** — Roteiro
+- **Ri Maciel** — Designer, Sonoplasta
 - **Tipografia:** *Pixelify Sans* (SIL OFL 1.1).
 - **Literatura:** *"Cansaço"* — Álvaro de Campos (Fernando Pessoa); *"O Tempo"* — Mário Quintana.
 - **Desenvolvimento e Uso de IA:** Documentados integralmente em [`CREDITS_AND_AI.md`](CREDITS_AND_AI.md) conforme as regras do edital da **SASI: Game Jam 2026 (UFAC)**.

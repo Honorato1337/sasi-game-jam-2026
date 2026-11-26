@@ -553,10 +553,14 @@ func _on_enemy_defeated(enemy: Enemy) -> void:
 	GameManager.increment_combo()
 	GameManager.add_score(100 * GameManager.combo)
 	AudioManager.play_enemy_defeat()
-	_burst(enemy.position, Enemy.COLORS[enemy.enemy_type], 13)
 	if enemy.is_boss():
+		_hud.show_room_transition("O ESGOTAMENTO ERA UM SINAL  •  HORA DE MUDAR")
+		var climax_color: Color = Color("#fff2a6")
+		_float_text(enemy.position + Vector2(0, -24), "UM NOVO RITMO", climax_color)
+		_burst(enemy.position, climax_color, 32)
 		_finish_boss.call_deferred()
 	else:
+		_burst(enemy.position, Enemy.COLORS[enemy.enemy_type], 13)
 		var golden: bool = (_last_hit_clarity and enemy.position.distance_squared_to(_last_hit_point) <= 64.0) \
 				or GameManager.combo >= 4
 		_last_hit_clarity = false
@@ -840,6 +844,7 @@ func _on_player_hit(_mind_damage: float) -> void:
 
 
 func _on_interacted(station_name: String, feedback: String) -> void:
+	GameManager.record_care()
 	if station_name not in ["Sono Profundo", "Nutrição & Corpo", "Rede de Apoio"]:
 		AudioManager.play_station_care()
 	_float_text(_player.position + Vector2(0, -16), feedback.to_upper(), Color("#afffbb"))
@@ -855,6 +860,7 @@ func _on_pillar_drained(pillar: String) -> void:
 
 
 func _on_breathing_completed() -> void:
+	GameManager.record_breath()
 	_burst(_player.position, Color("#a6f9f2"), 12)
 
 

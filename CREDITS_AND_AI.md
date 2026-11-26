@@ -3,10 +3,10 @@
 > Documento vivo para cumprir os itens **8.3 (IV)** e **12.4** do Edital SASI Nº 01/2026 na página do itch.io.
 
 ## 1. Equipe
-- **Anna**
-- **Luiz Fernando**
-- **Ri Jardim**
-- **Jackieline**
+- **Luiz Fernando** — Programador
+- **Ana Souza** — Roteiro, Game Design e Artista
+- **Jackeline Jansen Medeiros** — Roteiro
+- **Ri Maciel** — Designer, Sonoplasta
 
 ## 2. Assets de Terceiros (Sprites, Fontes, Áudio, Shaders)
 | Asset | Autor / Fonte | Licença | Onde foi usado |
@@ -48,3 +48,4 @@
 | Antigravity (Google) | T-030, remoção dos vibratos, progressão interligada, desafio tático e pilastras/obstáculos 2.5D | Remoção integral dos vibratos musicais e de sobrecarga (`audio_manager.gd`), interligação da tela `HABIT_SELECT` (`habit_terminal.gd`, `game_manager.gd`, `arena.gd`) ao fim dos Ciclos 1 e 2 com evolução dos Pilares, HP máximo, Colega (`ally_support.gd`), estações seladas na 1ª leva (`care_station.gd`), recompensas de maestria (`Combo >= 3/4/5` e Gotas Douradas), escalonamento mais difícil de inimigos/Boss Fase 2 (`enemy_base.gd`, `enemy_projectile.gd`) com zonas de perigo telegrafadas e criação da folha 32-bit `room_props_sheet.png` (`generate_32bit_art.gd`) populando as 9 salas com pilastras e mesas sólidas de colisão, validada no Godot 4.7.2 headless e desktop `1280×720`. |
 | Antigravity (Google) | T-031, Salas de Respiro caminháveis entre ciclos e Turnos de Sobrevivência (28s) | Criação do terraço crepuscular `room_respite.png` e do 5º quadro de pedestal em `room_props_sheet.png` (`generate_32bit_art.gd`), interlúdios caminháveis entre os Ciclos 1–2 e 2–3 (`arena.gd`, `care_station.gd`, `game_manager.gd`, `audio_manager.gd`, `story_dialogues.gd`) com música calma (`&"poem"` / `&"hope"`), diálogo com o Colega, recuperação passiva e escolha física de Hábito via 3 pedestais `[E]`, além de conversão das Salas 5 e 8 em Turnos de Sobrevivência de 28 segundos com cronômetro superior no HUD (`hud.gd`), reposição contínua e dissolução das sombras ao toque do sinal, validada no Godot 4.7.2 headless e desktop `1280×720`. |
 | Antigravity (Google) | T-032, polimento geral, logo/ícone 32-bit, retrato do Colega, áudio tátil e fluidez audiovisual | Criação do logotipo animado em pixel art 32-bit `game_logo.png` (`260×96`, 2 quadros) e ícone opaco `game_icon.png` (`64×64` via `project.godot` + `generate_32bit_art.gd`), enriquecimento de `title_bg.png` e inclusão do retrato do Colega em `cutscene_portraits.png` (`240×48`, 5 quadros); integração do logo, estrelas cadentes, subtítulo dos turnos, fade de subjanelas e dicas atualizadas no menu (`title_end_screens.gd`); retratos expressivos por ciclo/falante com balanço de fala em `story_dialog.gd`; sete novas deixas sonoras sintetizadas (`audio_manager.gd`: hover, impacto normal/clareza, derrota, cura/recarga, coleta dourada, pulso do apoio e bloqueio em pilastra); buffer de entrada de `0.12s`, respiração idle, inclinação, sombra dinâmica e ondas no `[R]` / Clareza em `player.gd`; materialização de spawn, esmagamento ao acerto e aura/explosão da Fase 2 do chefe em `enemy_base.gd`; rastro em projéteis (`enemy_projectile.gd`), onda do aliado (`ally_support.gd`) e banner de transição + resumo de Hábitos `S/N/R` no HUD (`hud.gd` + `arena.gd`), validada no Godot 4.7.2 headless e desktop `1280×720`. |
+| OpenAI Codex | T-033, atualização de créditos, implementação, redação e validação | Créditos da equipe com funções, contagem de respirações e interações de cuidado por partida, textos do Espelho da Sua Jornada e efeitos visuais do clímax do chefe. Validação headless em Godot 4.7.2. |
