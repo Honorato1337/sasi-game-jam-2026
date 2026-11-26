@@ -216,7 +216,7 @@ func _build_help() -> void:
 		var x: int = 16 + (index % 2) * 213
 		var y: int = 36 + floori(index / 2.0) * 27
 		Retro.block(_help_window, Rect2(x, y, 205, 24), Retro.INK)
-		Retro.label(_help_window, Rect2(x + 8, y, 113, 24), controls[index], 12, Retro.GOLD)
+		Retro.label(_help_window, Rect2(x + 8, y, 113, 24), controls[index], 12, Retro.KEY_RED)
 		Retro.label(_help_window, Rect2(x + 121, y, 76, 24), actions[index], 12, Retro.CREAM,
 				HORIZONTAL_ALIGNMENT_RIGHT)
 
@@ -230,7 +230,7 @@ func _build_help() -> void:
 		var y: int = 122 + index * 43
 		Retro.block(_help_window, Rect2(16, y, 418, 38), Retro.INK)
 		Retro.label(_help_window, Rect2(24, y, 88, 38), topics[index], 11, Retro.MINT)
-		Retro.label(_help_window, Rect2(116, y, 310, 38), explanations[index], 11)
+		Retro.rich_label(_help_window, Rect2(116, y, 310, 38), explanations[index], 11)
 	_back_button(_help_window, 260)
 
 

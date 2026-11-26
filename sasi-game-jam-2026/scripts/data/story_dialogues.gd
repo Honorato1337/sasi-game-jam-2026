@@ -7,59 +7,59 @@ extends RefCounted
 
 const SEQUENCES: Dictionary = {
 	"room_1_morning": [
-		{"speaker": "Estudante", "portrait": "student", "text": "Espere... eu entrei mesmo no jogo? Até minha mochila virou armadura."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Esses vultos são completamente pretos... só o peso escuro da manhã."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Antes de enfrentar tudo, preciso beber água. A garrafa está brilhando ali. [E]"},
+		{"speaker": "Estudante", "portrait": "student", "text": "Peraí... eu caí dentro do jogo?! Que viagem é essa, tô até de espada na mão..."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Que vultos são esses no meu quarto? Meu corpo tá pesado demais hoje..."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Tô com a boca seca desde cedo. Melhor beber uma água ali antes de ir. [E]"},
 	],
 	"room_2_afternoon": [
-		{"speaker": "Estudante", "portrait": "student", "text": "O laboratório de tarde... ainda mais vultos negros espalhados entre os prazos."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Um colega está perto da bancada. Posso pedir apoio antes que aperte. [E]"},
+		{"speaker": "Estudante", "portrait": "student", "text": "O lab à tarde... só de olhar pra essas bancadas já bate o peso das entregas."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Ó, tem colega meu ali no canto! Vou pedir uma força antes que eu trave. [E]"},
 	],
 	"classmate_help": [
-		{"speaker": "Colega", "portrait": "classmate", "text": "Respira fundo comigo. Você não precisa carregar tudo sozinho."},
-		{"speaker": "Colega", "portrait": "classmate", "text": "Eu fico por perto enquanto você recupera o fôlego."},
+		{"speaker": "Colega", "portrait": "classmate", "text": "Ei, calma! Respira comigo... você não precisa carregar o semestre nas costas."},
+		{"speaker": "Colega", "portrait": "classmate", "text": "Deixa que eu te ajudo aqui. Fica perto de mim pra esfriar um pouco a cabeça."},
 	],
 	"room_3_night": [
-		{"speaker": "Estudante", "portrait": "student", "text": "Caiu a noite... e mais sombras cercam o apartamento. O dia não acaba."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Se eu equilibrar Corpo, Mente e Descanso, a porta lá em cima se abre."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Já escureceu e minha cabeça continua a mil... parece que esse dia não acaba."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Não adianta só bater. Se eu não cuidar do corpo e descansar, não saio daqui."},
 	],
 	"room_4_c2_morning": [
-		{"speaker": "Estudante", "portrait": "student", "text": "De novo de manhã?! A neblina começou a ceder em volta das sombras..."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Espere... não são monstros. Esse cabelo ruivo e essa mochila..."},
+		{"speaker": "Estudante", "portrait": "student", "text": "De manhã de novo?! Não acredito que voltei pro começo... pera, olha aquilo."},
+		{"speaker": "Estudante", "portrait": "student", "text": "A fumaça tá baixando... esse cabelo ruivo, essa mochila nas costas... sou eu?!"},
 	],
 	"room_5_c2_afternoon": [
-		{"speaker": "Estudante", "portrait": "student", "text": "Outro turno no laboratório. Estou preso nesse ciclo de três tempos."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Preciso aguentar 28 segundos até o sinal tocar sem deixar Corpo e Mente caírem!"},
+		{"speaker": "Estudante", "portrait": "student", "text": "Outra tarde preso no lab... quanto mais eu corro, mais cobrança aparece!"},
+		{"speaker": "Estudante", "portrait": "student", "text": "Não dá pra resolver tudo no grito. Só preciso aguentar firme até bater o sinal!"},
 	],
 	"room_6_c2_night": [
-		{"speaker": "Estudante", "portrait": "student", "text": "Outra madrugada sem descanso. Cada descuido meu se multiplica na sala."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Água, pausa, respiração [R]... ainda dá tempo de quebrar esse ciclo."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Mais uma madrugada em claro... cada descuido meu virou sombra nessa sala."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Um gole d'água, uma pausa, puxar o ar [R]... eu não vou pifar aqui dentro."},
 	],
 	"room_7_c3_morning": [
-		{"speaker": "Estudante", "portrait": "student", "text": "Terceira volta... a escuridão sumiu. Todas as sombras têm o meu rosto."},
-		{"speaker": "Estudante", "portrait": "student", "text": "A negligência multiplicou a minha própria cobrança por todo o quarto."},
+		{"speaker": "Estudante", "portrait": "student", "text": "A fumaça sumiu de vez... olha pra eles. Todos eles têm o meu rosto."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Nunca teve monstro nenhum aqui. Era só eu me cobrando até não sobrar nada."},
 	],
 	"room_8_c3_afternoon": [
-		{"speaker": "Estudante", "portrait": "student", "text": "Última tarde desse ciclo. Não quero continuar fugindo de mim mesmo."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Aguentar 28 segundos cuidando do corpo e da mente — é só até o último sinal!"},
+		{"speaker": "Estudante", "portrait": "student", "text": "Última aula do dia. Chega de me atropelar tentando dar conta de tudo."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Só segurar a onda até o último sinal... dessa vez respeitando o meu limite."},
 	],
 	"room_9_c3_night": [
-		{"speaker": "Estudante", "portrait": "student", "text": "Essa silhueta gigante sou eu... destruído por cada dia sem cuidado."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Corpo, Mente e Descanso. Se eu me equilibrar e respirar [R], encerro isso."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Olha o meu estado... esse gigante aí na frente é tudo que eu engoli calado."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Chega de me deixar pra depois. Vou manter os pilares acesos, respirar [R] e sair!"},
 	],
 	"respite_1": [
-		{"speaker": "Colega", "portrait": "classmate", "text": "Conseguimos sair do primeiro ciclo. Sente o vento aqui fora e respira um pouco."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Tem três cadernos iluminados nos pedestais. Vou escolher um cuidado [E] para seguir."},
+		{"speaker": "Colega", "portrait": "classmate", "text": "Passamos do primeiro aperto. Vem cá, pega um vento aqui fora... sem pressa."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Nossa, eu precisava desse silêncio... Vou anotar uma meta ali no caderno [E]."},
 	],
 	"respite_2": [
-		{"speaker": "Colega", "portrait": "classmate", "text": "Mais uma pausa merecida antes da reta final. Nada te apressa aqui no terraço."},
-		{"speaker": "Estudante", "portrait": "student", "text": "Vou recuperar o fôlego, ajustar meu último hábito [E] e encarar o último ciclo."},
+		{"speaker": "Colega", "portrait": "classmate", "text": "Olha o tanto que você já segurou. Descansa um pouco, ninguém tá te cobrando aqui."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Valeu por ficar comigo. Vou escolher mais um cuidado ali [E] antes de voltar."},
 	],
 	"respite_ally_chat": [
-		{"speaker": "Colega", "portrait": "classmate", "text": "Cuidar de si também faz parte do caminho. Estou com você até o amanhecer."},
+		{"speaker": "Colega", "portrait": "classmate", "text": "A faculdade importa, mas você vem primeiro. Tamo junto até amanhecer!"},
 	],
 	"victory": [
-		{"speaker": "Estudante", "portrait": "student", "text": "O gigante se desfaz em luz... esse tempo todo eu estava lutando contra mim mesmo."},
-		{"speaker": "Estudante", "portrait": "student", "text": "A tela da TV começa a me puxar de volta para o meu quarto..."},
+		{"speaker": "Estudante", "portrait": "student", "text": "Passou... o peso soltou do peito. Eu só precisava parar de brigar comigo mesmo."},
+		{"speaker": "Estudante", "portrait": "student", "text": "A luz da TV tá me chamando... acho que finalmente posso voltar pro meu quarto."},
 	],
 }

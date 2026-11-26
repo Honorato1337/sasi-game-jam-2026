@@ -39,7 +39,7 @@ Para vencer, não basta atacar: é preciso ler e equilibrar os **3 Pilares da Sa
 - **Narrativa em Cutscenes Animadas:**
   - Abertura com 3 semanas da rotina universitária sincronizadas à música e desgaste facial progressivo no retrato `48×48`.
   - Leitura cadenciada de *"Cansaço"* (Álvaro de Campos / Fernando Pessoa) com violão dedilhado.
-  - Entrada pela TV CRT na alucinação e epílogo saindo da tela, reflexão no quarto, retorno à rotina saudável e encerramento com *"A esperança é a coisa com penas"* (Emily Dickinson, tradução livre).
+  - Entrada pela TV CRT na alucinação e epílogo saindo da tela, reflexão no quarto, retorno à rotina saudável e encerramento com *"O Tempo"* (Mário Quintana).
 - **3 Ciclos × 3 Turnos (9 Salas `960×540`):**
   - **Ciclo 1:** Inimigos 100% sombrios, representando o desgaste ainda invisível.
   - **Ciclos 2 e 3:** A névoa se dissipa gradualmente, revelando o próprio rosto do estudante até o **Boss do Burnout** na Sala 9.

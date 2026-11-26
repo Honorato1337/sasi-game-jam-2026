@@ -16,7 +16,8 @@ var _on_finished: Callable
 var _atlas: AtlasTexture = AtlasTexture.new()
 var _portrait_rect: TextureRect
 var _speaker: Label
-var _text: Label
+var _text: RichTextLabel
+var _raw_text: String = ""
 var _continue_arrow: Label
 
 
@@ -37,13 +38,10 @@ func _ready() -> void:
 	_portrait_rect.texture = _atlas
 	Retro.place(_portrait_rect, panel, Rect2(14, 13, 60, 62))
 	_speaker = Retro.label(panel, Rect2(86, 10, 446, 17), "", 13, Retro.GOLD)
-	_text = Retro.label(panel, Rect2(86, 28, 446, 36), "", 13)
-	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_text = Retro.rich_label(panel, Rect2(86, 27, 446, 38), "", 13)
 	_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_text.clip_text = true
-	_text.max_lines_visible = 2
 	_text.visible_characters_behavior = TextServer.VC_CHARS_AFTER_SHAPING
-	Retro.label(panel, Rect2(86, 68, 410, 14), "[ESPAÇO / CLIQUE] Próximo    •    [ESC] Pular", 10, Retro.MUTED)
+	Retro.rich_label(panel, Rect2(86, 68, 410, 14), "[ESPAÇO / CLIQUE] Próximo    •    [ESC] Pular", 10, Retro.MUTED)
 	_continue_arrow = Retro.label(panel, Rect2(500, 67, 32, 15), "▼", 11, Retro.GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
 	_continue_arrow.hide()
 	GameManager.state_changed.connect(_on_state_changed)
@@ -69,7 +67,8 @@ func play_sequence(sequence_id: String, on_finished: Callable = Callable()) -> v
 func _show_line() -> void:
 	var entry: Dictionary = _lines[_index]
 	_speaker.text = entry["speaker"]
-	_text.text = entry["text"]
+	_raw_text = entry["text"]
+	_text.text = Retro.highlight_keys(_raw_text)
 	_text.visible_characters = 0
 	_elapsed = 0.0
 	_letter_count = 0
@@ -95,13 +94,18 @@ func _process(delta: float) -> void:
 	_continue_arrow.visible = not typing
 	if _continue_arrow.visible:
 		_continue_arrow.position.y = 67.0 + roundf(sin(_elapsed * 7.0) * 1.5)
-	var target: int = mini(int(_elapsed * 45.0), _text.text.length())
-	for index: int in range(_text.visible_characters, target):
-		if _text.text[index].to_lower() != _text.text[index].to_upper():
+	var raw_len: int = _raw_text.length()
+	var prev_raw: int = mini(_text.visible_characters, raw_len)
+	var target_raw: int = mini(int(_elapsed * 45.0), raw_len)
+	for index: int in range(prev_raw, target_raw):
+		if _raw_text[index].to_lower() != _raw_text[index].to_upper():
 			_letter_count += 1
 			if _letter_count % 3 == 0:
 				AudioManager.play_voice_blip()
-	_text.visible_characters = maxi(_text.visible_characters, target)
+	if int(_elapsed * 45.0) >= raw_len:
+		_text.visible_characters = _text.text.length()
+	else:
+		_text.visible_characters = maxi(_text.visible_characters, target_raw)
 
 
 func _input(event: InputEvent) -> void:

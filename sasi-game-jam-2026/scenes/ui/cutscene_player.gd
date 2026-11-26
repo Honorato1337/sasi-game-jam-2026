@@ -42,17 +42,17 @@ const HAPPY_SCENE_NAMES: Array[String] = [
 ]
 const HAPPY_TIMES: Array[String] = ["07:00", "07:35", "08:30", "12:15", "17:45", "22:30"]
 const HAPPY_CAPTIONS: Array[String] = [
-	"A rotina continua cedo, mas agora começa bebendo água fresca e respirando fundo.",
-	"O ônibus e o caminho são os mesmos — a diferença é aceitar a rotina sem se cobrar além da conta.",
-	"As aulas e deveres seguem no seu tempo, um passo de cada vez e com água sempre por perto.",
-	"Pausa de verdade no RU com os amigos. Comer bem também faz parte da jornada.",
-	"Fim de tarde reservado para treinar, movimentar o corpo e descarregar a tensão do dia.",
-	"Tela desligada e mente em paz. Dormir bem na hora certa para viver o amanhã sem pressa.",
+	"O despertador ainda toca cedo, mas agora o dia começa com calma e um copo d'água.",
+	"O mesmo busão de sempre — só que sem carregar o peso do mundo na mochila.",
+	"Uma matéria de cada vez, anotando no meu ritmo e sem esquecer da garrafinha.",
+	"Almoço sem pressa no RU, jogando conversa fora com o pessoal da turma.",
+	"Fim de tarde pra suar a camisa, soltar o corpo e deixar o estresse ir embora.",
+	"Celular longe e cabeça tranquila. Amanhã tem mais, e tá tudo bem.",
 ]
 const EXIT_CAPTIONS: Array[String] = [
-	"Saio da tela no susto, ofegante no chão do meu quarto... tudo aquilo foi uma alucinação.",
-	"A rotina não vai desaparecer, mas fui eu quem esqueceu de cuidar de mim dentro dela.",
-	"Beber água, treinar, descansar e dormir bem... aceitar a rotina é aprender a viver em equilíbrio.",
+	"Acordo no susto no tapete do quarto, coração acelerado... eu dormi com o controle na mão?",
+	"A rotina puxada não vai sumir sozinha... mas eu tinha esquecido de mim no meio dela.",
+	"Um copo d'água, um treino, uma noite bem dormida. Um dia de cada vez já basta.",
 ]
 const SCENE_TIMES: Array[Array] = [
 	["06:00", "06:40", "08:00", "12:30", "18:30", "23:30"],
@@ -95,9 +95,9 @@ const CANSACO_LINES: Array[String] = [
 	"Cansaço.",
 ]
 const CONSOLE_CAPTIONS: Array[String] = [
-	"Preciso desligar a cabeça... talvez jogar um pouco ajude a descansar.",
-	"O videogame liga. A luz da tela preenche o quarto escuro...",
-	"E quando percebo... eu entrei dentro do jogo.",
+	"Minha cabeça não para... vou ligar o videogame um pouco pra ver se desligo.",
+	"A TV acende no quarto escuro. Os olhos pesam na frente da tela...",
+	"E num piscar de olhos... parece que a tela me puxou pra dentro.",
 ]
 const HOPE_LINES: Array[String] = [
 	"A vida é uns deveres que nós trouxemos para fazer em casa.",
@@ -141,7 +141,7 @@ var _intro_poem_root: Control
 var _intro_poem_stage: Node2D
 var _intro_poem_labels: Array[Label] = []
 var _intro_poem_author: Label
-var _intro_poem_prompt: Label
+var _intro_poem_prompt: RichTextLabel
 
 var _console_root: Control
 var _console_stage: Node2D
@@ -151,7 +151,7 @@ var _ending_poem_root: Control
 var _ending_stage: Node2D
 var _ending_poem_labels: Array[Label] = []
 var _ending_poem_author: Label
-var _ending_poem_prompt: Label
+var _ending_poem_prompt: RichTextLabel
 
 var _feather_seeds: Array[Vector3] = []
 
@@ -239,7 +239,7 @@ func _build_montage_ui() -> void:
 	_montage_caption = Retro.label(caption_box, Rect2(14, 10, 548, 40), "", 13, Retro.CREAM)
 	_montage_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_montage_caption.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	Retro.label(caption_box, Rect2(14, 56, 548, 16),
+	Retro.rich_label(caption_box, Rect2(14, 56, 548, 16),
 			"[ESPAÇO / CLIQUE] Avançar    •    [ESC] Pular", 10, Retro.MUTED)
 
 
@@ -278,7 +278,7 @@ func _build_intro_poem_ui() -> void:
 			"— Álvaro de Campos (Fernando Pessoa, 1934)", 11, Retro.BEVEL_LIGHT,
 			HORIZONTAL_ALIGNMENT_CENTER, false)
 	_intro_poem_author.modulate.a = 0.0
-	_intro_poem_prompt = Retro.label(_intro_poem_root, Rect2(48, 328, 544, 18),
+	_intro_poem_prompt = Retro.rich_label(_intro_poem_root, Rect2(48, 328, 544, 18),
 			"[ESPAÇO / CLIQUE] Continuar    •    [ESC] Pular", 10, Color("#8f88a6"),
 			HORIZONTAL_ALIGNMENT_CENTER, false)
 
@@ -304,7 +304,7 @@ func _build_console_ui() -> void:
 	_console_caption = Retro.label(box, Rect2(14, 10, 548, 36), "", 13, Retro.CREAM)
 	_console_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_console_caption.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	Retro.label(box, Rect2(14, 50, 548, 16),
+	Retro.rich_label(box, Rect2(14, 50, 548, 16),
 			"[ESPAÇO / CLIQUE] Continuar    •    [ESC] Pular", 10, Retro.MUTED)
 
 
@@ -343,7 +343,7 @@ func _build_ending_poem_ui() -> void:
 	_ending_poem_author = Retro.label(_ending_poem_root, Rect2(32, 260, 428, 18),
 			"— Mário Quintana", 11, Retro.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	_ending_poem_author.modulate.a = 0.0
-	_ending_poem_prompt = Retro.label(_ending_poem_root, Rect2(32, 314, 428, 16),
+	_ending_poem_prompt = Retro.rich_label(_ending_poem_root, Rect2(32, 314, 428, 16),
 			"[ESPAÇO / CLIQUE] Continuar    •    [ESC] Pular", 10, Retro.MUTED,
 			HORIZONTAL_ALIGNMENT_CENTER)
 

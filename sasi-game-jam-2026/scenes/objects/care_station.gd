@@ -7,6 +7,7 @@ signal respite_ally_talked
 enum StationType { WATER_SNACK, REST_SPOT, ROOM_PILLAR, CLASSMATE_NPC, HABIT_ALTAR, RESPITE_ALLY }
 
 const INTERACTION_RADIUS: float = 46.0
+const Retro = preload("res://scenes/ui/retro_window.gd")
 const CLASSMATE_SHEET = preload("res://assets/sprites/classmate_sheet.png")
 const ROOM_PROPS_SHEET = preload("res://assets/sprites/room_props_sheet.png")
 
@@ -177,7 +178,23 @@ func _draw_badge() -> void:
 	_badge.draw_rect(Rect2(box.position + Vector2(2, box.size.y - 2), Vector2(box.size.x - 4, 1)), border_col)
 	_badge.draw_rect(Rect2(box.position + Vector2(1, 2), Vector2(1, box.size.y - 4)), border_col)
 	_badge.draw_rect(Rect2(box.position + Vector2(box.size.x - 2, 2), Vector2(1, box.size.y - 4)), border_col)
-	_badge.draw_string(font, origin, prompt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#fff2ce"))
+	var cursor_x: float = origin.x
+	var idx: int = 0
+	var length: int = prompt.length()
+	while idx < length:
+		var open_idx: int = prompt.find("[", idx)
+		var close_idx: int = prompt.find("]", open_idx + 1) if open_idx != -1 else -1
+		var seg_end: int = length
+		var seg_col: Color = Color("#fff2ce")
+		if open_idx == idx and close_idx != -1:
+			seg_end = close_idx + 1
+			seg_col = Retro.KEY_RED
+		elif open_idx > idx and close_idx != -1:
+			seg_end = open_idx
+		var segment: String = prompt.substr(idx, seg_end - idx)
+		_badge.draw_string(font, Vector2(cursor_x, origin.y), segment, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, seg_col)
+		cursor_x += font.get_string_size(segment, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
+		idx = seg_end
 
 
 func _draw() -> void:

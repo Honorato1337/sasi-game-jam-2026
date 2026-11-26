@@ -20,9 +20,10 @@ void fragment() {
 
 var _meters: Array[ProgressBar] = []
 var _names: Array[Label] = []
-var _alert: Label
+var _alert: RichTextLabel
+var _last_alert: String = ""
 var _room: Label
-var _objective: Label
+var _objective: RichTextLabel
 var _score: Label
 var _ally: Label
 var _breathing: Panel
@@ -53,12 +54,14 @@ func _ready() -> void:
 		var y: int = 6 + index * 14
 		_names.append(Retro.label(vitals, Rect2(8, y, 90, 14), NAMES[index], 10, COLORS[index]))
 		_meters.append(Retro.meter(vitals, Rect2(100, y + 4, 84, 6), COLORS[index]))
-	_alert = Retro.label(vitals, Rect2(8, 63, 176, 13), "", 10, Color("#ff9aab"))
+	_alert = Retro.rich_label(vitals, Rect2(8, 63, 176, 13), "", 10, Color("#ff9aab"))
+	_alert.autowrap_mode = TextServer.AUTOWRAP_OFF
 
 	var info: Panel = Retro.panel(self, Rect2(404, 8, 228, 72), true)
 	_room = Retro.label(info, Rect2(9, 6, 210, 14), "", 10, Retro.CREAM)
 	Retro.divider(info, Rect2(9, 22, 210, 1))
-	_objective = Retro.label(info, Rect2(9, 25, 210, 14), "", 10, Retro.GOLD)
+	_objective = Retro.rich_label(info, Rect2(9, 25, 210, 14), "", 10, Retro.GOLD)
+	_objective.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_score = Retro.label(info, Rect2(9, 39, 210, 14), "", 10, Retro.MUTED)
 	_ally = Retro.label(info, Rect2(9, 53, 210, 14), "", 10, Retro.CREAM)
 
@@ -80,12 +83,14 @@ func _ready() -> void:
 	_banner_box.hide()
 
 	_breathing = Retro.panel(self, Rect2(8, 320, 174, 32), true)
-	Retro.label(_breathing, Rect2(8, 4, 158, 14), "Segure [R] Respirar", 10)
+	var breath_lbl: RichTextLabel = Retro.rich_label(_breathing, Rect2(8, 4, 158, 14), "Segure [R] Respirar", 10)
+	breath_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_breath = Retro.meter(_breathing, Rect2(8, 21, 158, 5), Retro.MINT)
 	_breath.max_value = 1.0
 	_clarity = Retro.panel(self, Rect2(342, 320, 290, 32), true, true)
-	Retro.label(_clarity, Rect2(8, 8, 274, 16), "GOLPE DE CLAREZA PRONTO [ESPAÇO/CLIQUE]",
-			10, Retro.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	var clarity_lbl: RichTextLabel = Retro.rich_label(_clarity, Rect2(8, 8, 274, 16),
+			"GOLPE DE CLAREZA PRONTO [ESPAÇO/CLIQUE]", 10, Retro.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	clarity_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 
 	GameManager.state_changed.connect(_on_state_changed)
 	GameManager.hp_changed.connect(_on_hp_changed)
@@ -113,7 +118,7 @@ func bind_player(player: Player) -> void:
 
 
 func set_objective(message: String) -> void:
-	_objective.text = message
+	_objective.text = Retro.highlight_keys(message)
 
 
 func set_survival_status(active: bool, remaining: float = 0.0, duration: float = 28.0) -> void:
@@ -269,7 +274,9 @@ func _process(delta: float) -> void:
 		status_msg = "LENTIDÃO"
 	elif low:
 		status_msg = "PILAR BAIXO"
-	_alert.text = status_msg
+	if status_msg != _last_alert:
+		_last_alert = status_msg
+		_alert.text = Retro.highlight_keys(status_msg)
 	_alert.modulate.a = 1.0 if blink else 0.62
 	var glow: float = 1.03 + 0.16 * sin(_pulse * TAU)
 	_clarity.modulate = Color(glow, glow, 1.0)

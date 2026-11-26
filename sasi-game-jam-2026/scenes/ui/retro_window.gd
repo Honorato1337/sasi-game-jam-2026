@@ -14,8 +14,10 @@ const BODY: Color = Color("#241c31")
 const BODY_HUD: Color = Color("#1e172ae0")
 const MINT: Color = Color("#81e6c0")
 const GOLD: Color = Color("#f4ba72")
+const KEY_RED: Color = Color("#ff5263")
 
 static var _box_cache: Dictionary[String, StyleBoxTexture] = {}
+static var _key_regex: RegEx
 
 
 static func style(fill: Color, border: Color, width: int = 1) -> StyleBoxFlat:
@@ -224,6 +226,48 @@ static func block(parent: Node, rect: Rect2, color: Color) -> ColorRect:
 	block_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	place(block_rect, parent, rect)
 	return block_rect
+
+
+static func highlight_keys(content: String, key_color: Color = KEY_RED) -> String:
+	if _key_regex == null:
+		_key_regex = RegEx.new()
+		_key_regex.compile("\\[([^\\[\\]]+)\\]")
+	var matches: Array[RegExMatch] = _key_regex.search_all(content)
+	if matches.is_empty():
+		return content
+	var hex: String = key_color.to_html(false)
+	var result: String = ""
+	var cursor: int = 0
+	for hit: RegExMatch in matches:
+		result += content.substr(cursor, hit.get_start() - cursor)
+		result += "[color=#%s][lb]%s[rb][/color]" % [hex, hit.get_string(1)]
+		cursor = hit.get_end()
+	result += content.substr(cursor)
+	return result
+
+
+static func rich_label(parent: Node, rect: Rect2, content: String, font_size: int,
+		color: Color = CREAM, alignment: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT,
+		shadow: bool = true, key_color: Color = KEY_RED) -> RichTextLabel:
+	var caption: RichTextLabel = RichTextLabel.new()
+	caption.bbcode_enabled = true
+	caption.scroll_active = false
+	caption.fit_content = false
+	caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	caption.horizontal_alignment = alignment
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caption.add_theme_stylebox_override(&"normal", StyleBoxEmpty.new())
+	caption.add_theme_font_size_override(&"normal_font_size", font_size)
+	caption.add_theme_font_size_override(&"bold_font_size", font_size)
+	caption.add_theme_color_override(&"default_color", color)
+	if shadow:
+		caption.add_theme_color_override(&"font_shadow_color", Color(0.08, 0.05, 0.12, 0.85))
+		caption.add_theme_constant_override(&"shadow_offset_x", 1)
+		caption.add_theme_constant_override(&"shadow_offset_y", 1)
+	caption.text = highlight_keys(content, key_color)
+	place(caption, parent, rect)
+	return caption
 
 
 static func label(parent: Node, rect: Rect2, content: String, font_size: int,
