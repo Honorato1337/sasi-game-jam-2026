@@ -3025,78 +3025,151 @@ func _draw_bedroom_scene(mode: StringName, student_sp: Image) -> void:
 		potted_plant(182, 52, false)
 
 
-func _draw_training_scene(student_sp: Image, classmate_sp: Image) -> void:
+func _make_sporty_variant(base_happy: Image, hair_dark: String, hair_lit: String,
+		tee_dark: String, tee_lit: String, stripe_hex: String, skin_hi: String,
+		skin_sh: String, flip_x: bool, tuck_arms: bool) -> Image:
+	var sp := Image.create_empty(32, 32, false, Image.FORMAT_RGBA8)
+	sp.blit_rect(base_happy, Rect2i(0, 0, 32, 32), Vector2i.ZERO)
+	# 1. Remove mochila das costas (x <= 7 em y = 14 e x <= 6 em y = 15..23), preservando a coluna INK do dorso.
+	for x in range(0, 8):
+		sp.set_pixel(x, 14, Color(0, 0, 0, 0))
+	for y in range(15, 24):
+		for x in range(0, 7):
+			sp.set_pixel(x, y, Color(0, 0, 0, 0))
+	# 2. Troca casaco escolar pesado por camiseta esportiva leve + tênis claros de treino.
+	for y in range(0, 32):
+		for x in range(0, 32):
+			var c := sp.get_pixel(x, y)
+			if c.a < 0.1:
+				continue
+			if c.is_equal_approx(Color("#9a273e")):
+				sp.set_pixel(x, y, Color("#" + hair_dark))
+			elif c.is_equal_approx(Color("#ec5346")) or c.is_equal_approx(Color("#ff6254")):
+				sp.set_pixel(x, y, Color("#" + hair_lit))
+			elif c.is_equal_approx(Color("#ffd3a1")) or c.is_equal_approx(Color("#ffdfb5")):
+				sp.set_pixel(x, y, Color("#" + skin_hi))
+			elif c.is_equal_approx(Color("#e4a078")):
+				sp.set_pixel(x, y, Color("#" + skin_sh))
+			elif y >= 15 and y <= 22:
+				if c.is_equal_approx(Color("#282833")) or c.is_equal_approx(Color("#414253")):
+					sp.set_pixel(x, y, Color("#" + tee_dark))
+				elif c.is_equal_approx(Color("#565865")) or c.is_equal_approx(Color("#505167")):
+					sp.set_pixel(x, y, Color("#" + tee_lit))
+				elif c.is_equal_approx(Color("#d1c3b1")):
+					sp.set_pixel(x, y, Color("#" + (stripe_hex if y == 18 else tee_lit)))
+			elif y >= 27 and c.is_equal_approx(Color("#505167")):
+				sp.set_pixel(x, y, Color("#dce8f2"))
+	if tuck_arms:
+		# Limpa a mão lateral solta (x = 18..21, y = 18..22) para que os dois braços segurem a barra à frente.
+		for y in range(18, 23):
+			for x in range(18, 22):
+				sp.set_pixel(x, y, Color(0, 0, 0, 0))
+		sp.set_pixel(17, 18, Color(INK))
+		sp.set_pixel(17, 19, Color(INK))
+		sp.set_pixel(17, 20, Color(INK))
+		sp.set_pixel(17, 21, Color(INK))
+	if flip_x:
+		sp.flip_x()
+	return sp
+
+
+func _draw_training_scene(student_sp: Image, _classmate_sp: Image) -> void:
 	const TW: int = 208
 	const TH: int = 103
 	art = Image.create_empty(TW, TH, false, Image.FORMAT_RGBA8)
-	# 1. Céu de fim de tarde dourado sobre o parque/campus com dithering Bayer.
-	var sky_bands: Array[Color] = [
-		Color("2a2142"), Color("593659"), Color("9e5158"),
-		Color("db7e56"), Color("f5b66e"), Color("ffe596"),
-	]
-	var bayer: Array[float] = [0.0, 0.5, 0.75, 0.25]
-	for y in range(0, 52):
-		var ny: float = float(y) / 51.0
-		var level: float = ny * float(sky_bands.size() - 1)
-		var bi: int = mini(int(level), sky_bands.size() - 2)
-		var frac: float = level - float(bi)
-		for x in range(0, TW):
-			var idx: int = bi + (1 if frac > bayer[((x & 1) * 2) + (y & 1)] else 0)
-			art.set_pixel(x, y, sky_bands[idx])
-	# Sol poente suave e nuvens iluminadas.
-	_paint_outlined_circle(art, 168, 24, 11.0, 11.0, Color("ffe89c"), Color("f2a65e"), Color("fff8db"))
-	for cld: Vector3i in [Vector3i(24, 14, 26), Vector3i(82, 18, 32), Vector3i(136, 12, 24)]:
-		rect(cld.x, cld.y, cld.z, 4, "f5b66e")
-		rect(cld.x + 3, cld.y - 2, cld.z - 6, 3, "ffe596")
-	# Silhueta de árvores e blocos do campus ao fundo.
-	for bldg: Vector4i in [Vector4i(10, 32, 24, 20), Vector4i(38, 36, 20, 16), Vector4i(180, 34, 22, 18)]:
-		rect(bldg.x, bldg.y, bldg.z, bldg.w, "2c223d")
-		rect(bldg.x + 4, bldg.y + 4, 3, 3, "ffe091")
-		rect(bldg.x + 11, bldg.y + 4, 3, 3, "ffe091")
-	for tr: Vector3i in [Vector3i(68, 38, 12), Vector3i(118, 36, 14), Vector3i(152, 39, 11)]:
-		_paint_outlined_circle(art, tr.x, tr.y, float(tr.z), float(tr.z) * 0.75,
-				Color("477352"), Color("284538"), Color("76ab72"))
+	art.fill(Color("4f3c52"))
 
-	# 2. Gramado, mureta baixa e pista de treino ao ar livre.
-	rect(0, 50, TW, 3, INK)
-	rect(0, 52, TW, 14, "39634a")
-	rect(0, 53, TW, 4, "52875e")
-	rect(0, 65, TW, 3, INK)
-	rect(0, 67, TW, 36, "7d4b44")
-	rect(0, 68, TW, 4, "996054")
-	for stripe_x in range(8, TW, 22):
-		rect(stripe_x, 84, 12, 2, "b87d68")
+	# 1. Parede de tijolinhos aparentes e lambril da Academia do Campus (mesma linguagem 32-bit das demais salas).
+	masonry(0, 0, TW, 46, false)
+	_draw_wainscot(0, 44, TW, 16, "3b292d", "5c3f42", "7a5656")
 
-	# 3. Banco à esquerda com garrafa d'água e toalha + barras paralelas de calistenia à direita.
-	rect(14, 56, 36, 16, INK)
-	timber(16, 58, 32, 5)
-	timber(16, 64, 32, 4)
-	rect(20, 61, 10, 6, "80f1a8")
-	rect(36, 50, 6, 10, INK)
-	rect(37, 51, 4, 8, "59e2f5")
-	rect(38, 52, 2, 4, "ffffff")
-	# Barra fixa / estação de treino à direita.
-	rect(168, 34, 4, 38, INK)
-	rect(192, 34, 4, 38, INK)
-	rect(169, 35, 2, 36, "56657a")
-	rect(193, 35, 2, 36, "56657a")
-	rect(168, 34, 28, 4, INK)
-	rect(169, 35, 26, 2, "8fa8ba")
+	# 2. Piso emborrachado escuro de academia com placas encaixadas.
+	rect(0, 58, TW, 3, INK)
+	rect(0, 61, TW, 42, "282436")
+	for gy in range(62, TH, 10):
+		rect(0, gy, TW, 1, "332e45")
+		var offset_x: int = ((gy / 10) % 2) * 16
+		for gx in range(-16, TW, 32):
+			rect(gx + offset_x, gy + 1, 31, 8, "2d283d")
+			rect(gx + offset_x, gy + 1, 1, 8, "221e30")
 
-	# 4. Tapete de treino central, estudante treinando com halteres e colega se exercitando ao lado.
-	_draw_cozy_mat(68, 73, 56, 18, "2c4d63", "3d6e87", "68a3ab")
-	_stamp_32x32_on_art(student_sp, 80, 50)
-	# Halteres firmes nas mãos do estudante (rosca/desenvolvimento).
-	for hx: int in [75, 107]:
-		rect(hx, 61, 8, 6, INK)
-		rect(hx + 1, 62, 2, 4, "56657a")
-		rect(hx + 5, 62, 2, 4, "56657a")
-		rect(hx + 3, 63, 2, 2, "c2d1de")
-	# Kettlebell ao lado do tapete e colega treinando junto.
-	rect(60, 74, 8, 9, INK)
-	rect(61, 77, 6, 5, "414c5e")
-	rect(62, 75, 4, 2, "8fa8ba")
-	_stamp_32x32_on_art(classmate_sp, 134, 49)
+	# Luminárias no teto.
+	for lx in [40, 144]:
+		rect(lx, 0, 26, 4, INK)
+		rect(lx + 1, 1, 24, 2, "fff1c2")
+		blend_radial_tint(lx + 13, 10, 28.0, Color("ffe89e"), 0.12)
+
+	# 3. Duas janelas amplas mostrando o pôr do sol dourado do campus lá fora.
+	var sunset_stops: Array[Color] = [Color("493663"), Color("9e5158"), Color("f09f60"), Color("ffe596")]
+	rect(8, 8, 44, 32, INK)
+	_draw_outside_view(10, 10, 40, 28, sunset_stops, false, true)
+	rect(29, 10, 2, 28, INK)
+	rect(10, 23, 40, 2, INK)
+
+	rect(172, 8, 28, 32, INK)
+	_draw_outside_view(174, 10, 24, 28, sunset_stops, false, true)
+	rect(185, 10, 2, 28, INK)
+	rect(174, 23, 24, 2, INK)
+
+	# 4. Grande espelho de parede da academia no centro + relógio marcando fim de tarde.
+	rect(60, 8, 86, 34, INK)
+	timber(61, 9, 84, 32)
+	rect(64, 12, 78, 26, "27394d")
+	rect(64, 12, 78, 2, "3e5873")
+	# Reflexos diagonais sutis no espelho.
+	for d in range(0, 22):
+		rect(74 + d, 14 + d, 4, 1, "3c5670")
+		rect(81 + d, 14 + d, 2, 1, "5c829e")
+		rect(112 + (d / 2), 15 + d, 3, 1, "3c5670")
+	wall_clock(152, 11, 2, -1)
+
+	# 5. Suporte de halteres (rack) à esquerda + banco de apoio e hidratação à direita.
+	rect(10, 48, 38, 22, INK)
+	rect(12, 49, 2, 20, "4a566e")
+	rect(44, 49, 2, 20, "4a566e")
+	rect(12, 53, 34, 3, "394254")
+	rect(12, 62, 34, 3, "394254")
+	for pair_i in range(3):
+		var dx: int = 15 + pair_i * 10
+		var wt_col: String = ["6c7d94", "3d8081", "c7655b"][pair_i]
+		rect(dx, 50, 7, 3, INK)
+		rect(dx + 1, 51, 5, 1, wt_col)
+		rect(dx, 59, 8, 3, INK)
+		rect(dx + 1, 60, 6, 1, wt_col)
+
+	# Banco acolchoado com toalha dobrada e squeeze d'água à direita + planta.
+	rect(158, 66, 32, 12, INK)
+	rect(160, 67, 28, 4, "8a4f53")
+	rect(160, 67, 28, 1, "b36b6f")
+	rect(162, 71, 3, 7, "4a566e")
+	rect(183, 71, 3, 7, "4a566e")
+	rect(163, 65, 9, 4, INK)
+	rect(164, 66, 7, 2, "80f1a8")
+	rect(178, 59, 6, 8, INK)
+	rect(179, 61, 4, 5, "59e2f5")
+	rect(180, 59, 2, 2, "e8ffff")
+	potted_plant(192, 47, false)
+
+	# Feixe suave de sol poente entrando pela janela esquerda.
+	blend_radial_tint(32, 28, 48.0, Color("ffb870"), 0.16)
+
+	# 6. Tapetes de exercício + Estudante e Colega em roupa esportiva (sem mochila e sem halteres duplicados!).
+	_draw_cozy_mat(66, 74, 52, 18, "244257", "35627a", "5c93ab")
+	_draw_cozy_mat(122, 71, 32, 14, "3b2e4d", "524169", "7a6494")
+
+	var sporty_student := _make_sporty_variant(student_sp,
+			"9a273e", "ff6254", "23495d", "38748c", "80f1a8", "ffdfb5", "e4a078", false, true)
+	var sporty_buddy := _make_sporty_variant(student_sp,
+			"56384a", "94687a", "295659", "3d8081", "ffe091", "ffd3a1", "e4a078", true, false)
+
+	# Colega treinando ao fundo no segundo tapete + kettlebell apoiado no chão.
+	_stamp_32x32_on_art(sporty_buddy, 122, 48)
+	rect(56, 76, 8, 9, INK)
+	rect(57, 79, 6, 5, "414c5e")
+	rect(58, 77, 4, 2, "8fa8ba")
+
+	# Estudante centralizado no tapete principal (braços e barra animam ao vivo em cutscene_player.gd!).
+	_stamp_32x32_on_art(sporty_student, 78, 52)
 
 
 func _draw_classroom_backdrop(desk_papers: bool, teacher: Image, student_sp: Image, classmate_sp: Image, mates: Array[Image]) -> void:

@@ -420,6 +420,11 @@ func _check_endings() -> void:
 	await _wait(1.36)
 	_check(_cutscene._scene_idx >= 1, "Rotina feliz avança cenas normalmente")
 	await _capture("cutscene-rotina-feliz")
+	_cutscene._scene_idx = 4
+	_cutscene._refresh_montage_labels()
+	_cutscene._montage_stage.queue_redraw()
+	await _wait(0.18)
+	await _capture("cutscene-treino")
 	await _tap(KEY_SPACE)
 	await _wait(0.08)
 	_check(GameManager.current_state == GameManager.GameState.CUTSCENE

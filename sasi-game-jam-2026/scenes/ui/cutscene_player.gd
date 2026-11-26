@@ -728,20 +728,34 @@ func _draw_montage_scene() -> void:
 					var sy: float = 54.0 - phase * 12.0
 					_montage_stage.draw_rect(Rect2(roundf(sx), roundf(sy), 2, 2), Color(1.0, 0.96, 0.88, (1.0 - phase) * 0.65))
 			4:
-				# Animação de treino com halteres subindo/descendo e brilhos de energia corporal.
-				var lift_y: float = roundf(sin(_elapsed * 4.8) * 2.5)
-				for hx: float in [75.0, 107.0]:
-					_montage_stage.draw_rect(Rect2(hx, 61.0 + lift_y, 8, 6), Retro.INK)
-					_montage_stage.draw_rect(Rect2(hx + 1.0, 62.0 + lift_y, 2, 4), Color("#56657a"))
-					_montage_stage.draw_rect(Rect2(hx + 5.0, 62.0 + lift_y, 2, 4), Color("#56657a"))
-					_montage_stage.draw_rect(Rect2(hx + 3.0, 63.0 + lift_y, 2, 2), Color("#c2d1de"))
-				for sp_i: int in range(4):
-					var st: float = fmod(_elapsed * 1.2 + float(sp_i) * 0.25, 1.0)
-					var spx: float = 78.0 + float(sp_i) * 11.0
-					var spy: float = 52.0 - st * 10.0
-					var scol := Color("#80f1a8" if sp_i % 2 == 0 else "#ffe091")
-					scol.a = sin(st * PI) * 0.82
-					_montage_stage.draw_rect(Rect2(roundf(spx), roundf(spy), 2, 2), scol)
+				# Rosca direta na academia: antebraços conectados aos ombros erguendo a barra com anilhas (sem duplicata!).
+				var curl_t: float = 0.5 - 0.5 * cos(_elapsed * 4.0)
+				var bar_y: float = roundf(lerpf(73.0, 66.0, curl_t))
+				var arm_top: float = 68.0
+				var arm_bot: float = maxf(arm_top + 1.0, bar_y)
+				# Antebraços esquerdo (x=86) e direito (x=94) conectados aos ombros do sprite em (78, 52).
+				for ax: float in [86.0, 94.0]:
+					_montage_stage.draw_rect(Rect2(ax - 1.0, arm_top, 4.0, arm_bot - arm_top + 2.0), Retro.INK)
+					_montage_stage.draw_rect(Rect2(ax, arm_top, 2.0, arm_bot - arm_top + 1.0), Color("#ffdfb5"))
+				# Barra olímpica horizontal.
+				_montage_stage.draw_rect(Rect2(74.0, bar_y, 34.0, 3.0), Retro.INK)
+				_montage_stage.draw_rect(Rect2(75.0, bar_y + 1.0, 32.0, 1.0), Color("#c2d1de"))
+				# Mãos segurando a barra.
+				_montage_stage.draw_rect(Rect2(86.0, bar_y, 2.0, 2.0), Color("#ffdfb5"))
+				_montage_stage.draw_rect(Rect2(94.0, bar_y, 2.0, 2.0), Color("#ffdfb5"))
+				# Anilhas duplas nas duas pontas da barra.
+				for side_x: float in [76.0, 103.0]:
+					_montage_stage.draw_rect(Rect2(side_x, bar_y - 3.0, 3.0, 9.0), Retro.INK)
+					_montage_stage.draw_rect(Rect2(side_x + 1.0, bar_y - 2.0, 1.0, 7.0), Color("#6c7d94"))
+				for outer_x: float in [74.0, 106.0]:
+					_montage_stage.draw_rect(Rect2(outer_x, bar_y - 2.0, 2.0, 7.0), Retro.INK)
+					_montage_stage.draw_rect(Rect2(outer_x, bar_y - 1.0, 1.0, 5.0), Color("#4a566e"))
+				# Haltere firme na mão do colega (x=132..134 em sporty_buddy espelhado em 122, 48).
+				var mate_y: float = roundf(66.0 - curl_t * 2.0)
+				_montage_stage.draw_rect(Rect2(130.0, mate_y, 7.0, 3.0), Retro.INK)
+				_montage_stage.draw_rect(Rect2(131.0, mate_y + 1.0, 1.0, 1.0), Color("#6c7d94"))
+				_montage_stage.draw_rect(Rect2(133.0, mate_y + 1.0, 1.0, 1.0), Color("#ffd3a1"))
+				_montage_stage.draw_rect(Rect2(135.0, mate_y + 1.0, 1.0, 1.0), Color("#6c7d94"))
 			5:
 				for z_idx: int in range(3):
 					var t: float = fmod(_elapsed * 0.55 + float(z_idx) * 0.33, 1.0)
